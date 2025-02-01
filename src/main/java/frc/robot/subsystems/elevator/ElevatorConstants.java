@@ -10,14 +10,19 @@ import com.ctre.phoenix6.signals.GravityTypeValue;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 
+import static edu.wpi.first.units.Units.*;
+
+import edu.wpi.first.units.measure.Distance;
+
 public class ElevatorConstants {
     public static final int kLeftMotorID = 9;
     public static final int kRightMotorID = 10;
 
     public static final int kGearRatio = 60; //TODO: Use correct gear ratio
 
-    public static final double kElevatorMaxHeight = 72; //As measured from the top of the cariage TODO: Use real val
-    public static final double kElevatorMinHeight = 12; //TODO: Use real val
+    public static final Distance kMaxHeight = Inches.of(75.75); //As measured from the top of the cariage 
+    public static final Distance kMinHeight = Inches.of(17.75);
+    public static final Distance kHeightTolerance = Inches.of(.2);
 
     public static final double kStallThresholdAmps = 20;
     public static final double kStallThresholdSeconds = 0.25;
@@ -52,8 +57,8 @@ public class ElevatorConstants {
         control.kS = 0.1;
         control.kV = 0;
 
-        MotionMagicConfigs mm = kConfig.MotionMagic; //TODO: Use correct vals
-        mm.MotionMagicCruiseVelocity = 2; // rotations per second
-        mm.MotionMagicAcceleration = 5; // rotations per second per second
+        MotionMagicConfigs mm = kConfig.MotionMagic; //TODO: Use correct motion magic vals
+        mm.MotionMagicCruiseVelocity = 2; // rotations per second                    //TODO: correct units are inches per second
+        mm.MotionMagicAcceleration = 5; // rotations per second per second           //TODO: correct units are inches per second per second
     }
 }

@@ -8,25 +8,31 @@ import com.ctre.phoenix6.controls.VoltageOut;
 import com.ctre.phoenix6.hardware.ParentDevice;
 import com.ctre.phoenix6.hardware.TalonFX;
 
-import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.MathUtil;
+
+import static edu.wpi.first.units.Units.*;
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Current;
+import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.units.measure.Voltage;
 import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
 import static frc.robot.subsystems.elevator.ElevatorConstants.*;
 
-public class Elevator {
+public class Elevator extends SubsystemBase {
     private TalonFX leftMotor = new TalonFX(kLeftMotorID);
     private TalonFX rightMotor = new TalonFX(kRightMotorID);
 
     private final MotionMagicVoltage mmRequest = new MotionMagicVoltage(0);
     private final VoltageOut voltageRequest = new VoltageOut(0);
 
-    private double targetHeightInches = kElevatorMinHeight;
+    private Distance targetHeight = kMinHeight;
     private boolean isManual = false;
     private double targetVoltage = 0;
 
@@ -49,7 +55,7 @@ public class Elevator {
             rightMotor.setControl(new Follower(leftMotor.getDeviceID(), true));
             if (status.isOK()) break;
         }
-        if (!status.isOK()) DriverStation.reportWarning("Failed applying Arm motor configuration!", false);
+        if (!status.isOK()) DriverStation.reportWarning("Failed applying Elevator motor configuration!", false);
 
         dutyStatus.setUpdateFrequency(100);
         voltageStatus.setUpdateFrequency(100);
@@ -60,6 +66,134 @@ public class Elevator {
 
         SmartDashboard.putData("Elevator/Subsystem", this);
 
-        // resetElevatorInches(kElevatorMinHeight);
+        resetElevatorHeight(kMinHeight.in(Inches)); //TODO: Create method
+    }
+
+    @Override
+    public void periodic() {
+        // Height safety
+        double currentHeightInches = getElevatorHeight(); //TODO: convert to inches?
+        double currentKG = kConfig.Slot0.kG;
+        double adjustedVoltage = targetVoltage + currentKG;
+
+        if (currentHeightInches <= kMinHeight.in(Inches)) {
+            adjustedVoltage = Math.min(currentKG, adjustedVoltage);//TODO: Switch max & min?
+        }
+        if (!isHoming && currentHeightInches >= kMaxHeight.plus(kHeightTolerance).in(Inches) && targetHeight.in(Inches) >= kMinHeight.plus(kHeightTolerance.times(3)).in(Inches)) {
+            adjustedVoltage = Math.max(adjustedVoltage, 0);//TODO: Switch max & min?
+            if (!isManual) { // go limp at bottom height
+                isManual = true;
+                adjustedVoltage = 0;
+            }
+        }
+
+        // Voltage/Position control
+        if (!isManual) {
+            leftMotor.setControl(mmRequest.withPosition(targetHeight.in(Inches)));
+        }
+        else {
+            leftMotor.setControl(voltageRequest.withOutput(adjustedVoltage));
+        }
+
+        // Stall detection
+        if (getCurrent() < kStallThresholdAmps) {
+            lastNonStallTime = Timer.getFPGATimestamp();
+        }
+
+        // //Update mechanism 2D
+        // visualizeState(getArmRotations());
+        // visualizeSetpoint(targetAngle.getRotations());
+
+        log();
+    }
+
+    public double getElevatorHeight() {//TODO: Add Units (Was getArmRotations())
+        return positionStatus.getValueAsDouble();
+    }
+
+    public double getTargetInches() {
+        return targetHeight.in(Inches);
+    }
+
+    public boolean isWithinTolerance() {
+        double error = targetHeight.minus(Inches.of(getElevatorHeight())).in(Inches); //TODO:Correct units for getElevatorHeight()?
+        return Math.abs(error) < kHeightTolerance.in(Inches);
+    }
+
+    public void resetElevatorHeight(double inches){
+        leftMotor.setPosition(inches); //TODO: Convert if necessary
+    }
+
+    public void setVoltage(double volts){
+        isManual = true;
+        targetVoltage = volts;
+    }
+
+    public void setHeight(Distance targetHeight){
+        isManual = false;
+        this.targetHeight = Inches.of(MathUtil.clamp(targetHeight.in(Inches), kMinHeight.in(Inches), kMaxHeight.in(Inches)));
+    }
+
+    public void decreaseHeight(double heightDecreaseInches){
+        isManual = false;
+        this.targetHeight = Inches.of(MathUtil.clamp(targetHeight.in(Inches) - heightDecreaseInches, kMinHeight.in(Inches), getElevatorHeight())); //TODO: Use correct units of getElevatorHeight();
+    }
+
+    public void stop(){ 
+        setVoltage(0);
+    }
+
+    public double getVelocity(){
+        return velocityStatus.getValueAsDouble();
+    }
+
+    public double getCurrent(){
+        return statorStatus.getValueAsDouble();
+    }
+
+    public boolean isStalled(){
+        return (Timer.getFPGATimestamp() - lastNonStallTime) > kStallThresholdSeconds;
+    }
+
+    //---------- Command factories
+
+    /** Sets the elevator voltage and ends immediately. */
+    public Command setVoltageC(double volts) {
+        return runOnce(()->setVoltage(volts));
+    }
+
+    /** Sets the target elevator height and ends when it is within tolerance. */
+    public Command setHeightC(Distance targetHeight){
+        return run(()->setHeight(targetHeight)).until(this::isWithinTolerance);
+    }
+
+    /** Runs the elevator into the base, detecting a current spike and resetting the elevator height. */
+    public Command homingSequenceC(){
+        if(RobotBase.isSimulation()){ return setHeightC(kMinHeight);}
+        return startEnd(
+            () -> {
+                isHoming = true;
+                setVoltage(2); //TODO: Update to correct voltage
+            },
+            () -> {
+                isHoming = false;
+                setVoltage(0);
+                resetElevatorHeight(kMinHeight.in(Inches));
+            }
+        ).until(()->isStalled());
+    }
+
+    public void log() {
+        SmartDashboard.putNumber("Elevator/Elevator Native", leftMotor.getPosition().getValueAsDouble());
+        SmartDashboard.putNumber("Elevator/Elevator Inches", getElevatorHeight());//TODO: Correct unit conversion
+        SmartDashboard.putNumber("Elevator/Elevator Target Inches", targetHeight.in(Inches));
+        SmartDashboard.putNumber("Elevator/Motor Current", getCurrent());
+        SmartDashboard.putBoolean("Elevator/isStalled", isStalled());
+        SmartDashboard.putNumber("Elevator/Motor Voltage", voltageStatus.getValueAsDouble());
+        SmartDashboard.putNumber("Elevator/Motor Target Voltage", targetVoltage);
+        SmartDashboard.putNumber("Elevator/Motor Velocity", getVelocity());
+        SmartDashboard.putBoolean("Elevator/Motor Stalled", isStalled());
+        SmartDashboard.putNumber("Elevator/Time", Timer.getFPGATimestamp());
+    //     SmartDashboard.putData("Elevator/Mech2d", mech);
     }
 }
