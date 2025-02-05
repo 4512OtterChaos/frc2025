@@ -9,8 +9,10 @@ import com.ctre.phoenix6.hardware.ParentDevice;
 import com.ctre.phoenix6.hardware.TalonFX;
 
 import edu.wpi.first.math.MathUtil;
+import edu.wpi.first.math.util.Units;
 
 import static edu.wpi.first.units.Units.*;
+
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Current;
@@ -66,21 +68,24 @@ public class Elevator extends SubsystemBase {
 
         SmartDashboard.putData("Elevator/Subsystem", this);
 
-        resetElevatorHeight(kMinHeight.in(Inches)); //TODO: Create method
+        resetElevatorHeight(kMinHeight.in(Meters)); 
     }
 
     @Override
     public void periodic() {
         // Height safety
-        double currentHeightInches = getElevatorHeight(); //TODO: convert to inches?
+        double currentHeightMeters = getElevatorHeightMeters(); 
         double currentKG = kConfig.Slot0.kG;
         double adjustedVoltage = targetVoltage + currentKG;
 
-        if (currentHeightInches <= kMinHeight.in(Inches)) {
-            adjustedVoltage = Math.min(currentKG, adjustedVoltage);//TODO: Switch max & min?
+        if (currentHeightMeters <= kMinHeight.in(Meters)) {
+            adjustedVoltage = Math.max(currentKG, adjustedVoltage);
         }
-        if (!isHoming && currentHeightInches >= kMaxHeight.plus(kHeightTolerance).in(Inches) && targetHeight.in(Inches) >= kMinHeight.plus(kHeightTolerance.times(3)).in(Inches)) {
-            adjustedVoltage = Math.max(adjustedVoltage, 0);//TODO: Switch max & min?
+        if (currentHeightMeters >= kMaxHeight.in(Meters)) {
+            adjustedVoltage = Math.min(currentKG, adjustedVoltage);
+        }
+        if (!isHoming && (currentHeightMeters <= kMinHeight.plus(kHeightTolerance).in(Meters)) && (targetHeight.in(Meters) <= kMinHeight.plus(kHeightTolerance.times(3)).in(Meters))) {
+            adjustedVoltage = Math.min(adjustedVoltage, 0);
             if (!isManual) { // go limp at bottom height
                 isManual = true;
                 adjustedVoltage = 0;
@@ -89,7 +94,7 @@ public class Elevator extends SubsystemBase {
 
         // Voltage/Position control
         if (!isManual) {
-            leftMotor.setControl(mmRequest.withPosition(targetHeight.in(Inches)));
+            leftMotor.setControl(mmRequest.withPosition(targetHeight.in(Meters))); 
         }
         else {
             leftMotor.setControl(voltageRequest.withOutput(adjustedVoltage));
@@ -107,21 +112,21 @@ public class Elevator extends SubsystemBase {
         log();
     }
 
-    public double getElevatorHeight() {//TODO: Add Units (Was getArmRotations())
+    public double getElevatorHeightMeters() {
         return positionStatus.getValueAsDouble();
     }
 
-    public double getTargetInches() {
-        return targetHeight.in(Inches);
+    public double getTargetMeters() {
+        return targetHeight.in(Meters);
     }
 
     public boolean isWithinTolerance() {
-        double error = targetHeight.minus(Inches.of(getElevatorHeight())).in(Inches); //TODO:Correct units for getElevatorHeight()?
-        return Math.abs(error) < kHeightTolerance.in(Inches);
+        double error = targetHeight.in(Meters) - getElevatorHeightMeters();
+        return Math.abs(error) < kHeightTolerance.in(Meters);
     }
 
-    public void resetElevatorHeight(double inches){
-        leftMotor.setPosition(inches); //TODO: Convert if necessary
+    public void resetElevatorHeight(double meters){
+        leftMotor.setPosition(meters);
     }
 
     public void setVoltage(double volts){
@@ -131,12 +136,12 @@ public class Elevator extends SubsystemBase {
 
     public void setHeight(Distance targetHeight){
         isManual = false;
-        this.targetHeight = Inches.of(MathUtil.clamp(targetHeight.in(Inches), kMinHeight.in(Inches), kMaxHeight.in(Inches)));
+        this.targetHeight = Meters.of(MathUtil.clamp(targetHeight.in(Meters), kMinHeight.in(Meters), kMaxHeight.in(Meters)));
     }
 
-    public void decreaseHeight(double heightDecreaseInches){
+    public void decreaseHeight(double heightDecreaseMeters){
         isManual = false;
-        this.targetHeight = Inches.of(MathUtil.clamp(targetHeight.in(Inches) - heightDecreaseInches, kMinHeight.in(Inches), getElevatorHeight())); //TODO: Use correct units of getElevatorHeight();
+        this.targetHeight = Meters.of(MathUtil.clamp(targetHeight.in(Meters) - heightDecreaseMeters, kMinHeight.in(Meters), getElevatorHeightMeters())); 
     }
 
     public void stop(){ 
@@ -178,14 +183,14 @@ public class Elevator extends SubsystemBase {
             () -> {
                 isHoming = false;
                 setVoltage(0);
-                resetElevatorHeight(kMinHeight.in(Inches));
+                resetElevatorHeight(kMinHeight.in(Meters));
             }
         ).until(()->isStalled());
     }
 
     public void log() {
         SmartDashboard.putNumber("Elevator/Elevator Native", leftMotor.getPosition().getValueAsDouble());
-        SmartDashboard.putNumber("Elevator/Elevator Inches", getElevatorHeight());//TODO: Correct unit conversion
+        SmartDashboard.putNumber("Elevator/Elevator Inches", Units.metersToInches(getElevatorHeightMeters()));
         SmartDashboard.putNumber("Elevator/Elevator Target Inches", targetHeight.in(Inches));
         SmartDashboard.putNumber("Elevator/Motor Current", getCurrent());
         SmartDashboard.putBoolean("Elevator/isStalled", isStalled());

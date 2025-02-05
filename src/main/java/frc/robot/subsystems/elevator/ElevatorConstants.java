@@ -5,6 +5,7 @@ import com.ctre.phoenix6.configs.FeedbackConfigs;
 import com.ctre.phoenix6.configs.MotionMagicConfigs;
 import com.ctre.phoenix6.configs.MotorOutputConfigs;
 import com.ctre.phoenix6.configs.Slot0Configs;
+import com.ctre.phoenix6.configs.SoftwareLimitSwitchConfigs;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.signals.GravityTypeValue;
 import com.ctre.phoenix6.signals.InvertedValue;
@@ -19,6 +20,7 @@ public class ElevatorConstants {
     public static final int kRightMotorID = 10;
 
     public static final int kGearRatio = 9;
+    public static final Distance sprocketPitchDiameter = Inches.of(1.76);
 
     
     public static final Distance kMinHeight = Inches.of(17.75); // As measured from the top of the cariage 
@@ -26,7 +28,7 @@ public class ElevatorConstants {
 
     public static final Distance kL1Height = Inches.of(kMinHeight.in(Inches) + 8); // 8in of travel 
     public static final Distance kL2Height = Inches.of(kMinHeight.in(Inches) + 11.625); // 11 5/8in of travel 
-    public static final Distance kL3Height = Inches.of(kMinHeight.in(Inches) + 27.4375); // 27 + 7/16in of travel 
+    public static final Distance kL3Height = Inches.of(kMinHeight.in(Inches) + 27.4375); // 27 7/16in of travel 
     
     public static final Distance kHeightTolerance = Inches.of(.2);
 
@@ -37,21 +39,22 @@ public class ElevatorConstants {
     public static final TalonFXConfiguration kConfig = new TalonFXConfiguration();
     static {
         FeedbackConfigs feedback = kConfig.Feedback;
-        feedback.SensorToMechanismRatio = kGearRatio;
+        feedback.SensorToMechanismRatio = kGearRatio        *   (Math.PI * sprocketPitchDiameter.in(Meters))  *   2;
+        //          motor rotations  -->  shaft rotations  -->  chain travel                                 -->  carriage travel
 
         MotorOutputConfigs output = kConfig.MotorOutput;
         output.NeutralMode = NeutralModeValue.Brake;
-        output.Inverted = InvertedValue.CounterClockwise_Positive;
+        output.Inverted = InvertedValue.Clockwise_Positive;
 
         CurrentLimitsConfigs current = kConfig.CurrentLimits;
         current.StatorCurrentLimitEnable = true;
         current.StatorCurrentLimit = 40;
 
-        // SoftwareLimitSwitchConfigs limits = kConfig.SoftwareLimitSwitch;//TODO: Software limit switches???
-        // limits.ForwardSoftLimitEnable = true;
-        // limits.ForwardSoftLimitThreshold = kMaxAngle.getRotations();
-        // limits.ReverseSoftLimitEnable = true;
-        // limits.ReverseSoftLimitThreshold = kHomeAngle.getRotations();
+        SoftwareLimitSwitchConfigs limits = kConfig.SoftwareLimitSwitch;
+        limits.ForwardSoftLimitEnable = true;
+        limits.ForwardSoftLimitThreshold = kMaxHeight.in(Meters);
+        limits.ReverseSoftLimitEnable = true;
+        limits.ReverseSoftLimitThreshold = kMinHeight.in(Meters);
 
         Slot0Configs control = kConfig.Slot0; //TODO: Update PID
         control.kP = 30;
@@ -64,7 +67,7 @@ public class ElevatorConstants {
         control.kV = 0;
 
         MotionMagicConfigs mm = kConfig.MotionMagic; //TODO: Use correct motion magic vals
-        mm.MotionMagicCruiseVelocity = 2; // rotations per second                    //TODO: correct units are inches per second
-        mm.MotionMagicAcceleration = 5; // rotations per second per second           //TODO: correct units are inches per second per second
+        mm.MotionMagicCruiseVelocity = 1.5; // meters per second
+        mm.MotionMagicAcceleration = 3.5; // meters per second per second
     }
 }
