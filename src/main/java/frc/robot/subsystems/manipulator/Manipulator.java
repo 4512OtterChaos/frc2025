@@ -122,6 +122,10 @@ public class Manipulator extends SubsystemBase{
         return run(()->setVelocity(-30));
     }
 
+    public Command holdCoralC(){
+        return run(()->setVelocity(0));
+    }
+
     public void log() {
         SmartDashboard.putNumber("Intake/Motor Voltage", voltageStatus.getValueAsDouble());
         SmartDashboard.putNumber("Intake/Motor Current", getCurrent());
