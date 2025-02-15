@@ -21,6 +21,7 @@ import static frc.robot.subsystems.manipulator.ManipulatorConstants.*;
 
 public class Manipulator extends SubsystemBase{
     private TalonFX motor = new TalonFX(kMotorID);
+    //TODO: Add sensor and use sensor for methods
     
     private SimpleMotorFeedforward ff = new SimpleMotorFeedforward(kConfig.Slot0.kS, kConfig.Slot0.kV);
     private PIDController PID = new PIDController(kConfig.Slot0.kP, kConfig.Slot0.kI, kConfig.Slot0.kD);

@@ -13,6 +13,7 @@ import com.ctre.phoenix6.signals.NeutralModeValue;
 
 import static edu.wpi.first.units.Units.*;
 
+import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.Distance;
 
 public class ElevatorConstants {
@@ -31,6 +32,7 @@ public class ElevatorConstants {
     public static final Distance kL3Height = Inches.of(kMinHeight.in(Inches) + 27.4375); // 27 7/16in of travel 
     
     public static final Distance kHeightTolerance = Inches.of(.2);
+    public static final Angle kTipAngleTolerance = Degrees.of(10);
 
     public static final double kStallThresholdAmps = 20;
     public static final double kStallThresholdSeconds = 0.25;
