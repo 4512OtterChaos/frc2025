@@ -172,6 +172,26 @@ public class Elevator extends SubsystemBase {
         return run(()->setHeight(targetHeight)).until(this::isWithinTolerance);
     }
 
+    /** Sets the target elevator height to the L1 height and ends when it is within tolerance. */
+    public Command setL1C(){
+        return setHeightC(ElevatorConstants.kL1Height);
+    }
+
+    /** Sets the target elevator height to the L2 height and ends when it is within tolerance. */
+    public Command setL2C(){
+        return setHeightC(ElevatorConstants.kL2Height);
+    }
+
+    /** Sets the target elevator height to the L3 height and ends when it is within tolerance. */
+    public Command setL3C(){
+        return setHeightC(ElevatorConstants.kL3Height);
+    }
+
+    /** Sets the target elevator height to the L4 height and ends when it is within tolerance. */
+    public Command setL4C(){
+        return setHeightC(ElevatorConstants.kMaxHeight);
+    }
+
     /** Runs the elevator into the base, detecting a current spike and resetting the elevator height. */
     public Command homingSequenceC(){
         if(RobotBase.isSimulation()){ return setHeightC(kMinHeight);}

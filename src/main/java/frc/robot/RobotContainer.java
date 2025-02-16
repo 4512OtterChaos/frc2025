@@ -98,9 +98,26 @@ public class RobotContainer {
         controller.povLeft().whileTrue(drivetrain.applyRequest(()->orient.withTargetDirection(Rotation2d.kCW_90deg)));
         controller.povRight().whileTrue(drivetrain.applyRequest(()->orient.withTargetDirection(Rotation2d.kCCW_90deg)));
         controller.povDown().whileTrue(drivetrain.applyRequest(()->orient.withTargetDirection(Rotation2d.k180deg)));
+
+        // Run SysId routines when holding back/start and X/Y.
+        // Note that each routine should be run exactly once in a single log.
+        // driver.back().and(driver.y()).whileTrue(drivetrain.sysIdDynamic(Direction.kForward));
+        // driver.back().and(driver.x()).whileTrue(drivetrain.sysIdDynamic(Direction.kReverse));
+        // driver.start().and(driver.y()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kForward));
+        // driver.start().and(driver.x()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kReverse));
+
+
+        // drivetrain.registerTelemetry(logger::telemeterize);
+        drivetrain.registerTelemetry((state) ->logger.telemeterize(state));
   }
 
   private void configureOperatorBindings(OCXboxController controller) {
+    // ELEVATOR COMMANDS
+    controller.a().onTrue(elevator.setL1C());
+    controller.x().onTrue(elevator.setL2C());
+    controller.y().onTrue(elevator.setL3C());
+    controller.b().onTrue(elevator.setL4C());
+
 
   }
 
