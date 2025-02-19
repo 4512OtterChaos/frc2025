@@ -10,6 +10,7 @@ import com.ctre.phoenix6.signals.NeutralModeValue;
 
 public class ManipulatorConstants {
     public static int kMotorID = 5;
+    public static int kSensorID = 1;
 
     public static int kGearRatio = 3;
 

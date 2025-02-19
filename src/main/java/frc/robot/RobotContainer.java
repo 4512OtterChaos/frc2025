@@ -108,7 +108,7 @@ public class RobotContainer {
 
 
         // drivetrain.registerTelemetry(logger::telemeterize);
-        drivetrain.registerTelemetry((state) ->logger.telemeterize(state));
+        // drivetrain.registerTelemetry((state) ->logger.telemeterize(state));
   }
 
   private void configureOperatorBindings(OCXboxController controller) {
