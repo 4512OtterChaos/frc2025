@@ -1,5 +1,7 @@
 package frc.robot.subsystems.manipulator;
 
+import static edu.wpi.first.units.Units.*;
+
 import com.ctre.phoenix6.configs.CurrentLimitsConfigs;
 import com.ctre.phoenix6.configs.FeedbackConfigs;
 import com.ctre.phoenix6.configs.MotorOutputConfigs;
@@ -8,12 +10,22 @@ import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 
+import au.grapplerobotics.interfaces.LaserCanInterface.RangingMode;
+import au.grapplerobotics.interfaces.LaserCanInterface.RegionOfInterest;
+import au.grapplerobotics.interfaces.LaserCanInterface.TimingBudget;
+import edu.wpi.first.units.measure.Distance;
+
 public class ManipulatorConstants {
     public static int kMotorID = 5;
     public static int kSensorID = 1;
 
     public static int kGearRatio = 3;
 
+    public static RangingMode rangingMode = RangingMode.SHORT;
+    public static RegionOfInterest regionOfInterest = new RegionOfInterest(8, 8, 16, 16);
+    public static TimingBudget timingBudget = TimingBudget.TIMING_BUDGET_33MS;
+
+    public static final Distance kSensorMaxCoralDist = Inches.of(2);
 
     public static final int kMotorStallLimit = 40;
 

@@ -44,12 +44,12 @@ public class Superstructure {
         );
     }
 
-    public Command outtake(){
-        return sequence(
-            elevator.setHeightC(ElevatorConstants.kMinHeight).withTimeout(0.75).unless(()->elevator.getElevatorHeightMeters() <= ElevatorConstants.kMinHeight.in(Inches)),
-            manipulator.setVoltageOutC()
-        );
-    }
+    // public Command outtake(){
+    //     return sequence(
+    //         elevator.setHeightC(ElevatorConstants.kMinHeight).withTimeout(0.75).unless(()->elevator.getElevatorHeightMeters() <= ElevatorConstants.kMinHeight.in(Inches)),
+    //         manipulator.setVoltageOutC()
+    //     );
+    // }
 
     public Command chooseScorePoint(){//TODO:Just like make it work/do it
         return sequence(

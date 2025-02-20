@@ -5,12 +5,16 @@ import com.ctre.phoenix6.StatusSignal;
 import com.ctre.phoenix6.hardware.ParentDevice;
 import com.ctre.phoenix6.hardware.TalonFX;
 
+import au.grapplerobotics.ConfigurationFailedException;
 import au.grapplerobotics.LaserCan;
+import au.grapplerobotics.interfaces.LaserCanInterface.RegionOfInterest;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.controller.SimpleMotorFeedforward;
+import edu.wpi.first.units.Units.*;
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Current;
+import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.units.measure.Voltage;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Timer;
@@ -18,16 +22,18 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 
+import static edu.wpi.first.units.Units.Millimeters;
+import static edu.wpi.first.wpilibj2.command.Commands.sequence;
 import static frc.robot.subsystems.manipulator.ManipulatorConstants.*;
 
 public class Manipulator extends SubsystemBase{
     private TalonFX motor = new TalonFX(kMotorID);
-    //TODO: Add sensor and use sensor for methods
+
+    private LaserCan sensor = new LaserCan(kSensorID);
+    //TODO: Use sensor for methods
     
     private SimpleMotorFeedforward ff = new SimpleMotorFeedforward(kConfig.Slot0.kS, kConfig.Slot0.kV);
     private PIDController PID = new PIDController(kConfig.Slot0.kP, kConfig.Slot0.kI, kConfig.Slot0.kD);
-
-    private LaserCan sensor = new LaserCan(kSensorID);
 
     boolean isManual = true;
     
@@ -47,6 +53,14 @@ public class Manipulator extends SubsystemBase{
             if (status.isOK()) break;
         }
         if (!status.isOK()) DriverStation.reportWarning("Failed applying Manipulator motor configuration!", false);
+
+        try {
+            sensor.setRangingMode(LaserCan.RangingMode.SHORT);
+            sensor.setRegionOfInterest(new LaserCan.RegionOfInterest(8, 8, 16, 16));
+            sensor.setTimingBudget(LaserCan.TimingBudget.TIMING_BUDGET_33MS);
+        } catch (ConfigurationFailedException e) {
+            System.out.println("Configuration failed! " + e);
+        }
 
         dutyStatus.setUpdateFrequency(100);
         voltageStatus.setUpdateFrequency(100);
@@ -81,10 +95,6 @@ public class Manipulator extends SubsystemBase{
         PID.setSetpoint(floorRPM);
     }
 
-    public boolean isStalled(){
-        return Timer.getFPGATimestamp() >= (lastFreeTime + kStallTime);
-    }
-
     public double getVelocity(){
         return velocityStatus.getValueAsDouble();
     }
@@ -93,16 +103,34 @@ public class Manipulator extends SubsystemBase{
         return statorStatus.getValueAsDouble();
     }
 
+    public boolean isStalled(){
+        return Timer.getFPGATimestamp() >= (lastFreeTime + kStallTime);
+    }
+
+    public Distance coralDist(){
+        return Millimeters.of(sensor.getMeasurement().distance_mm);
+    }
+
+    public boolean coralSensed(){
+        if (coralDist().in(Millimeters) <= kSensorMaxCoralDist.in(Millimeters)){
+            return true;
+        }
+        return false;
+    }
+
     public Command setVoltageC(double voltage){
         return run(()->setVoltage(voltage));
     }
 
     /**
      * 
-     * @return A command that sets an intaking voltage.
+     * @return A command that sets an intaking voltage until the coral has fully passed the sensor.
      */
     public Command setVoltageInC(){
-        return run(()->setVoltage(1.75)).until(()->isStalled());
+        return sequence(
+            run(()->setVoltage(1.75)).until(()->coralSensed()),
+            run(()->setVoltage(1.25)).until(()->!coralSensed())
+        );
     }
 
     /**
