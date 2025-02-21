@@ -4,15 +4,19 @@ import edu.wpi.first.wpilibj2.command.Command;
 
 import static edu.wpi.first.units.Units.*;
 import static edu.wpi.first.wpilibj2.command.Commands.*;
-import static frc.robot.subsystems.elevator.ElevatorConstants.kMinHeight;
 
+import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Transform2d;
+import edu.wpi.first.math.geometry.Translation2d;
+import edu.wpi.first.math.util.Units;
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.Distance;
 import frc.robot.subsystems.drivetrain.CommandSwerveDrivetrain;
 import frc.robot.subsystems.elevator.Elevator;
 import frc.robot.subsystems.elevator.ElevatorConstants;
 import frc.robot.subsystems.manipulator.Manipulator;
+import static frc.robot.util.FieldUtil.*;
 import frc.robot.util.OCXboxController;
 
 
@@ -29,6 +33,20 @@ public class Superstructure {
         this.elevator = elevator;
         this.driver = driver;
     }
+
+    
+    public static final Distance kRobotWidth = Meters.of(33.875);
+
+    public static final Translation2d kCoralScorePoseFar = new Translation2d(kReefWidth.plus(kRobotWidth.div(2)).in(Meters), kReefPoleDist.div(2).in(Meters));
+
+    public static final Pose2d[] kCoralScoringPositions = {
+        kCoralScorePoseFar,
+        kCoralScorePoseFar.rotateAround(kReefTrl, Rotation2d.fromDegrees(60)),
+        ,
+        ,
+        ,
+
+    };
 
     public void periodic() {
         if (!(elevator.getElevatorHeightMeters() <= ElevatorConstants.kMinHeight.plus(ElevatorConstants.kHeightTolerance).in(Meters))){
@@ -75,7 +93,7 @@ public class Superstructure {
         double angleTolerance = ElevatorConstants.kTipAngleTolerance.in(Radians);
 
         if ((rollRadians >= angleTolerance) || (pitchRadians >= angleTolerance)){
-            elevator.setHeightC(kMinHeight);
+            elevator.setHeightC(ElevatorConstants.kMinHeight);
         }
     }
 }
