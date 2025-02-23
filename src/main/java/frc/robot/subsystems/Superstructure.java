@@ -102,14 +102,15 @@ public class Superstructure {
     // }
 
     public Command driveToScorePoint(){//TODO:Just like make it work/do it
-        Pose2d target =   .nearest(kCoralScoringPositions);
+        Pose2d current = drive.getState().Pose;
+        Pose2d target = current.nearest(kCoralScoringPositions);
 
         SwerveRequest.ApplyRobotSpeeds robotSpeeds = new SwerveRequest.ApplyRobotSpeeds()
             // .withDeadband(MaxSpeed * 0.05).withRotationalDeadband(MaxAngularRate * 0.05) // Add a 10% deadband
             .withDriveRequestType(DriveRequestType.OpenLoopVoltage); // Use open-loop control for drive motors //TODO: Is this right?
         
         
-        return drive.applyRequest(()->chassisSpeedsToPose(drive., target));
+        return drive.applyRequest(()->robotSpeeds.withSpeeds(chassisSpeedsToPose(current, target)));
     }
 
     public ChassisSpeeds chassisSpeedsToPose(Pose2d currentPose, Pose2d targetPose){

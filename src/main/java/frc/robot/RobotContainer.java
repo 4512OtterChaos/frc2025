@@ -6,6 +6,7 @@ package frc.robot;
 
 import com.ctre.phoenix6.swerve.SwerveRequest;
 import com.ctre.phoenix6.swerve.utility.PhoenixPIDController;
+import com.ctre.phoenix6.hardware.ParentDevice;
 import com.ctre.phoenix6.hardware.traits.CommonTalon;
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 
@@ -61,7 +62,7 @@ public class RobotContainer {
     setSwerveUpdateFrequency(drivetrain.getModule(2).getSteerMotor());
     setSwerveUpdateFrequency(drivetrain.getModule(3).getDriveMotor());
     setSwerveUpdateFrequency(drivetrain.getModule(3).getSteerMotor());
-    // ParentDevice.optimizeBusUtilizationForAll(drivetrain.getModule(0).getDriveMotor(), drivetrain.getModule(0).getSteerMotor(), drivetrain.getModule(1).getDriveMotor(), drivetrain.getModule(1).getSteerMotor(), drivetrain.getModule(2).getDriveMotor(), drivetrain.getModule(2).getSteerMotor(), drivetrain.getModule(3).getDriveMotor(), drivetrain.getModule(3).getSteerMotor());
+    ParentDevice.optimizeBusUtilizationForAll(drivetrain.getModule(0).getDriveMotor(), drivetrain.getModule(0).getSteerMotor(), drivetrain.getModule(1).getDriveMotor(), drivetrain.getModule(1).getSteerMotor(), drivetrain.getModule(2).getDriveMotor(), drivetrain.getModule(2).getSteerMotor(), drivetrain.getModule(3).getDriveMotor(), drivetrain.getModule(3).getSteerMotor());
     
     orient.HeadingController = new PhoenixPIDController(7, 0, 0.1);
   }
@@ -107,7 +108,7 @@ public class RobotContainer {
         // driver.start().and(driver.x()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kReverse));
 
 
-        // drivetrain.registerTelemetry(logger::telemeterize);
+        drivetrain.registerTelemetry(logger::telemeterize);
         // drivetrain.registerTelemetry((state) ->logger.telemeterize(state));
   }
 
