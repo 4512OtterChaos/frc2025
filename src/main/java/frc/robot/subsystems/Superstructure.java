@@ -1,6 +1,7 @@
 package frc.robot.subsystems;
 
 import static edu.wpi.first.units.Units.*;
+import static edu.wpi.first.wpilibj2.command.Commands.run;
 import static edu.wpi.first.wpilibj2.command.Commands.sequence;
 import static frc.robot.util.FieldUtil.kReefPoleDist;
 import static frc.robot.util.FieldUtil.kReefTrl;
@@ -50,6 +51,10 @@ public class Superstructure {
 
     
     public static final Distance kRobotWidth = Meters.of(33.875);
+
+    SwerveRequest.ApplyRobotSpeeds robotSpeeds = new SwerveRequest.ApplyRobotSpeeds()
+        // .withDeadband(MaxSpeed * 0.05).withRotationalDeadband(MaxAngularRate * 0.05) // Add a 10% deadband
+        .withDriveRequestType(DriveRequestType.OpenLoopVoltage); // Use open-loop control for drive motors //TODO: Is this right?
 
     public static final Translation2d kCoralScoreLeftPoseTemplate = new Translation2d(
         kReefTrl.getX() - (kReefWidth.div(2).plus(kRobotWidth.div(2)).in(Meters)),
@@ -102,18 +107,13 @@ public class Superstructure {
     // }
 
     public Command driveToScorePoint(){//TODO:Just like make it work/do it
-        Pose2d current = drive.getState().Pose;
-        Pose2d target = current.nearest(kCoralScoringPositions);
-
-        SwerveRequest.ApplyRobotSpeeds robotSpeeds = new SwerveRequest.ApplyRobotSpeeds()
-            // .withDeadband(MaxSpeed * 0.05).withRotationalDeadband(MaxAngularRate * 0.05) // Add a 10% deadband
-            .withDriveRequestType(DriveRequestType.OpenLoopVoltage); // Use open-loop control for drive motors //TODO: Is this right?
-        
-        
-        return drive.applyRequest(()->robotSpeeds.withSpeeds(chassisSpeedsToPose(current, target)));
+        return drive.applyRequest(()->robotSpeeds.withSpeeds(chassisSpeedsToScorePoint()));
     }
 
-    public ChassisSpeeds chassisSpeedsToPose(Pose2d currentPose, Pose2d targetPose){
+    private ChassisSpeeds chassisSpeedsToScorePoint(){    
+        Pose2d currentPose = drive.getState().Pose;
+        Pose2d targetPose = currentPose.nearest(kCoralScoringPositions);
+
         double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // kSpeedAt12Volts desired top speed
         double MaxAngularRate = RotationsPerSecond.of(1.5).in(RadiansPerSecond); // 1.5 rotations per second max angular velocity
         double MaxAngularAcceleration = RotationsPerSecondPerSecond.of(3).in(RadiansPerSecondPerSecond);
@@ -126,9 +126,8 @@ public class Superstructure {
 
         HolonomicDriveController driveController = new HolonomicDriveController(xController, xController, thetaController);
         driveController.setTolerance(new Pose2d(.1,.1, Rotation2d.fromDegrees(3)));
-        
-        driveController.calculate(currentPose, targetPose, MaxSpeed, targetPose.getRotation());
 
+    
         return driveController.calculate(currentPose, targetPose, MaxSpeed, targetPose.getRotation()); 
     }
 
