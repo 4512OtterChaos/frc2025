@@ -6,6 +6,10 @@ package frc.robot;
 
 import com.ctre.phoenix6.swerve.SwerveRequest;
 import com.ctre.phoenix6.swerve.utility.PhoenixPIDController;
+
+import choreo.auto.AutoChooser;
+import choreo.auto.AutoFactory;
+
 import com.ctre.phoenix6.hardware.ParentDevice;
 import com.ctre.phoenix6.hardware.traits.CommonTalon;
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
@@ -13,8 +17,9 @@ import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import static edu.wpi.first.units.Units.*;
 
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.Commands;
+import frc.robot.auto.AutoRoutines;
 import frc.robot.subsystems.Superstructure;
 import frc.robot.subsystems.drivetrain.CommandSwerveDrivetrain;
 import frc.robot.subsystems.drivetrain.Telemetry;
@@ -48,9 +53,19 @@ public class RobotContainer {
   private OCXboxController operator = new OCXboxController(1);
 
   public final Superstructure superstructure = new Superstructure(drivetrain, logger, manipulator, elevator, driver);
-
-
+  
+  /* Path follower */
+  private final AutoFactory autoFactory;
+  private final AutoRoutines autoRoutines;
+  private final AutoChooser autoChooser = new AutoChooser();
+  
   public RobotContainer() {
+    autoFactory = drivetrain.createAutoFactory();
+    autoRoutines = new AutoRoutines(autoFactory);
+    
+    autoChooser.addRoutine("SimplePath", autoRoutines::simplePathAuto);
+    SmartDashboard.putData("Auto Chooser", autoChooser);
+    
     configureDriverBindings(driver);
     configureOperatorBindings(driver);
     configureOperatorBindings(operator);
@@ -124,7 +139,8 @@ public class RobotContainer {
   }
 
   public Command getAutonomousCommand() {
-    return Commands.print("No autonomous command configured");
+    /* Run the routine selected from the auto chooser */
+    return autoChooser.selectedCommand();
   }
 
   public void periodic() {
