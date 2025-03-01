@@ -64,8 +64,10 @@ public class RobotContainer {
     
     public RobotContainer() {
         autoFactory = drivetrain.createAutoFactory();
-        autoRoutines = new AutoRoutines(autoFactory);
+        autoRoutines = new AutoRoutines(autoFactory, drivetrain, elevator, manipulator);
         
+        autoChooser.addCmd("TaxiAuto", autoRoutines::taxiAuto);
+        autoChooser.addCmd("Middle1Coral", autoRoutines::middle1Coral);
         autoChooser.addRoutine("SimplePath", autoRoutines::simplePathAuto);
         SmartDashboard.putData("Auto Chooser", autoChooser);
         
