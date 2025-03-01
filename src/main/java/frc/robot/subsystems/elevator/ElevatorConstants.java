@@ -27,11 +27,12 @@ public class ElevatorConstants {
     public static final Distance kMinHeight = Inches.of(17.75); // As measured from the top of the cariage 
     public static final Distance kMaxHeight = Inches.of(kMinHeight.in(Inches) + 58); // 58in of travel
 
-    public static final Distance kL1Height = Inches.of(kMinHeight.in(Inches) + 8); // 8in of travel 
-    public static final Distance kL2Height = Inches.of(kMinHeight.in(Inches) + 11.625); // 11 5/8in of travel 
-    public static final Distance kL3Height = Inches.of(kMinHeight.in(Inches) + 27.4375); // 27 7/16in of travel 
+    public static final Distance kL1Height = Inches.of(kMinHeight.in(Inches) + 8);
+    public static final Distance kL2Height = Inches.of(kMinHeight.in(Inches) + 12);
+    public static final Distance kL3Height = Inches.of(kMinHeight.in(Inches) + 28);
+    public static final Distance kL4Height = kMaxHeight;
     
-    public static final Distance kHeightTolerance = Inches.of(.2);
+    public static final Distance kHeightTolerance = Inches.of(0.5);
     public static final Angle kTipAngleTolerance = Degrees.of(10);
 
     public static final double kStallThresholdAmps = 20;

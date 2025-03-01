@@ -10,6 +10,7 @@ import au.grapplerobotics.LaserCan;
 import au.grapplerobotics.interfaces.LaserCanInterface.RegionOfInterest;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.controller.SimpleMotorFeedforward;
+import edu.wpi.first.units.Measure;
 import edu.wpi.first.units.Units.*;
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.AngularVelocity;
@@ -22,12 +23,13 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
+import frc.robot.util.TunableNumber;
 
 import static edu.wpi.first.units.Units.Millimeters;
 import static edu.wpi.first.wpilibj2.command.Commands.sequence;
 import static frc.robot.subsystems.manipulator.ManipulatorConstants.*;
 
-public class Manipulator extends SubsystemBase{
+public class Manipulator extends SubsystemBase {
     private TalonFX motor = new TalonFX(kMotorID);
 
     private LaserCan sensor = new LaserCan(kSensorID);
@@ -39,13 +41,16 @@ public class Manipulator extends SubsystemBase{
     boolean isManual = true;
     
     double lastFreeTime = Timer.getFPGATimestamp();
-    double lastSenseTime = Timer.getFPGATimestamp();
 
     private final StatusSignal<Double> dutyStatus = motor.getDutyCycle();
     private final StatusSignal<Voltage> voltageStatus = motor.getMotorVoltage();
     private final StatusSignal<Angle> positionStatus = motor.getPosition();
     private final StatusSignal<AngularVelocity> velocityStatus = motor.getVelocity();
     private final StatusSignal<Current> statorStatus = motor.getStatorCurrent();
+
+    // Tunable numbers
+    private final TunableNumber intakeVoltage = new TunableNumber("Coral/intakeVoltage", kIntakeVoltage);
+    private final TunableNumber outtakeVoltage = new TunableNumber("Coral/outtakeVoltage", kScoreVoltage);
     
     public Manipulator(){
         // try applying motor configs
@@ -71,18 +76,20 @@ public class Manipulator extends SubsystemBase{
         statorStatus.setUpdateFrequency(50);
         ParentDevice.optimizeBusUtilizationForAll(motor);
 
-        SmartDashboard.putData("Intake/Subsystem", this);
+        SmartDashboard.putData("Coral/Subsystem", this);
     }
 
-    // @Override
+    @Override
     public void periodic() {
-        if(!isManual) {
-            motor.setVoltage(ff.calculate(PID.getSetpoint())+PID.calculate(getVelocity()));
-        }
+        // if(!isManual) {
+        //     motor.setVoltage(ff.calculate(PID.getSetpoint())+PID.calculate(getVelocity()));
+        // }
 
         if (getCurrent() <= kStallCurrent){
             lastFreeTime = Timer.getFPGATimestamp();
         }
+
+        changeTunable();
 
         log();
     }
@@ -105,23 +112,23 @@ public class Manipulator extends SubsystemBase{
         return statorStatus.getValueAsDouble();
     }
 
-    public boolean isStalled(){
-        return Timer.getFPGATimestamp() >= (lastFreeTime + kStallTime);
+    public Trigger isStalled(){
+        return new Trigger(() -> Timer.getFPGATimestamp() >= (lastFreeTime + kStallTime));
     }
 
-    public Distance coralDist(){
-        return Millimeters.of(sensor.getMeasurement().distance_mm);
-    }
-
-    public Trigger coralInRange(){
-        return new Trigger(()->coralSensed() && lastSenseTime>= 1);
-    }
-
-    public boolean coralSensed(){
-        if (coralDist().in(Millimeters) <= kSensorMaxCoralDist.in(Millimeters)){
-            return true;
+    /**
+     * @return The distance measured by the laser sensor. If unable to measure, -1 mm.
+     */
+    public Distance getCoralDist(){
+        var measurement = sensor.getMeasurement();
+        if (measurement == null) {
+            return Millimeters.of(-1);
         }
-        return false;
+        return Millimeters.of(measurement.distance_mm);
+    }
+
+    public Trigger isCoralDetected(){
+        return new Trigger(() -> getCoralDist().in(Millimeters) <= kSensorMaxCoralDist.in(Millimeters) && getCoralDist().gt(Millimeters.zero()));
     }
 
     public Command setVoltageC(double voltage){
@@ -130,13 +137,10 @@ public class Manipulator extends SubsystemBase{
 
     /**
      * 
-     * @return A command that sets an intaking voltage until the coral has fully passed the sensor.
+     * @return A command that sets an intaking voltage.
      */
     public Command setVoltageInC(){
-        return sequence(
-            run(()->setVoltage(kIntakeVoltage)).until(()->coralSensed()),
-            run(()->setVoltage(kIntakeVoltage*.8)).until(()->!coralSensed())
-        );
+        return run(()->setVoltage(intakeVoltage.get()));
     }
 
     /**
@@ -145,32 +149,46 @@ public class Manipulator extends SubsystemBase{
      */
 
     public Command setVoltageOutC(){
-        return run(()->setVoltage(kOutakeVoltage));
+        return run(()->setVoltage(outtakeVoltage.get()));
     }
 
-    public Command setVelocityC(double RPM){
-        return run(()->setVelocity(RPM));
+    // public Command setVelocityC(double RPM){
+    //     return run(()->setVelocity(RPM));
+    // }
+
+    // public Command setVelocityInC(){
+    //     return run(()->setVelocity(30));
+    // }
+
+    // public Command setVelocityOutC(){
+    //     return run(()->setVelocity(-30));
+    // }
+
+    // public Command holdCoralC(){
+    //     return run(()->setVelocity(0));
+    // }
+
+    public Command feedCoralC() {
+        return setVoltageInC().until(isCoralDetected().negate()).withName("FeedCoral");
+        // return sequence(
+        //     setVoltageInC().until(isCoralDetected().negate()),
+        //     setVoltageC(-3).until(isCoralDetected()),
+        //     setVoltageC(3).until(isCoralDetected().negate()),
+        //     setVoltageC(3).withTimeout(0.05)
+        // );
     }
 
-    public Command setVelocityInC(){
-        return run(()->setVelocity(30));
+    private void changeTunable() {
+        intakeVoltage.poll();
+        outtakeVoltage.poll();
     }
 
-    public Command setVelocityOutC(){
-        return run(()->setVelocity(-30));
-    }
+    private void log() {
+        SmartDashboard.putNumber("Coral/Motor Voltage", voltageStatus.getValueAsDouble());
+        SmartDashboard.putNumber("Coral/Motor Current", getCurrent());
+        SmartDashboard.putBoolean("Coral/isStalled", isStalled().getAsBoolean());
 
-    public Command holdCoralC(){
-        return run(()->setVelocity(0));
-    }
-    public Command doneIntaking(){
-        return setVoltageC(-.7).until(()->coralSensed()).andThen(setVoltageC(.7).withTimeout(.2));
-    }
-
-    public void log() {
-        SmartDashboard.putNumber("Intake/Motor Voltage", voltageStatus.getValueAsDouble());
-        SmartDashboard.putNumber("Intake/Motor Current", getCurrent());
-        SmartDashboard.putBoolean("Intake/isStalled", isStalled());
+        SmartDashboard.putNumber("Coral/test", intakeVoltage.get());
     }
     
 }

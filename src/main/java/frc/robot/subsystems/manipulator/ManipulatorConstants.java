@@ -19,8 +19,8 @@ public class ManipulatorConstants {
     public static int kMotorID = 31;
     public static int kSensorID = 1;
 
-    public static double kIntakeVoltage = 3;
-    public static double kOutakeVoltage = 7;
+    public static double kIntakeVoltage = 4;
+    public static double kScoreVoltage = 7;
 
     public static int kGearRatio = 3;
 

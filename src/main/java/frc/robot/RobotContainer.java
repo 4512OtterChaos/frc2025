@@ -15,7 +15,7 @@ import com.ctre.phoenix6.hardware.traits.CommonTalon;
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 
 import static edu.wpi.first.units.Units.*;
-import static edu.wpi.first.wpilibj2.command.Commands.run;
+import static edu.wpi.first.wpilibj2.command.Commands.*;
 
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -131,18 +131,21 @@ public class RobotContainer {
   }
 
   private void configureOperatorBindings(OCXboxController controller) {
-    // ELEVATOR COMMANDS
+    //===== ELEVATOR COMMANDS
     controller.a().onTrue(elevator.setL1C());
     controller.x().onTrue(elevator.setL2C());
     controller.y().onTrue(elevator.setL3C());
     controller.b().onTrue(elevator.setL4C());
+    //=====
 
-    //CORAL MANIPULATOR
-    manipulator.coralInRange()
-      .onTrue(manipulator.setVoltageC(ManipulatorConstants.kIntakeVoltage))
-      .onFalse(manipulator.doneIntaking());
+    //===== CORAL MANIPULATOR
+    manipulator.setDefaultCommand(manipulator.setVoltageC(0).withName("D:HoldCoral"));
+    // Automatically feed coral to a consistent position when detected
+    manipulator.isCoralDetected().and(()->manipulator.getCurrentCommand() == manipulator.getDefaultCommand())
+      .onTrue(manipulator.feedCoralC());
     controller.rightTrigger().whileTrue(manipulator.setVoltageOutC());
-    controller.rightTrigger().whileTrue(manipulator.setVoltageInC());
+    controller.leftTrigger().whileTrue(manipulator.setVoltageInC());
+    //=====
 
   }
 
