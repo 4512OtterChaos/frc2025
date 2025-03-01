@@ -21,6 +21,7 @@ import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import edu.wpi.first.wpilibj2.command.button.Trigger;
 
 import static edu.wpi.first.units.Units.Millimeters;
 import static edu.wpi.first.wpilibj2.command.Commands.sequence;
@@ -38,6 +39,7 @@ public class Manipulator extends SubsystemBase{
     boolean isManual = true;
     
     double lastFreeTime = Timer.getFPGATimestamp();
+    double lastSenseTime = Timer.getFPGATimestamp();
 
     private final StatusSignal<Double> dutyStatus = motor.getDutyCycle();
     private final StatusSignal<Voltage> voltageStatus = motor.getMotorVoltage();
@@ -111,6 +113,10 @@ public class Manipulator extends SubsystemBase{
         return Millimeters.of(sensor.getMeasurement().distance_mm);
     }
 
+    public Trigger coralInRange(){
+        return new Trigger(()->coralSensed() && lastSenseTime>= 1);
+    }
+
     public boolean coralSensed(){
         if (coralDist().in(Millimeters) <= kSensorMaxCoralDist.in(Millimeters)){
             return true;
@@ -128,8 +134,8 @@ public class Manipulator extends SubsystemBase{
      */
     public Command setVoltageInC(){
         return sequence(
-            run(()->setVoltage(1.75)).until(()->coralSensed()),
-            run(()->setVoltage(1.25)).until(()->!coralSensed())
+            run(()->setVoltage(kIntakeVoltage)).until(()->coralSensed()),
+            run(()->setVoltage(kIntakeVoltage*.8)).until(()->!coralSensed())
         );
     }
 
@@ -139,7 +145,7 @@ public class Manipulator extends SubsystemBase{
      */
 
     public Command setVoltageOutC(){
-        return run(()->setVoltage(-0.3));
+        return run(()->setVoltage(kOutakeVoltage));
     }
 
     public Command setVelocityC(double RPM){
@@ -156,6 +162,9 @@ public class Manipulator extends SubsystemBase{
 
     public Command holdCoralC(){
         return run(()->setVelocity(0));
+    }
+    public Command doneIntaking(){
+        return setVoltageC(-.7).until(()->coralSensed()).andThen(setVoltageC(.7).withTimeout(.2));
     }
 
     public void log() {

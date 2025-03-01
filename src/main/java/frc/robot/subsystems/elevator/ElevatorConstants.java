@@ -17,8 +17,8 @@ import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.Distance;
 
 public class ElevatorConstants {
-    public static final int kLeftMotorID = 9;
-    public static final int kRightMotorID = 10;
+    public static final int kLeftMotorID = 21;
+    public static final int kRightMotorID = 22;
 
     public static final int kGearRatio = 9;
     public static final Distance sprocketPitchDiameter = Inches.of(1.76);

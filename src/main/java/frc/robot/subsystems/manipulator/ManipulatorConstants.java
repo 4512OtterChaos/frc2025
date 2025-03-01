@@ -16,8 +16,11 @@ import au.grapplerobotics.interfaces.LaserCanInterface.TimingBudget;
 import edu.wpi.first.units.measure.Distance;
 
 public class ManipulatorConstants {
-    public static int kMotorID = 5;
+    public static int kMotorID = 31;
     public static int kSensorID = 1;
+
+    public static double kIntakeVoltage = 3;
+    public static double kOutakeVoltage = 7;
 
     public static int kGearRatio = 3;
 
@@ -25,7 +28,7 @@ public class ManipulatorConstants {
     public static RegionOfInterest regionOfInterest = new RegionOfInterest(8, 8, 16, 16);
     public static TimingBudget timingBudget = TimingBudget.TIMING_BUDGET_33MS;
 
-    public static final Distance kSensorMaxCoralDist = Inches.of(2);
+    public static final Distance kSensorMaxCoralDist = Inches.of(5);
 
     public static final int kMotorStallLimit = 40;
 

@@ -15,6 +15,7 @@ import com.ctre.phoenix6.hardware.traits.CommonTalon;
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 
 import static edu.wpi.first.units.Units.*;
+import static edu.wpi.first.wpilibj2.command.Commands.run;
 
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -26,6 +27,7 @@ import frc.robot.subsystems.drivetrain.Telemetry;
 import frc.robot.subsystems.drivetrain.TunerConstants;
 import frc.robot.subsystems.elevator.Elevator;
 import frc.robot.subsystems.manipulator.Manipulator;
+import frc.robot.subsystems.manipulator.ManipulatorConstants;
 import frc.robot.util.OCXboxController;
 
 public class RobotContainer {
@@ -101,10 +103,10 @@ public class RobotContainer {
             })
         );
 
-        controller.x().whileTrue(drivetrain.applyRequest(() -> brake));
-        controller.b().whileTrue(drivetrain.applyRequest(() ->
-            point.withModuleDirection(new Rotation2d(-controller.getLeftY(), -controller.getLeftX()))
-        ));
+        // controller.x().whileTrue(drivetrain.applyRequest(() -> brake));
+        // controller.b().whileTrue(drivetrain.applyRequest(() ->
+        //     point.withModuleDirection(new Rotation2d(-controller.getLeftY(), -controller.getLeftX()))
+        // ));
 
         // reset the robot heading to forward
         controller.start().onTrue(drivetrain.runOnce(() -> drivetrain.seedFieldCentric()));
@@ -135,6 +137,12 @@ public class RobotContainer {
     controller.y().onTrue(elevator.setL3C());
     controller.b().onTrue(elevator.setL4C());
 
+    //CORAL MANIPULATOR
+    manipulator.coralInRange()
+      .onTrue(manipulator.setVoltageC(ManipulatorConstants.kIntakeVoltage))
+      .onFalse(manipulator.doneIntaking());
+    controller.rightTrigger().whileTrue(manipulator.setVoltageOutC());
+    controller.rightTrigger().whileTrue(manipulator.setVoltageInC());
 
   }
 
