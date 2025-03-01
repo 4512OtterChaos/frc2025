@@ -1,5 +1,6 @@
 package frc.robot.subsystems.elevator;
 
+import com.ctre.phoenix6.BaseStatusSignal;
 import com.ctre.phoenix6.StatusCode;
 import com.ctre.phoenix6.StatusSignal;
 import com.ctre.phoenix6.controls.Follower;
@@ -49,6 +50,7 @@ public class Elevator extends SubsystemBase {
     private final StatusSignal<Double> dutyStatus = leftMotor.getDutyCycle();
     private final StatusSignal<Voltage> voltageStatus = leftMotor.getMotorVoltage();
     private final StatusSignal<Angle> positionStatus = leftMotor.getPosition();
+    // private final StatusSignal<Angle> positionStatus2 = rightMotor.getPosition();
     private final StatusSignal<AngularVelocity> velocityStatus = leftMotor.getVelocity();
     private final StatusSignal<Current> statorStatus = leftMotor.getStatorCurrent();
 
@@ -71,23 +73,29 @@ public class Elevator extends SubsystemBase {
     public Elevator(){
         // try applying motor configs
         StatusCode status = StatusCode.StatusCodeNotInitialized;
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 1; i++) {
             status = leftMotor.getConfigurator().apply(kConfig);
             rightMotor.setControl(new Follower(leftMotor.getDeviceID(), true));
             if (status.isOK()) break;
         }
-        if (!status.isOK()) DriverStation.reportWarning("Failed applying Elevator motor configuration!", false);
+        // StatusCode status2 = StatusCode.StatusCodeNotInitialized;
+        // for (int i = 0; i < 1; i++) {
+        //     status2 = rightMotor.getConfigurator().apply(kConfig);
+        //     // rightMotor.setControl(new Follower(leftMotor.getDeviceID(), true));
+        //     if (status2.isOK()) break;
+        // }
+        if (!status.isOK() /*|| !status2.isOK()*/) DriverStation.reportWarning("Failed applying Elevator motor configuration!", false);
 
         dutyStatus.setUpdateFrequency(100);
         voltageStatus.setUpdateFrequency(100);
         positionStatus.setUpdateFrequency(100);
         velocityStatus.setUpdateFrequency(50);
         statorStatus.setUpdateFrequency(50);
-        ParentDevice.optimizeBusUtilizationForAll(leftMotor, rightMotor);
+        // ParentDevice.optimizeBusUtilizationForAll(leftMotor, rightMotor);
 
         SmartDashboard.putData("Elevator/Subsystem", this);
 
-        resetElevatorHeight(kMinHeight.in(Meters)); 
+        // resetElevatorHeight(kMinHeight.in(Meters)); 
     }
 
     @Override
@@ -103,13 +111,13 @@ public class Elevator extends SubsystemBase {
         if (currentHeightMeters >= kMaxHeight.in(Meters)) {
             adjustedVoltage = Math.min(currentKG, adjustedVoltage);
         }
-        if (!isHoming && (currentHeightMeters <= kMinHeight.plus(kHeightTolerance).in(Meters)) && (targetHeight.in(Meters) <= kMinHeight.plus(kHeightTolerance.times(3)).in(Meters))) {
-            adjustedVoltage = Math.min(adjustedVoltage, 0);
-            if (!isManual) { // go limp at bottom height
-                isManual = true;
-                adjustedVoltage = 0;
-            }
-        }
+        // if (!isHoming && (currentHeightMeters <= kMinHeight.plus(kHeightTolerance).in(Meters)) && (targetHeight.in(Meters) <= kMinHeight.plus(kHeightTolerance.times(3)).in(Meters))) {
+        //     adjustedVoltage = Math.min(adjustedVoltage, 0);
+        //     if (!isManual) { // go limp at bottom height
+        //         isManual = true;
+        //         adjustedVoltage = 0;
+        //     }
+        // }
 
         // Voltage/Position control
         if (!isManual) {
@@ -134,6 +142,7 @@ public class Elevator extends SubsystemBase {
     }
 
     public double getElevatorHeightMeters() {
+        positionStatus.refresh();
         return positionStatus.getValueAsDouble();
     }
 
@@ -196,6 +205,11 @@ public class Elevator extends SubsystemBase {
     /** Sets the target elevator height and ends when it is within tolerance. */
     public Command setHeightC(Supplier<Distance> targetHeight){
         return run(()->setHeight(targetHeight.get())).until(this::isWithinTolerance);
+    }
+
+    /** Sets the target elevator height to the L1 height and ends when it is within tolerance. */
+    public Command setMinC(){
+        return setHeightC(kMinHeight);
     }
 
     /** Sets the target elevator height to the L1 height and ends when it is within tolerance. */
@@ -266,8 +280,13 @@ public class Elevator extends SubsystemBase {
     }
 
     private void log() {
+        // BaseStatusSignal.waitForAll(0.005, voltageStatus, positionStatus);
+        BaseStatusSignal.refreshAll(voltageStatus, positionStatus, /*positionStatus2,*/ dutyStatus, velocityStatus, statorStatus);
+        SmartDashboard.putNumber("Elevator/Elevator Rotor", leftMotor.getRotorPosition().getValueAsDouble());
+        // SmartDashboard.putNumber("Elevator/Elevator Rotor2", rightMotor.getRotorPosition().getValueAsDouble());
         SmartDashboard.putNumber("Elevator/Elevator Native", leftMotor.getPosition().getValueAsDouble());
         SmartDashboard.putNumber("Elevator/Elevator Inches", Units.metersToInches(getElevatorHeightMeters()));
+        // SmartDashboard.putNumber("Elevator/Elevator Inches2", Units.metersToInches(positionStatus2.getValueAsDouble()));
         SmartDashboard.putNumber("Elevator/Elevator Target Inches", targetHeight.in(Inches));
         SmartDashboard.putNumber("Elevator/Motor Current", getCurrent());
         SmartDashboard.putBoolean("Elevator/isStalled", isStalled());

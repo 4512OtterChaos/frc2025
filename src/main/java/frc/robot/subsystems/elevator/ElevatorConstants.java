@@ -42,21 +42,21 @@ public class ElevatorConstants {
     public static final TalonFXConfiguration kConfig = new TalonFXConfiguration();
     static {
         FeedbackConfigs feedback = kConfig.Feedback;
-        feedback.SensorToMechanismRatio = kGearRatio        *   (Math.PI * sprocketPitchDiameter.in(Meters))  *   2;
+        // feedback.SensorToMechanismRatio = kGearRatio        *   (Math.PI * sprocketPitchDiameter.in(Meters))  *   2;
         //          motor rotations  -->  shaft rotations  -->  chain travel                                 -->  carriage travel
 
         MotorOutputConfigs output = kConfig.MotorOutput;
-        output.NeutralMode = NeutralModeValue.Brake;
-        output.Inverted = InvertedValue.Clockwise_Positive;
+        output.NeutralMode = NeutralModeValue.Coast;
+        output.Inverted = InvertedValue.CounterClockwise_Positive;
 
         CurrentLimitsConfigs current = kConfig.CurrentLimits;
         current.StatorCurrentLimitEnable = true;
         current.StatorCurrentLimit = 40;
 
         SoftwareLimitSwitchConfigs limits = kConfig.SoftwareLimitSwitch;
-        limits.ForwardSoftLimitEnable = true;
+        limits.ForwardSoftLimitEnable = false;
         limits.ForwardSoftLimitThreshold = kMaxHeight.in(Meters);
-        limits.ReverseSoftLimitEnable = true;
+        limits.ReverseSoftLimitEnable = false;
         limits.ReverseSoftLimitThreshold = kMinHeight.in(Meters);
 
         Slot0Configs control = kConfig.Slot0; //TODO: Update PID

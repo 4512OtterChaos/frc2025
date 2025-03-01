@@ -106,7 +106,7 @@ public class Superstructure {
     //     );
     // }
 
-    public Command driveToScorePoint(){//TODO:Just like make it work/do it
+    public Command driveToScorePoint(){
         return drive.applyRequest(()->robotSpeeds.withSpeeds(chassisSpeedsToScorePoint()));
     }
 

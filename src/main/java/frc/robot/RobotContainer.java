@@ -19,6 +19,7 @@ import static edu.wpi.first.units.Units.*;
 import static edu.wpi.first.wpilibj2.command.Commands.*;
 
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.units.measure.LinearVelocity;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.auto.AutoRoutines;
@@ -53,7 +54,7 @@ public class RobotContainer {
     
     
     private OCXboxController driver = new OCXboxController(0);
-    private OCXboxController operator = new OCXboxController(1);
+    // private OCXboxController operator = new OCXboxController(1);
     
     public final Superstructure superstructure = new Superstructure(drivetrain, logger, manipulator, elevator, driver);
     
@@ -73,7 +74,7 @@ public class RobotContainer {
         
         configureDriverBindings(driver);
         configureOperatorBindings(driver);
-        configureOperatorBindings(operator);
+        // configureOperatorBindings(operator);
         TalonFX[] swerveMotors = {
             drivetrain.getModule(0).getDriveMotor(),
             drivetrain.getModule(0).getSteerMotor(),
@@ -120,12 +121,15 @@ public class RobotContainer {
         controller.start().onTrue(drivetrain.runOnce(() -> drivetrain.seedFieldCentric()));
         
         //TODO: ADD GYRO BUTTONS FOR AUTO ALIGN
-        controller.povUp().whileTrue(drivetrain.applyRequest(()->orient.withTargetDirection(Rotation2d.kZero)));
-        controller.povLeft().whileTrue(drivetrain.applyRequest(()->orient.withTargetDirection(Rotation2d.kCW_90deg)));
+        controller.povUp().whileTrue(drivetrain.applyRequest(()->orient.withTargetDirection(Rotation2d.fromDegrees(-135))));
+        controller.povLeft().whileTrue(drivetrain.applyRequest(()->orient.withTargetDirection(Rotation2d.fromDegrees(135))));
         controller.povRight().whileTrue(drivetrain.applyRequest(()->orient.withTargetDirection(Rotation2d.kCCW_90deg)));
-        controller.povDown().whileTrue(drivetrain.applyRequest(()->orient.withTargetDirection(Rotation2d.k180deg)));
         
-        controller.leftBumper().whileTrue(superstructure.driveToScorePoint());
+        controller.leftBumper().whileTrue(drivetrain.applyRequest(()->orient.withVelocityY(MetersPerSecond.of(0.5))));
+        controller.rightBumper().whileTrue(drivetrain.applyRequest(()->orient.withVelocityY(MetersPerSecond.of(-0.5))));
+
+        
+        //TODO: Bind superstructure.driveToScorePoint()
         
         // Run SysId routines when holding back/start and X/Y.
         // Note that each routine should be run exactly once in a single log.
@@ -140,6 +144,8 @@ public class RobotContainer {
     
     private void configureOperatorBindings(OCXboxController controller) {
         //===== ELEVATOR COMMANDS
+        controller.povDown().onTrue(elevator.setMinC());
+        controller.back().whileTrue(elevator.setVoltageC(2.5)).onFalse(elevator.setVoltageC(0));
         controller.a().onTrue(elevator.setL1C());
         controller.x().onTrue(elevator.setL2C());
         controller.y().onTrue(elevator.setL3C());
