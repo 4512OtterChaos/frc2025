@@ -40,8 +40,11 @@ public class RobotContainer {
     private final SwerveRequest.FieldCentric drive = new SwerveRequest.FieldCentric()
         .withDeadband(MaxSpeed * 0.05).withRotationalDeadband(MaxAngularRate * 0.05) // Add a 10% deadband
         .withDriveRequestType(DriveRequestType.OpenLoopVoltage); // Use open-loop control for drive motors
-    private final SwerveRequest.FieldCentricFacingAngle orient = new SwerveRequest.FieldCentricFacingAngle()
+    private final SwerveRequest.FieldCentricFacingAngle orient = new SwerveRequest.FieldCentricFacingAngle();
+    
+    private final SwerveRequest.RobotCentric robotCentric = new SwerveRequest.RobotCentric()
         .withDeadband(MaxSpeed * 0.05).withRotationalDeadband(MaxAngularRate * 0.01) // Add a 10% deadband
+
         .withDriveRequestType(DriveRequestType.OpenLoopVoltage); // Use open-loop control for drive motors
     private final SwerveRequest.SwerveDriveBrake brake = new SwerveRequest.SwerveDriveBrake();
     private final SwerveRequest.PointWheelsAt point = new SwerveRequest.PointWheelsAt();
@@ -125,8 +128,11 @@ public class RobotContainer {
         controller.povLeft().whileTrue(drivetrain.applyRequest(()->orient.withTargetDirection(Rotation2d.fromDegrees(135))));
         controller.povRight().whileTrue(drivetrain.applyRequest(()->orient.withTargetDirection(Rotation2d.kCCW_90deg)));
         
-        controller.leftBumper().whileTrue(drivetrain.applyRequest(()->orient.withVelocityY(MetersPerSecond.of(0.5))));
-        controller.rightBumper().whileTrue(drivetrain.applyRequest(()->orient.withVelocityY(MetersPerSecond.of(-0.5))));
+        // controller.leftBumper().whileTrue(drivetrain.applyRequest(()->robotCentric.withVelocityY(MetersPerSecond.of(0.3))));
+        // controller.rightBumper().whileTrue(drivetrain.applyRequest(()->robotCentric.withVelocityY(MetersPerSecond.of(-0.3))));
+
+        controller.rightTrigger().whileTrue(drivetrain.applyRequest(()->robotCentric.withVelocityY(MetersPerSecond.of(controller.getRightTriggerAxis()*-0.3))));
+        controller.leftTrigger().whileTrue(drivetrain.applyRequest(()->robotCentric.withVelocityY(MetersPerSecond.of(controller.getLeftTriggerAxis()*0.3))));
 
         
         //TODO: Bind superstructure.driveToScorePoint()
@@ -157,8 +163,8 @@ public class RobotContainer {
         // Automatically feed coral to a consistent position when detected
         manipulator.isCoralDetected().and(()->manipulator.getCurrentCommand() == manipulator.getDefaultCommand())
         .onTrue(manipulator.feedCoralC());
-        controller.rightTrigger().whileTrue(manipulator.setVoltageOutC());
-        controller.leftTrigger().whileTrue(manipulator.setVoltageInC());
+        controller.rightBumper().whileTrue(manipulator.setVoltageOutC());
+        controller.leftBumper().whileTrue(manipulator.setVoltageInC());
         //=====
         
     }

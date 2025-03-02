@@ -17,16 +17,17 @@ import edu.wpi.first.units.measure.Distance;
 
 public class ManipulatorConstants {
     public static int kMotorID = 31;
-    public static int kSensorID = 1;
+    public static int kSensorID = 0;
 
-    public static double kIntakeVoltage = 4;
-    public static double kScoreVoltage = 7;
+    public static double kIntakeVoltage = 0.9;
+    public static double kFeedVoltage = 0.5;
+    public static double kScoreVoltage = 3;
 
     public static int kGearRatio = 3;
 
     public static RangingMode rangingMode = RangingMode.SHORT;
     public static RegionOfInterest regionOfInterest = new RegionOfInterest(8, 8, 16, 16);
-    public static TimingBudget timingBudget = TimingBudget.TIMING_BUDGET_33MS;
+    public static TimingBudget timingBudget = TimingBudget.TIMING_BUDGET_20MS;
 
     public static final Distance kSensorMaxCoralDist = Inches.of(5);
 
@@ -37,7 +38,6 @@ public class ManipulatorConstants {
     public static double kStallCurrent = 20;
     public static double kStallTime = 0.3;
 
-    public static final double kRampRate = 0.08;
 
     public static final TalonFXConfiguration kConfig = new TalonFXConfiguration();
     static {

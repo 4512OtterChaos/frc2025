@@ -169,7 +169,11 @@ public class Manipulator extends SubsystemBase {
     // }
 
     public Command feedCoralC() {
-        return setVoltageInC().until(isCoralDetected().negate()).withName("FeedCoral");
+        // return setVoltageInC().until(isCoralDetected().negate()).withName("FeedCoral");
+        return sequence(
+            setVoltageInC().withTimeout(0.5),
+            setVoltageC(kFeedVoltage)
+        ).until(isCoralDetected().negate()).withName("FeedCoral");
         // return sequence(
         //     setVoltageInC().until(isCoralDetected().negate()),
         //     setVoltageC(-3).until(isCoralDetected()),

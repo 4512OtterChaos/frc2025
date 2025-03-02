@@ -3,6 +3,7 @@ package frc.robot.subsystems.elevator;
 import com.ctre.phoenix6.BaseStatusSignal;
 import com.ctre.phoenix6.StatusCode;
 import com.ctre.phoenix6.StatusSignal;
+import com.ctre.phoenix6.controls.CoastOut;
 import com.ctre.phoenix6.controls.Follower;
 import com.ctre.phoenix6.controls.MotionMagicVoltage;
 import com.ctre.phoenix6.controls.VoltageOut;
@@ -65,17 +66,18 @@ public class Elevator extends SubsystemBase {
     private final TunableNumber mmCruise = new TunableNumber("Elevator/mmCruise", kConfig.MotionMagic.MotionMagicCruiseVelocity);
     private final TunableNumber mmAccel = new TunableNumber("Elevator/mmAccel", kConfig.MotionMagic.MotionMagicAcceleration);
 
-    private final TunableNumber heightL1Inches = new TunableNumber("Elevator/heightL1Inches", kL1Height.in(Inches));
-    private final TunableNumber heightL2Inches = new TunableNumber("Elevator/heightL2Inches", kL2Height.in(Inches));
-    private final TunableNumber heightL3Inches = new TunableNumber("Elevator/heightL3Inches", kL3Height.in(Inches));
-    private final TunableNumber heightL4Inches = new TunableNumber("Elevator/heightL4Inches", kL4Height.in(Inches));
+    private final TunableNumber heightL1Inches = new TunableNumber("Elevator/heightL1Inches", kL1Height.in(Meters));
+    private final TunableNumber heightL2Inches = new TunableNumber("Elevator/heightL2Inches", kL2Height.in(Meters));
+    private final TunableNumber heightL3Inches = new TunableNumber("Elevator/heightL3Inches", kL3Height.in(Meters));
+    private final TunableNumber heightL4Inches = new TunableNumber("Elevator/heightL4Inches", kL4Height.in(Meters));
 
     public Elevator(){
         // try applying motor configs
         StatusCode status = StatusCode.StatusCodeNotInitialized;
         for (int i = 0; i < 1; i++) {
             status = leftMotor.getConfigurator().apply(kConfig);
-            rightMotor.setControl(new Follower(leftMotor.getDeviceID(), true));
+            // rightMotor.setControl(new Follower(leftMotor.getDeviceID(), true));
+            rightMotor.setControl(new CoastOut());
             if (status.isOK()) break;
         }
         // StatusCode status2 = StatusCode.StatusCodeNotInitialized;
@@ -95,7 +97,7 @@ public class Elevator extends SubsystemBase {
 
         SmartDashboard.putData("Elevator/Subsystem", this);
 
-        // resetElevatorHeight(kMinHeight.in(Meters)); 
+        resetElevatorHeight(kMinHeight.in(Meters)); 
     }
 
     @Override
@@ -214,22 +216,22 @@ public class Elevator extends SubsystemBase {
 
     /** Sets the target elevator height to the L1 height and ends when it is within tolerance. */
     public Command setL1C(){
-        return setHeightC(() -> Inches.of(heightL1Inches.get()));
+        return setHeightC(() -> Meters.of(heightL1Inches.get()));
     }
 
     /** Sets the target elevator height to the L2 height and ends when it is within tolerance. */
     public Command setL2C(){
-        return setHeightC(() -> Inches.of(heightL2Inches.get()));
+        return setHeightC(() -> Meters.of(heightL2Inches.get()));
     }
 
     /** Sets the target elevator height to the L3 height and ends when it is within tolerance. */
     public Command setL3C(){
-        return setHeightC(() -> Inches.of(heightL3Inches.get()));
+        return setHeightC(() -> Meters.of(heightL3Inches.get()));
     }
 
     /** Sets the target elevator height to the L4 height and ends when it is within tolerance. */
     public Command setL4C(){
-        return setHeightC(() -> Inches.of(heightL4Inches.get()));
+        return setHeightC(() -> Meters.of(heightL4Inches.get()));
     }
 
     /** Runs the elevator into the base, detecting a current spike and resetting the elevator height. */

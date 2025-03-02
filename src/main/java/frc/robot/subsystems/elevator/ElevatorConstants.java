@@ -24,15 +24,23 @@ public class ElevatorConstants {
     public static final Distance sprocketPitchDiameter = Inches.of(1.76);
 
     
-    public static final Distance kMinHeight = Inches.of(17.75); // As measured from the top of the cariage 
-    public static final Distance kMaxHeight = Inches.of(kMinHeight.in(Inches) + 58); // 58in of travel
+    // public static final Distance kMinHeight = Inches.of(17.75); // As measured from the top of the cariage 
+    // public static final Distance kMaxHeight = Inches.of(kMinHeight.in(Inches) + 58); // 58in of travel
 
-    public static final Distance kL1Height = Inches.of(kMinHeight.in(Inches) + 8);
-    public static final Distance kL2Height = Inches.of(kMinHeight.in(Inches) + 12);
-    public static final Distance kL3Height = Inches.of(kMinHeight.in(Inches) + 28);
-    public static final Distance kL4Height = kMaxHeight;
+    // public static final Distance kL1Height = Inches.of(kMinHeight.in(Inches) + 8);
+    // public static final Distance kL2Height = Inches.of(kMinHeight.in(Inches) + 12);
+    // public static final Distance kL3Height = Inches.of(kMinHeight.in(Inches) + 28);
+    // public static final Distance kL4Height = kMaxHeight;
+
+    public static final Distance kMinHeight = Meters.of(0); // As measured from the top of the cariage 
+    public static final Distance kMaxHeight = Meters.of(48); // 58in of travel
+
+    public static final Distance kL1Height = Meters.of(5);
+    public static final Distance kL2Height = Meters.of(15);
+    public static final Distance kL3Height = Meters.of(30);
+    public static final Distance kL4Height = Meters.of(47.13);
     
-    public static final Distance kHeightTolerance = Inches.of(0.5);
+    public static final Distance kHeightTolerance = Meters.of(0.01);
     public static final Angle kTipAngleTolerance = Degrees.of(10);
 
     public static final double kStallThresholdAmps = 20;
@@ -60,12 +68,12 @@ public class ElevatorConstants {
         limits.ReverseSoftLimitThreshold = kMinHeight.in(Meters);
 
         Slot0Configs control = kConfig.Slot0; //TODO: Update PID
-        control.kP = 30;
+        control.kP = 3;
         control.kI = 0;
         control.kD = 0;
 
         control.GravityType = GravityTypeValue.Elevator_Static; //TODO: Update Elevator k constants
-        control.kG = 0.05;
+        control.kG = 0.2;
         control.kS = 0.1;
         control.kV = 0;
 
