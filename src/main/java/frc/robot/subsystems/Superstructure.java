@@ -136,9 +136,9 @@ public class Superstructure {
         Distance maxElevatorTravel = ElevatorConstants.kMaxHeight.minus(ElevatorConstants.kMinHeight);
         double elevatorPercentTravel = currentElevatorTravel.in(Meters) / maxElevatorTravel.in(Meters);
 
-        double speedDifference = OCXboxController.kSpeedDefault - OCXboxController.kSpeedSlow;
+        double speedDifference = OCXboxController.kSpeedDefault.get() - OCXboxController.kSpeedSlow.get();
 
-        controller.setDriveSpeed(OCXboxController.kSpeedDefault - (elevatorPercentTravel * speedDifference));
+        controller.setDriveSpeed(OCXboxController.kSpeedDefault.get() - (elevatorPercentTravel * speedDifference));
 
     }
 
