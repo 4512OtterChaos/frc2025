@@ -164,14 +164,17 @@ public class Manipulator extends SubsystemBase {
     //     return run(()->setVelocity(-30));
     // }
 
-    // public Command holdCoralC(){
-    //     return run(()->setVelocity(0));
-    // }
+    public Command holdCoralC(){
+        return sequence(
+            setVoltageC(0).withTimeout(0.5),
+            setVoltageC(-0.5).withTimeout(0.5)
+            ).repeatedly().withName("D:HoldCoral");
+    }
 
     public Command feedCoralC() {
         // return setVoltageInC().until(isCoralDetected().negate()).withName("FeedCoral");
         return sequence(
-            setVoltageInC().withTimeout(0.5),
+            // setVoltageInC().withTimeout(0.5),
             setVoltageC(kFeedVoltage)
         ).until(isCoralDetected().negate()).withName("FeedCoral");
         // return sequence(

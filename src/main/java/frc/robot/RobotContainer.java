@@ -71,8 +71,9 @@ public class RobotContainer {
         autoRoutines = new AutoRoutines(autoFactory, drivetrain, elevator, manipulator);
         
         autoChooser.addCmd("TaxiAuto", autoRoutines::taxiAuto);
-        autoChooser.addCmd("Middle1Coral", autoRoutines::middle1Coral);
-        autoChooser.addRoutine("SimplePath", autoRoutines::simplePathAuto);
+        autoChooser.addCmd("TaxiFarAuto", autoRoutines::taxiFar);
+        autoChooser.addCmd("Middle1CoralL1", autoRoutines::middle1CoralL1);
+        // autoChooser.addRoutine("SimplePath", autoRoutines::simplePathAuto);
         SmartDashboard.putData("Auto Chooser", autoChooser);
         
         configureDriverBindings(driver);
@@ -124,9 +125,9 @@ public class RobotContainer {
         controller.start().onTrue(drivetrain.runOnce(() -> drivetrain.seedFieldCentric()));
         
         //TODO: ADD GYRO BUTTONS FOR AUTO ALIGN
-        controller.povUp().whileTrue(drivetrain.applyRequest(()->orient.withTargetDirection(Rotation2d.fromDegrees(-135))));
-        controller.povLeft().whileTrue(drivetrain.applyRequest(()->orient.withTargetDirection(Rotation2d.fromDegrees(135))));
-        controller.povRight().whileTrue(drivetrain.applyRequest(()->orient.withTargetDirection(Rotation2d.kCCW_90deg)));
+        controller.povUp().whileTrue(drivetrain.applyRequest(()->orient.withTargetDirection(Rotation2d.kZero)));
+        controller.povLeft().whileTrue(drivetrain.applyRequest(()->orient.withTargetDirection(Rotation2d.fromDegrees(-45))));
+        controller.povRight().whileTrue(drivetrain.applyRequest(()->orient.withTargetDirection(Rotation2d.fromDegrees(45))));
         
         // controller.leftBumper().whileTrue(drivetrain.applyRequest(()->robotCentric.withVelocityY(MetersPerSecond.of(0.3))));
         // controller.rightBumper().whileTrue(drivetrain.applyRequest(()->robotCentric.withVelocityY(MetersPerSecond.of(-0.3))));
@@ -153,13 +154,24 @@ public class RobotContainer {
         controller.povDown().onTrue(elevator.setMinC());
         controller.back().whileTrue(elevator.setVoltageC(2.5)).onFalse(elevator.setVoltageC(0));
         controller.a().onTrue(elevator.setL1C());
-        controller.x().onTrue(elevator.setL2C());
-        controller.y().onTrue(elevator.setL3C());
-        controller.b().onTrue(elevator.setL4C());
+        controller.x().onTrue(
+          elevator.setL2C().deadlineFor(
+          sequence(
+            manipulator.setVoltageC(-0.5).withTimeout(0.5),
+            waitSeconds(0.5)
+          )
+        )
+        );
+        controller.y().onTrue(
+          elevator.setL3C()
+          );
+        controller.b().onTrue(
+          elevator.setL4C()
+          );
         //=====
         
         //===== CORAL MANIPULATOR
-        manipulator.setDefaultCommand(manipulator.setVoltageC(0).withName("D:HoldCoral"));
+        manipulator.setDefaultCommand(manipulator.holdCoralC());
         // Automatically feed coral to a consistent position when detected
         manipulator.isCoralDetected().and(()->manipulator.getCurrentCommand() == manipulator.getDefaultCommand())
         .onTrue(manipulator.feedCoralC());

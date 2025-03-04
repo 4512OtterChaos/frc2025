@@ -38,22 +38,42 @@ public class AutoRoutines {
         );
     }
 
-    public AutoRoutine simplePathAuto() {
-        final AutoRoutine routine = m_factory.newRoutine("SimplePath Auto");
-        final AutoTrajectory simplePath = routine.trajectory("SimplePath");
+    // public AutoRoutine simplePathAuto() {
+    //     final AutoRoutine routine = m_factory.newRoutine("SimplePath Auto");
+    //     final AutoTrajectory simplePath = routine.trajectory("SimplePath");
 
-        routine.active().onTrue(
-            simplePath.resetOdometry()
-                .andThen(simplePath.cmd())
-        );
-        return routine;
-    }
+    //     routine.active().onTrue(
+    //         simplePath.resetOdometry()
+    //             .andThen(simplePath.cmd())
+    //     );
+    //     return routine;p
+    // }
 
-    public Command middle1Coral() {
+    public Command middle1CoralL1() {
         return sequence(
-            runOnce(()->drivetrain.resetPose(new Pose2d(7.5, 4.2, Rotation2d.k180deg)), drivetrain)
-            // align to reef pose,
-            // score L1
+            runOnce(()->drivetrain.resetPose(new Pose2d(7.5, 4.2, Rotation2d.k180deg)), drivetrain),
+            drivetrain.applyRequest(()->new SwerveRequest.FieldCentric().withVelocityX(-1.5)).withTimeout(1),
+            drivetrain.applyRequest(()->new SwerveRequest.FieldCentric().withVelocityX(-0.5)).withTimeout(1.5),
+            runOnce(()->drivetrain.setControl(new SwerveRequest.FieldCentric()), drivetrain),
+            elevator.setL1C().withTimeout(2),
+            manipulator.setVoltageOutC().withTimeout(2)
         );
     }
+
+    public Command taxiFar() {
+        return sequence(
+            runOnce(()->drivetrain.resetPose(new Pose2d(7.5, 4.2, Rotation2d.k180deg)), drivetrain),
+            drivetrain.applyRequest(()->new SwerveRequest.FieldCentric().withVelocityX(-1.5)).withTimeout(1),
+            drivetrain.applyRequest(()->new SwerveRequest.FieldCentric().withVelocityX(-0.5)).withTimeout(1.5),
+            runOnce(()->drivetrain.setControl(new SwerveRequest.FieldCentric()), drivetrain)
+        );
+    }
+
+    // public Command middle1Coral() {
+    //     return sequence(
+    //         runOnce(()->drivetrain.resetPose(new Pose2d(7.5, 4.2, Rotation2d.k180deg)), drivetrain)
+    //         // align to reef pose,
+    //         // score L1
+    //     );
+    // }
 }

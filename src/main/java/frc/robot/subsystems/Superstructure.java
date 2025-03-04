@@ -2,6 +2,7 @@ package frc.robot.subsystems;
 
 import static edu.wpi.first.units.Units.*;
 import static edu.wpi.first.wpilibj2.command.Commands.run;
+import static edu.wpi.first.wpilibj2.command.Commands.select;
 import static edu.wpi.first.wpilibj2.command.Commands.sequence;
 import static frc.robot.util.FieldUtil.kReefPoleDist;
 import static frc.robot.util.FieldUtil.kReefTrl;
@@ -150,5 +151,13 @@ public class Superstructure {
         if ((rollRadians >= angleTolerance) || (pitchRadians >= angleTolerance)){
             elevator.setHeightC(ElevatorConstants.kMinHeight);
         }
+    }
+
+    public Command coralNoSlide(){
+        return run(()->{
+            if (elevator.getElevatorHeightMeters() < elevator.getTargetMeters() && !elevator.isWithinTolerance()){
+                manipulator.setVoltage(-1);
+            }
+        }, manipulator);
     }
 }

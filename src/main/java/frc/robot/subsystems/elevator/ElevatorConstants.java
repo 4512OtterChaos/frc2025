@@ -36,11 +36,11 @@ public class ElevatorConstants {
     public static final Distance kMaxHeight = Meters.of(48); // 58in of travel
 
     public static final Distance kL1Height = Meters.of(5);
-    public static final Distance kL2Height = Meters.of(15);
-    public static final Distance kL3Height = Meters.of(30);
+    public static final Distance kL2Height = Meters.of(14.5);
+    public static final Distance kL3Height = Meters.of(27.5);
     public static final Distance kL4Height = Meters.of(47.13);
     
-    public static final Distance kHeightTolerance = Meters.of(0.01);
+    public static final Distance kHeightTolerance = Meters.of(0.5);
     public static final Angle kTipAngleTolerance = Degrees.of(10);
 
     public static final double kStallThresholdAmps = 20;
@@ -68,7 +68,7 @@ public class ElevatorConstants {
         limits.ReverseSoftLimitThreshold = kMinHeight.in(Meters);
 
         Slot0Configs control = kConfig.Slot0; //TODO: Update PID
-        control.kP = 3;
+        control.kP = 10;
         control.kI = 0;
         control.kD = 0;
 
@@ -78,7 +78,7 @@ public class ElevatorConstants {
         control.kV = 0;
 
         MotionMagicConfigs mm = kConfig.MotionMagic; //TODO: Use correct motion magic vals
-        mm.MotionMagicCruiseVelocity = 1.5; // meters per second
-        mm.MotionMagicAcceleration = 3.5; // meters per second per second
+        mm.MotionMagicCruiseVelocity = 75; // meters per second
+        mm.MotionMagicAcceleration = 75; // meters per second per second
     }
 }

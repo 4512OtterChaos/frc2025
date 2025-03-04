@@ -143,7 +143,7 @@ public class Elevator extends SubsystemBase {
         log(); // log subsystem stats
     }
 
-    public double getElevatorHeightMeters() {
+    public double  getElevatorHeightMeters() {
         positionStatus.refresh();
         return positionStatus.getValueAsDouble();
     }
@@ -287,7 +287,8 @@ public class Elevator extends SubsystemBase {
         SmartDashboard.putNumber("Elevator/Elevator Rotor", leftMotor.getRotorPosition().getValueAsDouble());
         // SmartDashboard.putNumber("Elevator/Elevator Rotor2", rightMotor.getRotorPosition().getValueAsDouble());
         SmartDashboard.putNumber("Elevator/Elevator Native", leftMotor.getPosition().getValueAsDouble());
-        SmartDashboard.putNumber("Elevator/Elevator Inches", Units.metersToInches(getElevatorHeightMeters()));
+        SmartDashboard.putNumber("Elevator/Elevator Fake Units", Units.metersToInches(getElevatorHeightMeters()));
+        SmartDashboard.putNumber("Elevator/Elevator Inches(?)", getElevatorHeightMeters()*(kGearRatio * (Math.PI * sprocketPitchDiameter.in(Meters)) * 2));
         // SmartDashboard.putNumber("Elevator/Elevator Inches2", Units.metersToInches(positionStatus2.getValueAsDouble()));
         SmartDashboard.putNumber("Elevator/Elevator Target Inches", targetHeight.in(Inches));
         SmartDashboard.putNumber("Elevator/Motor Current", getCurrent());
