@@ -38,16 +38,14 @@ public class AutoRoutines {
         );
     }
 
-    // public AutoRoutine simplePathAuto() {
-    //     final AutoRoutine routine = m_factory.newRoutine("SimplePath Auto");
-    //     final AutoTrajectory simplePath = routine.trajectory("SimplePath");
-
-    //     routine.active().onTrue(
-    //         simplePath.resetOdometry()
-    //             .andThen(simplePath.cmd())
-    //     );
-    //     return routine;p
-    // }
+    public Command taxiFar() {
+        return sequence(
+            runOnce(()->drivetrain.resetPose(new Pose2d(7.5, 4.2, Rotation2d.k180deg)), drivetrain),
+            drivetrain.applyRequest(()->new SwerveRequest.FieldCentric().withVelocityX(-1.5)).withTimeout(1),
+            drivetrain.applyRequest(()->new SwerveRequest.FieldCentric().withVelocityX(-0.5)).withTimeout(1.5),
+            runOnce(()->drivetrain.setControl(new SwerveRequest.FieldCentric()), drivetrain)
+        );
+    }
 
     public Command middle1CoralL1() {
         return sequence(
@@ -60,14 +58,16 @@ public class AutoRoutines {
         );
     }
 
-    public Command taxiFar() {
-        return sequence(
-            runOnce(()->drivetrain.resetPose(new Pose2d(7.5, 4.2, Rotation2d.k180deg)), drivetrain),
-            drivetrain.applyRequest(()->new SwerveRequest.FieldCentric().withVelocityX(-1.5)).withTimeout(1),
-            drivetrain.applyRequest(()->new SwerveRequest.FieldCentric().withVelocityX(-0.5)).withTimeout(1.5),
-            runOnce(()->drivetrain.setControl(new SwerveRequest.FieldCentric()), drivetrain)
-        );
-    }
+    // public AutoRoutine simplePathAuto() {
+    //     final AutoRoutine routine = m_factory.newRoutine("SimplePath Auto");
+    //     final AutoTrajectory simplePath = routine.trajectory("SimplePath");
+
+    //     routine.active().onTrue(
+    //         simplePath.resetOdometry()
+    //             .andThen(simplePath.cmd())
+    //     );
+    //     return routine;p
+    // }
 
     // public Command middle1Coral() {
     //     return sequence(

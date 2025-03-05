@@ -13,6 +13,7 @@ import java.util.List;
 
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.configs.Slot0Configs;
+import com.ctre.phoenix6.signals.StaticFeedforwardSignValue;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 
 import edu.wpi.first.math.controller.HolonomicDriveController;
@@ -32,6 +33,7 @@ import frc.robot.subsystems.elevator.Elevator;
 import frc.robot.subsystems.elevator.ElevatorConstants;
 import frc.robot.subsystems.manipulator.Manipulator;
 import frc.robot.util.OCXboxController;
+import frc.robot.util.TunableNumber;
 
 
 public class Superstructure {
@@ -57,6 +59,14 @@ public class Superstructure {
         // .withDeadband(MaxSpeed * 0.05).withRotationalDeadband(MaxAngularRate * 0.05) // Add a 10% deadband
         .withDriveRequestType(DriveRequestType.OpenLoopVoltage); // Use open-loop control for drive motors //TODO: Is this right?
 
+    public TunableNumber pathDriveKP = new TunableNumber("Path/pathDriveKP", TunerConstants.pathSteerGains.kP);
+    public TunableNumber pathDriveKI = new TunableNumber("Path/pathDriveKI", TunerConstants.pathSteerGains.kI);
+    public TunableNumber pathDriveKD = new TunableNumber("Path/pathDriveKD", TunerConstants.pathSteerGains.kD);
+    
+    public TunableNumber pathSteerKP = new TunableNumber("Path/pathDriveKP", TunerConstants.pathSteerGains.kP);
+    public TunableNumber pathSteerKI = new TunableNumber("Path/pathDriveKI", TunerConstants.pathSteerGains.kI);
+    public TunableNumber pathSteerKD = new TunableNumber("Path/pathDriveKD", TunerConstants.pathSteerGains.kD);
+    
     public static final Translation2d kCoralScoreLeftPoseTemplate = new Translation2d(
         kReefTrl.getX() - (kReefWidth.div(2).plus(kRobotWidth.div(2)).in(Meters)),
         kReefTrl.getMeasureY().plus(kReefPoleDist.div(2)).in(Meters));
@@ -86,11 +96,21 @@ public class Superstructure {
         add(new Pose2d(kCoralScoreRightPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(300)), Rotation2d.fromDegrees(300)));
     }};
 
+
+
+
+
+
+
+
+
+
     public void periodic() {
         if (!(elevator.getElevatorHeightMeters() <= ElevatorConstants.kMinHeight.plus(ElevatorConstants.kHeightTolerance).in(Meters))){
             updateDriveSpeed(driver);
         }
         tipProtection();
+        changeTunable();
     }
 
     public Command intake(){
@@ -118,12 +138,9 @@ public class Superstructure {
         double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // kSpeedAt12Volts desired top speed
         double MaxAngularRate = RotationsPerSecond.of(1.5).in(RadiansPerSecond); // 1.5 rotations per second max angular velocity
         double MaxAngularAcceleration = RotationsPerSecondPerSecond.of(3).in(RadiansPerSecondPerSecond);
-
-        Slot0Configs driveGains = TunerConstants.driveGains;
-        Slot0Configs steerGains = TunerConstants.steerGains;
         
-        PIDController xController = new PIDController(driveGains.kP, driveGains.kI, driveGains.kD);
-        ProfiledPIDController thetaController = new ProfiledPIDController(steerGains.kP, steerGains.kI, steerGains.kD, new Constraints(MaxAngularRate, MaxAngularAcceleration));
+        PIDController xController = new PIDController(pathDriveKP.get(), pathDriveKI.get(), pathDriveKD.get());
+        ProfiledPIDController thetaController = new ProfiledPIDController(pathSteerKP.get(), pathSteerKI.get(), pathSteerKD.get(), new Constraints(MaxAngularRate, MaxAngularAcceleration));
 
         HolonomicDriveController driveController = new HolonomicDriveController(xController, xController, thetaController);
         driveController.setTolerance(new Pose2d(.1,.1, Rotation2d.fromDegrees(3)));
@@ -159,5 +176,15 @@ public class Superstructure {
                 manipulator.setVoltage(-1);
             }
         }, manipulator);
+    }
+
+    private void changeTunable() {
+        pathDriveKP.poll();
+        pathDriveKI.poll();
+        pathDriveKD.poll();
+
+        pathSteerKP.poll();
+        pathSteerKI.poll();
+        pathSteerKD.poll();
     }
 }
