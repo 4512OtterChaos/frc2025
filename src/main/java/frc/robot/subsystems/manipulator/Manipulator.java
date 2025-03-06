@@ -9,7 +9,6 @@ import au.grapplerobotics.ConfigurationFailedException;
 import au.grapplerobotics.LaserCan;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.controller.SimpleMotorFeedforward;
-import edu.wpi.first.units.Units.*;
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Current;
@@ -138,7 +137,7 @@ public class Manipulator extends SubsystemBase {
      * @return A command that sets an intaking voltage.
      */
     public Command setVoltageInC(){
-        return run(()->setVoltage(intakeVoltage.get()));
+        return run(()->setVoltage(intakeVoltage.get())).withName("Intake");
     }
 
     /**
@@ -147,7 +146,7 @@ public class Manipulator extends SubsystemBase {
      */
 
     public Command setVoltageOutC(){
-        return run(()->setVoltage(outtakeVoltage.get()));
+        return run(()->setVoltage(outtakeVoltage.get())).withName("Outtake");
     }
 
     // public Command setVelocityC(double RPM){

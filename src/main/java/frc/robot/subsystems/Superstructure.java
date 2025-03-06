@@ -2,7 +2,6 @@ package frc.robot.subsystems;
 
 import static edu.wpi.first.units.Units.*;
 import static edu.wpi.first.wpilibj2.command.Commands.run;
-import static edu.wpi.first.wpilibj2.command.Commands.select;
 import static edu.wpi.first.wpilibj2.command.Commands.sequence;
 import static frc.robot.util.FieldUtil.kReefPoleDist;
 import static frc.robot.util.FieldUtil.kReefTrl;
@@ -12,8 +11,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
-import com.ctre.phoenix6.configs.Slot0Configs;
-import com.ctre.phoenix6.signals.StaticFeedforwardSignValue;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 
 import edu.wpi.first.math.controller.HolonomicDriveController;
@@ -27,7 +24,6 @@ import edu.wpi.first.math.trajectory.TrapezoidProfile.Constraints;
 import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.subsystems.drivetrain.CommandSwerveDrivetrain;
-import frc.robot.subsystems.drivetrain.Telemetry;
 import frc.robot.subsystems.drivetrain.TunerConstants;
 import frc.robot.subsystems.elevator.Elevator;
 import frc.robot.subsystems.elevator.ElevatorConstants;
@@ -38,15 +34,13 @@ import frc.robot.util.TunableNumber;
 
 public class Superstructure {
     private CommandSwerveDrivetrain drive;
-    private Telemetry telemetry;
     private Manipulator manipulator;
     private Elevator elevator;
 
     private OCXboxController driver;
 
-    public Superstructure(CommandSwerveDrivetrain drive, Telemetry telemetry, Manipulator manipulator, Elevator elevator, OCXboxController driver) {
+    public Superstructure(CommandSwerveDrivetrain drive, Manipulator manipulator, Elevator elevator, OCXboxController driver) {
         this.drive = drive;
-        this.telemetry = telemetry;
         this.manipulator = manipulator;
         this.elevator = elevator;
         this.driver = driver;

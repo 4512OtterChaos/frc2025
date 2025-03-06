@@ -80,13 +80,7 @@ public class Elevator extends SubsystemBase {
             rightMotor.setControl(new CoastOut());
             if (status.isOK()) break;
         }
-        // StatusCode status2 = StatusCode.StatusCodeNotInitialized;
-        // for (int i = 0; i < 1; i++) {
-        //     status2 = rightMotor.getConfigurator().apply(kConfig);
-        //     // rightMotor.setControl(new Follower(leftMotor.getDeviceID(), true));
-        //     if (status2.isOK()) break;
-        // }
-        if (!status.isOK() /*|| !status2.isOK()*/) DriverStation.reportWarning("Failed applying Elevator motor configuration!", false);
+        if (!status.isOK()) DriverStation.reportWarning("Failed applying Elevator motor configuration!", false);
 
         dutyStatus.setUpdateFrequency(100);
         voltageStatus.setUpdateFrequency(100);
@@ -211,27 +205,27 @@ public class Elevator extends SubsystemBase {
 
     /** Sets the target elevator height to the L1 height and ends when it is within tolerance. */
     public Command setMinC(){
-        return setHeightC(kMinHeight);
+        return setHeightC(kMinHeight).withName("Go to base");
     }
 
     /** Sets the target elevator height to the L1 height and ends when it is within tolerance. */
     public Command setL1C(){
-        return setHeightC(() -> Meters.of(heightL1Inches.get()));
+        return setHeightC(() -> Meters.of(heightL1Inches.get())).withName("Go to L1");
     }
 
     /** Sets the target elevator height to the L2 height and ends when it is within tolerance. */
     public Command setL2C(){
-        return setHeightC(() -> Meters.of(heightL2Inches.get()));
+        return setHeightC(() -> Meters.of(heightL2Inches.get())).withName("Go to L2");
     }
 
     /** Sets the target elevator height to the L3 height and ends when it is within tolerance. */
     public Command setL3C(){
-        return setHeightC(() -> Meters.of(heightL3Inches.get()));
+        return setHeightC(() -> Meters.of(heightL3Inches.get())).withName("Go to L3");
     }
 
     /** Sets the target elevator height to the L4 height and ends when it is within tolerance. */
     public Command setL4C(){
-        return setHeightC(() -> Meters.of(heightL4Inches.get()));
+        return setHeightC(() -> Meters.of(heightL4Inches.get())).withName("Go to L4");
     }
 
     /** Runs the elevator into the base, detecting a current spike and resetting the elevator height. */
@@ -247,7 +241,7 @@ public class Elevator extends SubsystemBase {
                 setVoltage(0);
                 resetElevatorHeight(kMinHeight.in(Meters));
             }
-        ).until(()->isStalled());
+        ).until(()->isStalled()).withName("Homing");
     }
 
     private void changeTunable() {

@@ -19,7 +19,6 @@ import static edu.wpi.first.units.Units.*;
 import static edu.wpi.first.wpilibj2.command.Commands.*;
 
 import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.units.measure.LinearVelocity;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.auto.AutoRoutines;
@@ -29,7 +28,6 @@ import frc.robot.subsystems.drivetrain.Telemetry;
 import frc.robot.subsystems.drivetrain.TunerConstants;
 import frc.robot.subsystems.elevator.Elevator;
 import frc.robot.subsystems.manipulator.Manipulator;
-import frc.robot.subsystems.manipulator.ManipulatorConstants;
 import frc.robot.util.OCXboxController;
 
 public class RobotContainer {
@@ -59,7 +57,7 @@ public class RobotContainer {
     private OCXboxController driver = new OCXboxController(0);
     // private OCXboxController operator = new OCXboxController(1);
     
-    public final Superstructure superstructure = new Superstructure(drivetrain, logger, manipulator, elevator, driver);
+    public final Superstructure superstructure = new Superstructure(drivetrain, manipulator, elevator, driver);
     
     /* Path follower */
     private final AutoFactory autoFactory;
@@ -113,7 +111,7 @@ public class RobotContainer {
             return drive.withVelocityX(speeds.vxMetersPerSecond)
             .withVelocityY(speeds.vyMetersPerSecond)
             .withRotationalRate(speeds.omegaRadiansPerSecond);
-        })
+        }).withName("D:Controller Drive")
         );
         
         // controller.x().whileTrue(drivetrain.applyRequest(() -> brake));
@@ -125,18 +123,19 @@ public class RobotContainer {
         controller.start().onTrue(drivetrain.runOnce(() -> drivetrain.seedFieldCentric()));
         
         //TODO: ADD GYRO BUTTONS FOR AUTO ALIGN
-        controller.povUp().whileTrue(drivetrain.applyRequest(()->orient.withTargetDirection(Rotation2d.kZero)));
-        controller.povLeft().whileTrue(drivetrain.applyRequest(()->orient.withTargetDirection(Rotation2d.fromDegrees(-45))));
-        controller.povRight().whileTrue(drivetrain.applyRequest(()->orient.withTargetDirection(Rotation2d.fromDegrees(45))));
+        controller.povUp().whileTrue(drivetrain.applyRequest(()->orient.withTargetDirection(Rotation2d.kZero)).withName("Face Forward"));
+        controller.povLeft().whileTrue(drivetrain.applyRequest(()->orient.withTargetDirection(Rotation2d.fromDegrees(-45))).withName("Align Left Station"));
+        controller.povRight().whileTrue(drivetrain.applyRequest(()->orient.withTargetDirection(Rotation2d.fromDegrees(45))).withName("Align Right Station"));
         
         // controller.leftBumper().whileTrue(drivetrain.applyRequest(()->robotCentric.withVelocityY(MetersPerSecond.of(0.3))));
         // controller.rightBumper().whileTrue(drivetrain.applyRequest(()->robotCentric.withVelocityY(MetersPerSecond.of(-0.3))));
 
-        controller.rightTrigger().whileTrue(drivetrain.applyRequest(()->robotCentric.withVelocityY(MetersPerSecond.of(controller.getRightTriggerAxis()*-0.3))));
-        controller.leftTrigger().whileTrue(drivetrain.applyRequest(()->robotCentric.withVelocityY(MetersPerSecond.of(controller.getLeftTriggerAxis()*0.3))));
+        controller.rightTrigger().whileTrue(drivetrain.applyRequest(()->robotCentric.withVelocityY(MetersPerSecond.of(controller.getRightTriggerAxis()*-0.3))).withName("Strafe Left"));
+        controller.leftTrigger().whileTrue(drivetrain.applyRequest(()->robotCentric.withVelocityY(MetersPerSecond.of(controller.getLeftTriggerAxis()*0.3))).withName("Strafe Right"));
 
         
-        controller.back().onTrue(superstructure.driveToScorePoint());
+        controller.back().whileTrue(superstructure.driveToScorePoint())
+        .onFalse(drivetrain.applyRequest(()->drive));
         
         // Run SysId routines when holding back/start and X/Y.
         // Note that each routine should be run exactly once in a single log.
