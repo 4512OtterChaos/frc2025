@@ -67,17 +67,17 @@ public class ElevatorConstants {
         limits.ReverseSoftLimitEnable = false;
         limits.ReverseSoftLimitThreshold = kMinHeight.in(Meters);
 
-        Slot0Configs control = kConfig.Slot0; //TODO: Update PID
+        Slot0Configs control = kConfig.Slot0;
         control.kP = 10;
         control.kI = 0;
         control.kD = 0;
 
-        control.GravityType = GravityTypeValue.Elevator_Static; //TODO: Update Elevator k constants
+        control.GravityType = GravityTypeValue.Elevator_Static;
         control.kG = 0.2;
         control.kS = 0.1;
         control.kV = 0;
 
-        MotionMagicConfigs mm = kConfig.MotionMagic; //TODO: Use correct motion magic vals
+        MotionMagicConfigs mm = kConfig.MotionMagic;
         mm.MotionMagicCruiseVelocity = 75; // meters per second
         mm.MotionMagicAcceleration = 75; // meters per second per second
     }

@@ -36,7 +36,7 @@ public class TunerConstants {
 
     //Path gains for steer and drive
     public static final Slot0Configs pathSteerGains = new Slot0Configs()
-        .withKP(100).withKI(0).withKD(0.5)
+        .withKP(50).withKI(0).withKD(0.5)
         .withKS(0.1).withKV(1.91).withKA(0)
         .withStaticFeedforwardSign(StaticFeedforwardSignValue.UseClosedLoopSign);
     

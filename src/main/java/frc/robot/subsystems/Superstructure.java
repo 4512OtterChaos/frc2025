@@ -13,6 +13,7 @@ import java.util.List;
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 
+import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.controller.HolonomicDriveController;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.controller.ProfiledPIDController;
@@ -47,47 +48,52 @@ public class Superstructure {
     }
 
     
-    public static final Distance kRobotWidth = Meters.of(33.875);
+    public static final Distance kRobotWidth = Inches.of(33.875);
+
+    HolonomicDriveController driveController;
 
     SwerveRequest.ApplyRobotSpeeds robotSpeeds = new SwerveRequest.ApplyRobotSpeeds()
         // .withDeadband(MaxSpeed * 0.05).withRotationalDeadband(MaxAngularRate * 0.05) // Add a 10% deadband
         .withDriveRequestType(DriveRequestType.OpenLoopVoltage); // Use open-loop control for drive motors //TODO: Is this right?
 
-    public TunableNumber pathDriveKP = new TunableNumber("Path/pathDriveKP", TunerConstants.pathSteerGains.kP);
-    public TunableNumber pathDriveKI = new TunableNumber("Path/pathDriveKI", TunerConstants.pathSteerGains.kI);
-    public TunableNumber pathDriveKD = new TunableNumber("Path/pathDriveKD", TunerConstants.pathSteerGains.kD);
+        private TunableNumber pathDriveKP = new TunableNumber("Path/pathDriveKP", TunerConstants.pathSteerGains.kP);
+    private TunableNumber pathDriveKI = new TunableNumber("Path/pathDriveKI", TunerConstants.pathSteerGains.kI);
+    private TunableNumber pathDriveKD = new TunableNumber("Path/pathDriveKD", TunerConstants.pathSteerGains.kD);
     
-    public TunableNumber pathSteerKP = new TunableNumber("Path/pathDriveKP", TunerConstants.pathSteerGains.kP);
-    public TunableNumber pathSteerKI = new TunableNumber("Path/pathDriveKI", TunerConstants.pathSteerGains.kI);
-    public TunableNumber pathSteerKD = new TunableNumber("Path/pathDriveKD", TunerConstants.pathSteerGains.kD);
-    
-    public static final Translation2d kCoralScoreLeftPoseTemplate = new Translation2d(
-        kReefTrl.getX() - (kReefWidth.div(2).plus(kRobotWidth.div(2)).in(Meters)),
-        kReefTrl.getMeasureY().plus(kReefPoleDist.div(2)).in(Meters));
+    private TunableNumber pathSteerKP = new TunableNumber("Path/pathSteerKP", TunerConstants.pathSteerGains.kP);
+    private TunableNumber pathSteerKI = new TunableNumber("Path/pathSteerKI", TunerConstants.pathSteerGains.kI);
+    private TunableNumber pathSteerKD = new TunableNumber("Path/pathSteerKD", TunerConstants.pathSteerGains.kD);
+
+    private TunableNumber pathSpeed = new TunableNumber("Path/pathSpeed", 3);
 
     
-    public static final Translation2d kCoralScoreRightPoseTemplate = new Translation2d(
+    private static final Translation2d kCoralScoreLeftPoseTemplate = new Translation2d(
+        kReefTrl.getX() - (kReefWidth.div(2).plus(kRobotWidth.div(2)).in(Meters)),
+        kReefTrl.getMeasureY()/*.plus(kReefPoleDist.div(2))*/.in(Meters));
+
+    
+    private static final Translation2d kCoralScoreRightPoseTemplate = new Translation2d(
         kReefTrl.getX() - (kReefWidth.div(2).plus(kRobotWidth.div(2)).in(Meters)),
         kReefTrl.getMeasureY().minus(kReefPoleDist.div(2)).in(Meters));
     
     public static final List<Pose2d> kCoralScoringPositions = new ArrayList<Pose2d>() {{
         add(new Pose2d(kCoralScoreLeftPoseTemplate, Rotation2d.fromDegrees(0)));
-        add(new Pose2d(kCoralScoreRightPoseTemplate, Rotation2d.fromDegrees(0)));
+        // add(new Pose2d(kCoralScoreRightPoseTemplate, Rotation2d.fromDegrees(0)));
 
-        add(new Pose2d(kCoralScoreLeftPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(60)), Rotation2d.fromDegrees(60)));
-        add(new Pose2d(kCoralScoreRightPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(60)), Rotation2d.fromDegrees(60)));
+        // add(new Pose2d(kCoralScoreLeftPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(60)), Rotation2d.fromDegrees(60)));
+        // add(new Pose2d(kCoralScoreRightPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(60)), Rotation2d.fromDegrees(60)));
 
-        add(new Pose2d(kCoralScoreLeftPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(120)), Rotation2d.fromDegrees(120)));
-        add(new Pose2d(kCoralScoreRightPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(120)), Rotation2d.fromDegrees(120)));
+        // add(new Pose2d(kCoralScoreLeftPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(120)), Rotation2d.fromDegrees(120)));
+        // add(new Pose2d(kCoralScoreRightPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(120)), Rotation2d.fromDegrees(120)));
 
-        add(new Pose2d(kCoralScoreLeftPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(180)), Rotation2d.fromDegrees(180)));
-        add(new Pose2d(kCoralScoreRightPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(180)), Rotation2d.fromDegrees(180)));
+        // add(new Pose2d(kCoralScoreLeftPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(180)), Rotation2d.fromDegrees(180)));
+        // add(new Pose2d(kCoralScoreRightPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(180)), Rotation2d.fromDegrees(180)));
 
-        add(new Pose2d(kCoralScoreLeftPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(240)), Rotation2d.fromDegrees(240)));
-        add(new Pose2d(kCoralScoreRightPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(240)), Rotation2d.fromDegrees(240)));
+        // add(new Pose2d(kCoralScoreLeftPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(240)), Rotation2d.fromDegrees(240)));
+        // add(new Pose2d(kCoralScoreRightPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(240)), Rotation2d.fromDegrees(240)));
 
-        add(new Pose2d(kCoralScoreLeftPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(300)), Rotation2d.fromDegrees(300)));
-        add(new Pose2d(kCoralScoreRightPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(300)), Rotation2d.fromDegrees(300)));
+        // add(new Pose2d(kCoralScoreLeftPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(300)), Rotation2d.fromDegrees(300)));
+        // add(new Pose2d(kCoralScoreRightPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(300)), Rotation2d.fromDegrees(300)));
     }};
 
 
@@ -121,26 +127,60 @@ public class Superstructure {
     //     );
     // }
 
+    public Command driveToScorePointVector(){
+        Pose2d currentPose = drive.getState().Pose;
+        Pose2d targetPose = currentPose.nearest(kCoralScoringPositions);
+
+        Translation2d translationError = drive.getState().Pose.relativeTo(targetPose).getTranslation();
+        Rotation2d rotError = drive.getState().Pose.relativeTo(targetPose).getRotation();
+        Distance straightDistError = Meters.of(Math.sqrt(Math.pow(translationError.getX(), 2) + Math.pow(translationError.getY(), 2)));
+
+        double desiredRotSpeed = RotationsPerSecond.of(1.5).in(RadiansPerSecond); // 1.5 rotations per second max angular velocity
+        // double desiredRotAcceleration = RotationsPerSecondPerSecond.of(3).in(RadiansPerSecondPerSecond);
+
+        double desiredSpeed;
+        double xSpeed;
+        double ySpeed;
+        double rotSpeed;
+
+        Translation2d adjustedError = translationError;
+
+        //TODO: adjustPose for y and rott offset
+
+        desiredSpeed = straightDistError.in(Meters)*.5;
+        MathUtil.clamp(desiredSpeed, 0, pathSpeed.get());
+        
+        rotSpeed = rotError.getRotations()*3;
+        MathUtil.clamp(rotSpeed, 0, desiredRotSpeed);
+
+        xSpeed = desiredSpeed * adjustedError.getX()/straightDistError.in(Meters);
+        ySpeed = desiredSpeed * adjustedError.getY()/straightDistError.in(Meters);
+        
+        ChassisSpeeds targetSpeeds = new ChassisSpeeds(xSpeed, ySpeed, rotSpeed);
+
+        return drive.applyRequest(()->robotSpeeds.withSpeeds(targetSpeeds))/*.until(()->driveController.atReference()).repeatedly()*/;
+    }
+
     public Command driveToScorePoint(){
-        return drive.applyRequest(()->robotSpeeds.withSpeeds(chassisSpeedsToScorePoint()));
+        return drive.applyRequest(()->robotSpeeds.withSpeeds(chassisSpeedsToScorePoint()))/*.until(()->driveController.atReference()).repeatedly()*/;
     }
 
     private ChassisSpeeds chassisSpeedsToScorePoint(){    
         Pose2d currentPose = drive.getState().Pose;
         Pose2d targetPose = currentPose.nearest(kCoralScoringPositions);
 
-        double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // kSpeedAt12Volts desired top speed
-        double MaxAngularRate = RotationsPerSecond.of(1.5).in(RadiansPerSecond); // 1.5 rotations per second max angular velocity
-        double MaxAngularAcceleration = RotationsPerSecondPerSecond.of(3).in(RadiansPerSecondPerSecond);
+        double desiredSpeed = pathSpeed.get();
+        double desiredRotSpeed = RotationsPerSecond.of(1.5).in(RadiansPerSecond); // 1.5 rotations per second max angular velocity
+        double desiredRotAcceleration = RotationsPerSecondPerSecond.of(3).in(RadiansPerSecondPerSecond);
         
         PIDController xController = new PIDController(pathDriveKP.get(), pathDriveKI.get(), pathDriveKD.get());
-        ProfiledPIDController thetaController = new ProfiledPIDController(pathSteerKP.get(), pathSteerKI.get(), pathSteerKD.get(), new Constraints(MaxAngularRate, MaxAngularAcceleration));
+        ProfiledPIDController thetaController = new ProfiledPIDController(pathSteerKP.get(), pathSteerKI.get(), pathSteerKD.get(), new Constraints(desiredRotSpeed, desiredRotAcceleration));
 
-        HolonomicDriveController driveController = new HolonomicDriveController(xController, xController, thetaController);
-        driveController.setTolerance(new Pose2d(.1,.1, Rotation2d.fromDegrees(3)));
-
+        driveController = new HolonomicDriveController(xController, xController, thetaController);
+        driveController.setTolerance(new Pose2d(.2,.2, Rotation2d.fromDegrees(5)));
+        
     
-        return driveController.calculate(currentPose, targetPose, MaxSpeed, targetPose.getRotation()); 
+        return driveController.calculate(currentPose, targetPose, desiredSpeed, targetPose.getRotation()); 
     }
 
     public void updateDriveSpeed(OCXboxController controller){//TODO:Just like make it work/do it
@@ -180,5 +220,7 @@ public class Superstructure {
         pathSteerKP.poll();
         pathSteerKI.poll();
         pathSteerKD.poll();
+
+        pathSpeed.poll();
     }
 }
