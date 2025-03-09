@@ -9,6 +9,7 @@ import com.ctre.phoenix6.controls.MotionMagicVoltage;
 import com.ctre.phoenix6.controls.VoltageOut;
 import com.ctre.phoenix6.hardware.ParentDevice;
 import com.ctre.phoenix6.hardware.TalonFX;
+import com.ctre.phoenix6.sim.ChassisReference;
 
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.util.Units;
@@ -22,6 +23,7 @@ import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.units.measure.Voltage;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.RobotBase;
+import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -282,7 +284,7 @@ public class Elevator extends SubsystemBase {
         // SmartDashboard.putNumber("Elevator/Elevator Rotor2", rightMotor.getRotorPosition().getValueAsDouble());
         SmartDashboard.putNumber("Elevator/Elevator Native", leftMotor.getPosition().getValueAsDouble());
         SmartDashboard.putNumber("Elevator/Elevator Fake Units", Units.metersToInches(getElevatorHeightMeters()));
-        SmartDashboard.putNumber("Elevator/Elevator Inches(?)", getElevatorHeightMeters()*(kGearRatio * (Math.PI * sprocketPitchDiameter.in(Meters)) * 2));
+        SmartDashboard.putNumber("Elevator/Elevator Inches(?)", getElevatorHeightMeters()*(kGearRatio * (Math.PI * kSprocketPD.in(Meters)) * 2));
         // SmartDashboard.putNumber("Elevator/Elevator Inches2", Units.metersToInches(positionStatus2.getValueAsDouble()));
         SmartDashboard.putNumber("Elevator/Elevator Target Inches", targetHeight.in(Inches));
         SmartDashboard.putNumber("Elevator/Motor Current", getCurrent());
@@ -291,5 +293,26 @@ public class Elevator extends SubsystemBase {
         SmartDashboard.putNumber("Elevator/Motor Target Voltage", targetVoltage);
         SmartDashboard.putNumber("Elevator/Motor Velocity", getVelocity());
     //     SmartDashboard.putData("Elevator/Mech2d", mech);
+    }
+
+
+    //########## Simulation
+
+    @Override
+    public void simulationPeriodic() {
+        var leftSim = leftMotor.getSimState();
+        leftSim.Orientation = ChassisReference.CounterClockwise_Positive;
+        leftSim.setSupplyVoltage(RobotController.getBatteryVoltage());
+        var rightSim = rightMotor.getSimState();
+        rightSim.Orientation = ChassisReference.Clockwise_Positive;
+        rightSim.setSupplyVoltage(RobotController.getBatteryVoltage());
+
+        model.setInput(leftSim.getMotorVoltage());
+        model.update(0.02);
+
+        leftSim.setRawRotorPosition(ElevatorConstants.elevDistToMotorAngle(Meters.of(model.getPositionMeters())));
+        leftSim.setRotorVelocity(ElevatorConstants.elevDistToMotorAngle(Meters.of(model.getVelocityMetersPerSecond())).per(Second));
+        rightSim.setRawRotorPosition(ElevatorConstants.elevDistToMotorAngle(Meters.of(model.getPositionMeters())));
+        rightSim.setRotorVelocity(ElevatorConstants.elevDistToMotorAngle(Meters.of(model.getVelocityMetersPerSecond())).per(Second));
     }
 }
