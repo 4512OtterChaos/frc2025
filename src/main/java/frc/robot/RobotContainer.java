@@ -28,6 +28,7 @@ import frc.robot.subsystems.drivetrain.Telemetry;
 import frc.robot.subsystems.drivetrain.TunerConstants;
 import frc.robot.subsystems.elevator.Elevator;
 import frc.robot.subsystems.manipulator.Manipulator;
+import frc.robot.subsystems.vision.Vision;
 import frc.robot.util.OCXboxController;
 
 public class RobotContainer {
@@ -58,6 +59,8 @@ public class RobotContainer {
     // private OCXboxController operator = new OCXboxController(1);
     
     public final Superstructure superstructure = new Superstructure(drivetrain, manipulator, elevator, driver);
+
+    private final Vision vision = new Vision();
     
     /* Path follower */
     private final AutoFactory autoFactory;
@@ -186,5 +189,9 @@ public class RobotContainer {
     
     public void periodic() {
         superstructure.periodic();
+    }
+
+    public void simulationPeriodic() {
+        vision.simulationPeriodic(drivetrain.getState().Pose);
     }
 }
