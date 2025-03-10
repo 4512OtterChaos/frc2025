@@ -36,9 +36,9 @@ public class ElevatorConstants {
     public static final Distance kMaxHeight = Meters.of(48); // 58in of travel
 
     public static final Distance kL1Height = Meters.of(5);
-    public static final Distance kL2Height = Meters.of(14.5);
-    public static final Distance kL3Height = Meters.of(27.5);
-    public static final Distance kL4Height = Meters.of(47.13);
+    public static final Distance kL2Height = Meters.of(13);
+    public static final Distance kL3Height = Meters.of(26);
+    public static final Distance kL4Height = Meters.of(47.75);
     
     public static final Distance kHeightTolerance = Meters.of(0.5);
     public static final Angle kTipAngleTolerance = Degrees.of(10);
@@ -54,7 +54,7 @@ public class ElevatorConstants {
         //          motor rotations  -->  shaft rotations  -->  chain travel                                 -->  carriage travel
 
         MotorOutputConfigs output = kConfig.MotorOutput;
-        output.NeutralMode = NeutralModeValue.Coast;
+        output.NeutralMode = NeutralModeValue.Brake;
         output.Inverted = InvertedValue.CounterClockwise_Positive;
 
         CurrentLimitsConfigs current = kConfig.CurrentLimits;
@@ -68,7 +68,7 @@ public class ElevatorConstants {
         limits.ReverseSoftLimitThreshold = kMinHeight.in(Meters);
 
         Slot0Configs control = kConfig.Slot0;
-        control.kP = 10;
+        control.kP = 5;
         control.kI = 0;
         control.kD = 0;
 
@@ -78,7 +78,7 @@ public class ElevatorConstants {
         control.kV = 0;
 
         MotionMagicConfigs mm = kConfig.MotionMagic;
-        mm.MotionMagicCruiseVelocity = 75; // meters per second
-        mm.MotionMagicAcceleration = 75; // meters per second per second
+        mm.MotionMagicCruiseVelocity = 100; // meters per second
+        mm.MotionMagicAcceleration = 250; // meters per second per second
     }
 }

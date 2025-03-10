@@ -73,14 +73,17 @@ public class Elevator extends SubsystemBase {
 
     public Elevator(){
         // try applying motor configs
-        StatusCode status = StatusCode.StatusCodeNotInitialized;
+        StatusCode statusL = StatusCode.StatusCodeNotInitialized;
+        StatusCode statusR = StatusCode.StatusCodeNotInitialized;
+
         for (int i = 0; i < 1; i++) {
-            status = leftMotor.getConfigurator().apply(kConfig);
-            // rightMotor.setControl(new Follower(leftMotor.getDeviceID(), true));
-            rightMotor.setControl(new CoastOut());
-            if (status.isOK()) break;
+            statusL = leftMotor.getConfigurator().apply(kConfig);
+            statusR = rightMotor.getConfigurator().apply(kConfig);
+            rightMotor.setControl(new Follower(leftMotor.getDeviceID(), true));
+            // rightMotor.setControl(new CoastOut());
+            if (statusL.isOK() && statusR.isOK()) break;
         }
-        if (!status.isOK()) DriverStation.reportWarning("Failed applying Elevator motor configuration!", false);
+        if (!statusL.isOK() || !statusR.isOK()) DriverStation.reportWarning("Failed applying Elevator motor configuration!", false);
 
         dutyStatus.setUpdateFrequency(100);
         voltageStatus.setUpdateFrequency(100);

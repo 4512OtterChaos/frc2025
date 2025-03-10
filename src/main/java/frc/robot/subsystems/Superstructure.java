@@ -25,6 +25,7 @@ import edu.wpi.first.math.trajectory.TrapezoidProfile.Constraints;
 import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.subsystems.drivetrain.CommandSwerveDrivetrain;
+import frc.robot.subsystems.drivetrain.SwerveDriveAccelLimiter;
 import frc.robot.subsystems.drivetrain.TunerConstants;
 import frc.robot.subsystems.elevator.Elevator;
 import frc.robot.subsystems.elevator.ElevatorConstants;
@@ -35,13 +36,15 @@ import frc.robot.util.TunableNumber;
 
 public class Superstructure {
     private CommandSwerveDrivetrain drive;
+    private SwerveDriveAccelLimiter limiter;
     private Manipulator manipulator;
     private Elevator elevator;
 
     private OCXboxController driver;
 
-    public Superstructure(CommandSwerveDrivetrain drive, Manipulator manipulator, Elevator elevator, OCXboxController driver) {
+    public Superstructure(CommandSwerveDrivetrain drive, SwerveDriveAccelLimiter limiter, Manipulator manipulator, Elevator elevator, OCXboxController driver) {
         this.drive = drive;
+        this.limiter = limiter;
         this.manipulator = manipulator;
         this.elevator = elevator;
         this.driver = driver;
@@ -127,7 +130,7 @@ public class Superstructure {
     //     );
     // }
 
-    public Command driveToScorePointVector(){
+    public Command driveToScorePointVector(){ //TODO: add accel limiter
         Pose2d currentPose = drive.getState().Pose;
         Pose2d targetPose = currentPose.nearest(kCoralScoringPositions);
 

@@ -21,7 +21,7 @@ public class ManipulatorConstants {
 
     public static double kIntakeVoltage = 0.9;
     public static double kFeedVoltage = 0.5;
-    public static double kScoreVoltage = 3;
+    public static double kScoreVoltage = 3.5;
 
     public static int kGearRatio = 3;
 

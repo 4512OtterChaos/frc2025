@@ -19,11 +19,13 @@ import static edu.wpi.first.units.Units.*;
 import static edu.wpi.first.wpilibj2.command.Commands.*;
 
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.auto.AutoRoutines;
 import frc.robot.subsystems.Superstructure;
 import frc.robot.subsystems.drivetrain.CommandSwerveDrivetrain;
+import frc.robot.subsystems.drivetrain.SwerveDriveAccelLimiter;
 import frc.robot.subsystems.drivetrain.Telemetry;
 import frc.robot.subsystems.drivetrain.TunerConstants;
 import frc.robot.subsystems.elevator.Elevator;
@@ -56,8 +58,13 @@ public class RobotContainer {
     
     private OCXboxController driver = new OCXboxController(0);
     // private OCXboxController operator = new OCXboxController(1);
+
+    private ChassisSpeeds lastTargetChassisSpeeds = new ChassisSpeeds();
+    private final SwerveDriveAccelLimiter limiter = new SwerveDriveAccelLimiter(TunerConstants.kLinearAcceleration, TunerConstants.kLinearDeceleration, TunerConstants.kRotationalAcceleration, TunerConstants.kRotationalDeceleration);
+
+    public final Superstructure superstructure = new Superstructure(drivetrain, limiter, manipulator, elevator, driver);
+
     
-    public final Superstructure superstructure = new Superstructure(drivetrain, manipulator, elevator, driver);
     
     /* Path follower */
     private final AutoFactory autoFactory;
@@ -107,10 +114,12 @@ public class RobotContainer {
         //DRIVE COMMAND
         drivetrain.setDefaultCommand(
         drivetrain.applyRequest(() -> {
-            var speeds = controller.getSpeeds(MaxSpeed, MaxAngularRate);
-            return drive.withVelocityX(speeds.vxMetersPerSecond)
-            .withVelocityY(speeds.vyMetersPerSecond)
-            .withRotationalRate(speeds.omegaRadiansPerSecond);
+            var targetChassisSpeeds = controller.getSpeeds(MaxSpeed, MaxAngularRate);
+            targetChassisSpeeds = limiter.calculate(targetChassisSpeeds, lastTargetChassisSpeeds, Robot.kDefaultPeriod);
+            lastTargetChassisSpeeds = targetChassisSpeeds;
+            return drive.withVelocityX(targetChassisSpeeds.vxMetersPerSecond)
+            .withVelocityY(targetChassisSpeeds.vyMetersPerSecond)
+            .withRotationalRate(targetChassisSpeeds.omegaRadiansPerSecond);
         }).withName("D:Controller Drive")
         );
         
