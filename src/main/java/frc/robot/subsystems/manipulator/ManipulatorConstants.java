@@ -13,7 +13,11 @@ import com.ctre.phoenix6.signals.NeutralModeValue;
 import au.grapplerobotics.interfaces.LaserCanInterface.RangingMode;
 import au.grapplerobotics.interfaces.LaserCanInterface.RegionOfInterest;
 import au.grapplerobotics.interfaces.LaserCanInterface.TimingBudget;
+import edu.wpi.first.math.system.plant.DCMotor;
+import edu.wpi.first.math.system.plant.LinearSystemId;
+import edu.wpi.first.math.util.Units;
 import edu.wpi.first.units.measure.Distance;
+import edu.wpi.first.wpilibj.simulation.DCMotorSim;
 
 public class ManipulatorConstants {
     public static int kMotorID = 31;
@@ -58,8 +62,12 @@ public class ManipulatorConstants {
         control.kI = 0;
         control.kD = 0;
 
-        control.kG = 0;//TODO: Update manipulator k constants
-        control.kS = 0.25;
-        control.kV = 0.005;
+        control.kS = 0.25; 
+        control.kV = 1.0 / Units.radiansToRotations(DCMotor.getKrakenX60(1).withReduction(kGearRatio).KvRadPerSecPerVolt);
     }
+
+    public static final DCMotorSim model = new DCMotorSim(
+        LinearSystemId.createDCMotorSystem(1.0 / DCMotor.getKrakenX60(1).withReduction(kGearRatio).KvRadPerSecPerVolt, 0.001),
+        DCMotor.getKrakenX60(1)
+    );
 }

@@ -13,16 +13,20 @@ import com.ctre.phoenix6.signals.NeutralModeValue;
 
 import static edu.wpi.first.units.Units.*;
 
+import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.Distance;
+import edu.wpi.first.units.measure.Mass;
+import edu.wpi.first.wpilibj.simulation.ElevatorSim;
 
 public class ElevatorConstants {
     public static final int kLeftMotorID = 21;
     public static final int kRightMotorID = 22;
 
     public static final int kGearRatio = 9;
-    public static final Distance sprocketPitchDiameter = Inches.of(1.76);
+    public static final Distance kSprocketPD = Inches.of(1.76);
 
+    public static final Mass kCarriageMass = Pounds.of(15);
     
     // public static final Distance kMinHeight = Inches.of(17.75); // As measured from the top of the cariage 
     // public static final Distance kMaxHeight = Inches.of(kMinHeight.in(Inches) + 58); // 58in of travel
@@ -81,4 +85,23 @@ public class ElevatorConstants {
         mm.MotionMagicCruiseVelocity = 100; // meters per second
         mm.MotionMagicAcceleration = 250; // meters per second per second
     }
+
+    public static Distance motorAngleToElevDist(Angle angle) {
+        return Meters.of(angle.in(Rotations) / kGearRatio * (kSprocketPD.in(Meters) * Math.PI));
+    }
+
+    public static Angle elevDistToMotorAngle(Distance dist) {
+        return Rotations.of(dist.in(Meters) / (kSprocketPD.in(Meters) * Math.PI) * kGearRatio);
+    }
+
+    public static final ElevatorSim model = new ElevatorSim(
+        DCMotor.getKrakenX60(2),
+        kGearRatio,
+        kCarriageMass.in(Kilograms),
+        kSprocketPD.in(Meters) / 2.0,
+        0,
+        kMaxHeight.in(Meters),
+        true,
+        0
+    );
 }
