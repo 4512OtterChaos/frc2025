@@ -1,28 +1,36 @@
 package frc.robot.subsystems.manipulator;
 
+import com.ctre.phoenix6.BaseStatusSignal;
 import com.ctre.phoenix6.StatusCode;
 import com.ctre.phoenix6.StatusSignal;
 import com.ctre.phoenix6.hardware.ParentDevice;
 import com.ctre.phoenix6.hardware.TalonFX;
+import com.ctre.phoenix6.sim.ChassisReference;
 
 import au.grapplerobotics.ConfigurationFailedException;
 import au.grapplerobotics.LaserCan;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.controller.SimpleMotorFeedforward;
+import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Current;
 import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.units.measure.Voltage;
 import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
+import frc.robot.subsystems.elevator.ElevatorConstants;
 import frc.robot.util.TunableNumber;
 
 import static edu.wpi.first.units.Units.Millimeters;
+import static edu.wpi.first.units.Units.RadiansPerSecond;
+import static edu.wpi.first.units.Units.Rotations;
+import static edu.wpi.first.units.Units.RotationsPerSecond;
 import static edu.wpi.first.wpilibj2.command.Commands.sequence;
 import static frc.robot.subsystems.manipulator.ManipulatorConstants.*;
 
@@ -39,7 +47,6 @@ public class Manipulator extends SubsystemBase {
     
     double lastFreeTime = Timer.getFPGATimestamp();
 
-    private final StatusSignal<Double> dutyStatus = motor.getDutyCycle();
     private final StatusSignal<Voltage> voltageStatus = motor.getMotorVoltage();
     private final StatusSignal<Angle> positionStatus = motor.getPosition();
     private final StatusSignal<AngularVelocity> velocityStatus = motor.getVelocity();
@@ -66,7 +73,6 @@ public class Manipulator extends SubsystemBase {
             System.out.println("Configuration failed! " + e);
         }
 
-        dutyStatus.setUpdateFrequency(100);
         voltageStatus.setUpdateFrequency(100);
         positionStatus.setUpdateFrequency(100);
         velocityStatus.setUpdateFrequency(50);
@@ -188,11 +194,26 @@ public class Manipulator extends SubsystemBase {
     }
 
     private void log() {
+        BaseStatusSignal.refreshAll(voltageStatus, positionStatus, velocityStatus, statorStatus);
         SmartDashboard.putNumber("Coral/Motor Voltage", voltageStatus.getValueAsDouble());
         SmartDashboard.putNumber("Coral/Motor Current", getCurrent());
         SmartDashboard.putBoolean("Coral/isStalled", isStalled().getAsBoolean());
-
-        SmartDashboard.putNumber("Coral/test", intakeVoltage.get());
     }
     
+
+    //########## Simulation
+
+    @Override
+    public void simulationPeriodic() {
+        var motorSim = motor.getSimState();
+        motorSim.Orientation = ChassisReference.CounterClockwise_Positive;
+        motorSim.setSupplyVoltage(RobotController.getBatteryVoltage());
+
+        model.setInput(motorSim.getMotorVoltage());
+        model.update(0.02);
+
+        motorSim.setRawRotorPosition(model.getAngularPosition().times(kGearRatio));
+        motorSim.setRotorVelocity(model.getAngularVelocity().times(kGearRatio));
+        motorSim.setRotorAcceleration(model.getAngularAcceleration().times(kGearRatio));
+    }
 }

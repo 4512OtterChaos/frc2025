@@ -53,7 +53,6 @@ public class Elevator extends SubsystemBase {
     private final StatusSignal<Double> dutyStatus = leftMotor.getDutyCycle();
     private final StatusSignal<Voltage> voltageStatus = leftMotor.getMotorVoltage();
     private final StatusSignal<Angle> positionStatus = leftMotor.getPosition();
-    // private final StatusSignal<Angle> positionStatus2 = rightMotor.getPosition();
     private final StatusSignal<AngularVelocity> velocityStatus = leftMotor.getVelocity();
     private final StatusSignal<Current> statorStatus = leftMotor.getStatorCurrent();
 
@@ -278,14 +277,11 @@ public class Elevator extends SubsystemBase {
     }
 
     private void log() {
-        // BaseStatusSignal.waitForAll(0.005, voltageStatus, positionStatus);
-        BaseStatusSignal.refreshAll(voltageStatus, positionStatus, /*positionStatus2,*/ dutyStatus, velocityStatus, statorStatus);
+        BaseStatusSignal.refreshAll(voltageStatus, positionStatus, dutyStatus, velocityStatus, statorStatus);
         SmartDashboard.putNumber("Elevator/Elevator Rotor", leftMotor.getRotorPosition().getValueAsDouble());
-        // SmartDashboard.putNumber("Elevator/Elevator Rotor2", rightMotor.getRotorPosition().getValueAsDouble());
         SmartDashboard.putNumber("Elevator/Elevator Native", leftMotor.getPosition().getValueAsDouble());
         SmartDashboard.putNumber("Elevator/Elevator Fake Units", Units.metersToInches(getElevatorHeightMeters()));
         SmartDashboard.putNumber("Elevator/Elevator Inches(?)", getElevatorHeightMeters()*(kGearRatio * (Math.PI * kSprocketPD.in(Meters)) * 2));
-        // SmartDashboard.putNumber("Elevator/Elevator Inches2", Units.metersToInches(positionStatus2.getValueAsDouble()));
         SmartDashboard.putNumber("Elevator/Elevator Target Inches", targetHeight.in(Inches));
         SmartDashboard.putNumber("Elevator/Motor Current", getCurrent());
         SmartDashboard.putBoolean("Elevator/isStalled", isStalled());
