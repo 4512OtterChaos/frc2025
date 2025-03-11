@@ -30,6 +30,18 @@ public class DriveConstants {
     public static final double kAngularAccelTippy = RotationsPerSecondPerSecond.of(4).in(RadiansPerSecondPerSecond);
     public static final double kAngularDecelTippy = RotationsPerSecondPerSecond.of(4).in(RadiansPerSecondPerSecond);
 
+    // Path following constants
+    public static final double kPathDriveKP = 4;
+    public static final double kPathDriveKI = 0;
+    public static final double kPathDriveKD = 0.1;
+    public static final double kPathDrivePosTol = Inches.of(2).in(Meters);
+    public static final double kPathDriveVelTol = Inches.of(2).in(Meters);
+    public static final double kPathTurnKP = 7;
+    public static final double kPathTurnKI = 0;
+    public static final double kPathTurnKD = 0.1;
+    public static final double kPathTurnPosTol = Degrees.of(4).in(Radians);
+    public static final double kPathTurnVelTol = Degrees.of(5).in(Radians);
+
     public static final Distance kFrameWidth = Inches.of(28);
     public static final Distance kFrameLength = Inches.of(28);
     public static final Distance kRobotWidth = kFrameWidth.plus(Inches.of(3.25).times(2));

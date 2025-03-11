@@ -34,6 +34,7 @@ import edu.wpi.first.wpilibj2.command.Subsystem;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.Robot;
 import frc.robot.subsystems.drivetrain.TunerConstants.TunerSwerveDrivetrain;
+import frc.robot.util.TunableNumber;
 
 import static frc.robot.subsystems.drivetrain.DriveConstants.*;
 
@@ -68,12 +69,27 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         kAngularDecel
     );
 
-    /** Swerve request to apply during field-centric path following */
-    private final SwerveRequest.ApplyFieldSpeeds m_pathApplyFieldSpeeds = new SwerveRequest.ApplyFieldSpeeds();
-    private final PIDController m_pathXController = new PIDController(4, 0, 0);// TODO: Use for pathfollowing?
-    private final PIDController m_pathYController = new PIDController(4, 0, 0);
-    private final PIDController m_pathThetaController = new PIDController(7, 0, 0.1);
-    private final TrapezoidProfile.Constraints headingConstraints = new TrapezoidProfile.Constraints(kMaxAngularRate, kAngularAccel);
+    private final SwerveRequest.ApplyRobotSpeeds applyRobotSpeeds = new SwerveRequest.ApplyRobotSpeeds();
+    private final SwerveRequest.ApplyFieldSpeeds applyFieldSpeeds = new SwerveRequest.ApplyFieldSpeeds();
+
+    private final PIDController m_pathXController = new PIDController(kPathDriveKP, kPathDriveKI, kPathDriveKD);// TODO: Use for pathfollowing?
+    private final PIDController m_pathYController = new PIDController(kPathDriveKP, kPathDriveKI, kPathDriveKD);
+    private final PIDController m_pathThetaController = new PIDController(kPathTurnKP, kPathTurnKI, kPathTurnKD);
+    private final TrapezoidProfile.Constraints headingConstraints = new TrapezoidProfile.Constraints(kTurnSpeed, kAngularAccel);
+
+    {
+        m_pathThetaController.enableContinuousInput(-Math.PI, Math.PI);
+        m_pathXController.setTolerance(kPathDrivePosTol, kPathDriveVelTol);
+        m_pathYController.setTolerance(kPathDrivePosTol, kPathDriveVelTol);
+        m_pathThetaController.setTolerance(kPathTurnPosTol, kPathTurnVelTol);
+    }
+
+    private final TunableNumber pathDriveKP = new TunableNumber("Swerve/pathDriveKP", kPathDriveKP);
+    private final TunableNumber pathDriveKI = new TunableNumber("Swerve/pathDriveKI", kPathDriveKI);
+    private final TunableNumber pathDriveKD = new TunableNumber("Swerve/pathDriveKD", kPathDriveKD);
+    private final TunableNumber pathTurnKP = new TunableNumber("Swerve/pathTurnKP", kPathTurnKP);
+    private final TunableNumber pathTurnKI = new TunableNumber("Swerve/pathTurnKI", kPathTurnKI);
+    private final TunableNumber pathTurnKD = new TunableNumber("Swerve/pathTurnKD", kPathTurnKD);
 
     /* Swerve requests to apply during SysId characterization */
     private final SwerveRequest.SysIdSwerveTranslation m_translationCharacterization = new SwerveRequest.SysIdSwerveTranslation();
@@ -238,7 +254,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         return new AutoFactory(
             () -> getState().Pose,
             this::resetPose,
-            this::followPath,
+            this::followChoreoPath,
             false,
             this,
             trajLogger
@@ -296,13 +312,32 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         return run(() -> this.setControl(requestSupplier.get()));
     }
 
+    public Command driveToPose(Supplier<Pose2d> targetSupplier) {
+        return drive(() -> {
+            var actual = getState().Pose;
+            var target = targetSupplier.get();
+
+            var targetSpeeds = new ChassisSpeeds();
+            targetSpeeds.vxMetersPerSecond += m_pathXController.calculate(
+                actual.getX(), target.getX()
+            );
+            targetSpeeds.vyMetersPerSecond += m_pathYController.calculate(
+                actual.getY(), target.getY()
+            );
+            targetSpeeds.omegaRadiansPerSecond += m_pathThetaController.calculate(
+                actual.getRotation().getRadians(), target.getRotation().getRadians()
+            );
+            return targetSpeeds;
+        }).until(() -> m_pathXController.atSetpoint() && m_pathYController.atSetpoint() && m_pathThetaController.atSetpoint());
+    }
+
     /**
      * Follows the given field-centric path sample with PID.
      *
      * @param sample Sample along the path to follow
      */
-    public void followPath(SwerveSample sample) {
-        m_pathThetaController.enableContinuousInput(-Math.PI, Math.PI);
+    public void followChoreoPath(SwerveSample sample) {
+        
 
         var pose = getState().Pose;
 
@@ -318,7 +353,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         );
 
         setControl(
-            m_pathApplyFieldSpeeds.withSpeeds(targetSpeeds)
+            applyFieldSpeeds.withSpeeds(targetSpeeds)
                 .withWheelForceFeedforwardsX(sample.moduleForcesX())
                 .withWheelForceFeedforwardsY(sample.moduleForcesY())
         );
@@ -348,6 +383,8 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
 
     @Override
     public void periodic() {
+        changeTunable();
+
         /*
          * Periodically try to apply the operator perspective.
          * If we haven't applied the operator perspective before, then we should apply it regardless of DS state.
@@ -415,7 +452,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     ) {
         super.addVisionMeasurement(visionRobotPoseMeters, Utils.fpgaToCurrentTime(timestampSeconds), visionMeasurementStdDevs);
     }
-}
+
     // private void configureAutoBuilder() {
     //     try {
     //         var config = RobotConfig.fromGUISettings();
@@ -443,3 +480,23 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     //         DriverStation.reportError("Failed to load PathPlanner config and configure AutoBuilder", ex.getStackTrace());
     //     }
     // }
+
+    private void changeTunable() {
+        pathDriveKP.poll();
+        pathDriveKI.poll();
+        pathDriveKD.poll();
+        pathTurnKP.poll();
+        pathTurnKI.poll();
+        pathTurnKD.poll();
+
+        int hash = hashCode();
+        // PID
+        if (pathDriveKP.hasChanged(hash) || pathDriveKI.hasChanged(hash) || pathDriveKD.hasChanged(hash)) {
+            m_pathXController.setPID(pathDriveKP.get(), pathDriveKI.get(), pathDriveKD.get());
+            m_pathYController.setPID(pathDriveKP.get(), pathDriveKI.get(), pathDriveKD.get());
+        }
+        if (pathTurnKP.hasChanged(hash) || pathTurnKI.hasChanged(hash) || pathTurnKD.hasChanged(hash)) {
+            m_pathThetaController.setPID(pathTurnKP.get(), pathTurnKI.get(), pathTurnKD.get());
+        }
+    }
+}

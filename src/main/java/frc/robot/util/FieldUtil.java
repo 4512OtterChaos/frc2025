@@ -10,7 +10,7 @@ public class FieldUtil {
     public static final Distance kFieldLength = Centimeters.of(1755);
 
     public static final Translation2d kReefTrl = new Translation2d(
-        Units.feetToMeters(12),
+        Units.inchesToMeters(176.746),
         kFieldWidth.div(2).in(Meters)
     );
 

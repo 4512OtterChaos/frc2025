@@ -32,14 +32,14 @@ import frc.robot.util.TunableNumber;
 
 
 public class Superstructure {
-    private CommandSwerveDrivetrain drive;
+    private CommandSwerveDrivetrain swerve;
     private Manipulator manipulator;
     private Elevator elevator;
 
     private OCXboxController driver;
 
     public Superstructure(CommandSwerveDrivetrain drive, Manipulator manipulator, Elevator elevator, OCXboxController driver) {
-        this.drive = drive;
+        this.swerve = drive;
         this.manipulator = manipulator;
         this.elevator = elevator;
         this.driver = driver;
@@ -59,32 +59,22 @@ public class Superstructure {
     private final TunableNumber turnAccelTippy = new TunableNumber("Swerve/turnAccelTippy", kAngularAccelTippy);
     private final TunableNumber turnDecelTippy = new TunableNumber("Swerve/turnDecelTippy", kAngularDecelTippy);
     
-    public static final Distance kRobotWidth = Inches.of(33.875);
-
     HolonomicDriveController driveController;
 
     SwerveRequest.ApplyRobotSpeeds robotSpeeds = new SwerveRequest.ApplyRobotSpeeds()
         // .withDeadband(MaxSpeed * 0.05).withRotationalDeadband(MaxAngularRate * 0.05) // Add a 10% deadband
         .withDriveRequestType(DriveRequestType.OpenLoopVoltage); // Use open-loop control for drive motors //TODO: Is this right?
 
-    // private TunableNumber pathDriveKP = new TunableNumber("Path/pathDriveKP", TunerConstants.pathSteerGains.kP);
-    // private TunableNumber pathDriveKI = new TunableNumber("Path/pathDriveKI", TunerConstants.pathSteerGains.kI);
-    // private TunableNumber pathDriveKD = new TunableNumber("Path/pathDriveKD", TunerConstants.pathSteerGains.kD);
-    
-    // private TunableNumber pathSteerKP = new TunableNumber("Path/pathSteerKP", TunerConstants.pathSteerGains.kP);
-    // private TunableNumber pathSteerKI = new TunableNumber("Path/pathSteerKI", TunerConstants.pathSteerGains.kI);
-    // private TunableNumber pathSteerKD = new TunableNumber("Path/pathSteerKD", TunerConstants.pathSteerGains.kD);
-
     // private TunableNumber pathSpeed = new TunableNumber("Path/pathSpeed", 3);
 
     
     private static final Translation2d kCoralScoreLeftPoseTemplate = new Translation2d(
-        kReefTrl.getX() - (kReefWidth.div(2).plus(kRobotWidth.div(2)).in(Meters)),
+        kReefTrl.getX() - (kReefWidth.div(2).plus(kRobotLength.div(2)).in(Meters)),
         kReefTrl.getMeasureY()/*.plus(kReefPoleDist.div(2))*/.in(Meters));
 
     
     private static final Translation2d kCoralScoreRightPoseTemplate = new Translation2d(
-        kReefTrl.getX() - (kReefWidth.div(2).plus(kRobotWidth.div(2)).in(Meters)),
+        kReefTrl.getX() - (kReefWidth.div(2).plus(kRobotLength.div(2)).in(Meters)),
         kReefTrl.getMeasureY().minus(kReefPoleDist.div(2)).in(Meters));
     
     public static final List<Pose2d> kCoralScoringPositions = new ArrayList<Pose2d>() {{
@@ -148,9 +138,10 @@ public class Superstructure {
     //     return drive.applyRequest(()->robotSpeeds.withSpeeds(targetSpeeds))/*.until(()->driveController.atReference()).repeatedly()*/;
     // }
 
-    // public Command driveToScorePoint(){
-    //     return drive.applyRequest(()->robotSpeeds.withSpeeds(chassisSpeedsToScorePoint()))/*.until(()->driveController.atReference()).repeatedly()*/;
-    // }
+    public Command driveToScorePoint(){
+        return swerve.driveToPose(() -> swerve.getState().Pose.nearest(kCoralScoringPositions));
+        // return swerve.applyRequest(()->robotSpeeds.withSpeeds(chassisSpeedsToScorePoint()))/*.until(()->driveController.atReference()).repeatedly()*/;
+    }
 
     // private ChassisSpeeds chassisSpeedsToScorePoint(){    
     //     Pose2d currentPose = drive.getState().Pose;
@@ -173,18 +164,18 @@ public class Superstructure {
     public void adjustDriving() {
         double elevatorPercentTravel = elevator.getHeight().div(ElevatorConstants.kMaxTravel).magnitude();
 
-        drive.driveSpeed = MetersPerSecond.of(elevatorPercentTravel*(driveSpeedTippy.get() - driveSpeedNormal.get()) + driveSpeedNormal.get());
-        drive.turnSpeed = RadiansPerSecond.of(elevatorPercentTravel*(turnSpeedTippy.get() - turnSpeedNormal.get()) + turnSpeedNormal.get());
+        swerve.driveSpeed = MetersPerSecond.of(elevatorPercentTravel*(driveSpeedTippy.get() - driveSpeedNormal.get()) + driveSpeedNormal.get());
+        swerve.turnSpeed = RadiansPerSecond.of(elevatorPercentTravel*(turnSpeedTippy.get() - turnSpeedNormal.get()) + turnSpeedNormal.get());
 
-        drive.limiter.linearAcceleration = elevatorPercentTravel*(driveAccelTippy.get() - driveAccelNormal.get()) + driveAccelNormal.get();
-        drive.limiter.linearDeceleration = elevatorPercentTravel*(driveDecelTippy.get() - driveDecelNormal.get()) + driveDecelNormal.get();
-        drive.limiter.angularAcceleration = elevatorPercentTravel*(turnAccelTippy.get() - turnAccelNormal.get()) + turnAccelNormal.get();
-        drive.limiter.angularDeceleration = elevatorPercentTravel*(turnDecelTippy.get() - turnDecelNormal.get()) + turnDecelNormal.get();
+        swerve.limiter.linearAcceleration = elevatorPercentTravel*(driveAccelTippy.get() - driveAccelNormal.get()) + driveAccelNormal.get();
+        swerve.limiter.linearDeceleration = elevatorPercentTravel*(driveDecelTippy.get() - driveDecelNormal.get()) + driveDecelNormal.get();
+        swerve.limiter.angularAcceleration = elevatorPercentTravel*(turnAccelTippy.get() - turnAccelNormal.get()) + turnAccelNormal.get();
+        swerve.limiter.angularDeceleration = elevatorPercentTravel*(turnDecelTippy.get() - turnDecelNormal.get()) + turnDecelNormal.get();
     }
 
     public void tipProtection(){
-        double rollRadians = Math.abs(drive.getRotation3d().getX());
-        double pitchRadians = Math.abs(drive.getRotation3d().getY());
+        double rollRadians = Math.abs(swerve.getRotation3d().getX());
+        double pitchRadians = Math.abs(swerve.getRotation3d().getY());
         double angleTolerance = ElevatorConstants.kTipAngleTolerance.in(Radians);
 
         if ((rollRadians >= angleTolerance) || (pitchRadians >= angleTolerance)){
@@ -206,14 +197,6 @@ public class Superstructure {
         turnSpeedTippy.poll();
         turnAccelTippy.poll();
         turnDecelTippy.poll();
-
-        // pathDriveKP.poll();
-        // pathDriveKI.poll();
-        // pathDriveKD.poll();
-
-        // pathSteerKP.poll();
-        // pathSteerKI.poll();
-        // pathSteerKD.poll();
 
         // pathSpeed.poll();
     }
