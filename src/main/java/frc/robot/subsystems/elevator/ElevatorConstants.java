@@ -36,8 +36,7 @@ public class ElevatorConstants {
     // public static final Distance kL3Height = Inches.of(kMinHeight.in(Inches) + 28);
     // public static final Distance kL4Height = kMaxHeight;
 
-    public static final Distance kMinHeight = Meters.of(0); // As measured from the top of the cariage 
-    public static final Distance kMaxHeight = Meters.of(48); // 58in of travel
+    public static final Distance kMaxTravel = Meters.of(48); // 58in of travel
 
     public static final Distance kL1Height = Meters.of(5);
     public static final Distance kL2Height = Meters.of(13);
@@ -66,10 +65,10 @@ public class ElevatorConstants {
         current.StatorCurrentLimit = 40;
 
         SoftwareLimitSwitchConfigs limits = kConfig.SoftwareLimitSwitch;
-        limits.ForwardSoftLimitEnable = false;
-        limits.ForwardSoftLimitThreshold = kMaxHeight.in(Meters);
-        limits.ReverseSoftLimitEnable = false;
-        limits.ReverseSoftLimitThreshold = kMinHeight.in(Meters);
+        // limits.ForwardSoftLimitEnable = false;
+        // limits.ForwardSoftLimitThreshold = kMaxTravel.in(Meters);
+        // limits.ReverseSoftLimitEnable = false;
+        // limits.ReverseSoftLimitThreshold = kMinHeight.in(Meters);
 
         Slot0Configs control = kConfig.Slot0;
         control.kP = 5;
@@ -100,7 +99,7 @@ public class ElevatorConstants {
         kCarriageMass.in(Kilograms),
         kSprocketPD.in(Meters) / 2.0,
         0,
-        kMaxHeight.in(Meters),
+        kMaxTravel.in(Meters),
         true,
         0
     );

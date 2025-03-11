@@ -4,19 +4,17 @@
 
 package frc.robot;
 
-import com.ctre.phoenix6.swerve.SwerveRequest;
-import com.ctre.phoenix6.swerve.utility.PhoenixPIDController;
-
 import choreo.auto.AutoChooser;
 import choreo.auto.AutoFactory;
 
 import com.ctre.phoenix6.hardware.ParentDevice;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.hardware.traits.CommonTalon;
-import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 
 import static edu.wpi.first.units.Units.*;
 import static edu.wpi.first.wpilibj2.command.Commands.*;
+
+import static frc.robot.subsystems.drivetrain.DriveConstants.*;
 
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
@@ -25,7 +23,6 @@ import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.auto.AutoRoutines;
 import frc.robot.subsystems.Superstructure;
 import frc.robot.subsystems.drivetrain.CommandSwerveDrivetrain;
-import frc.robot.subsystems.drivetrain.SwerveDriveAccelLimiter;
 import frc.robot.subsystems.drivetrain.Telemetry;
 import frc.robot.subsystems.drivetrain.TunerConstants;
 import frc.robot.subsystems.elevator.Elevator;
@@ -34,36 +31,17 @@ import frc.robot.subsystems.vision.Vision;
 import frc.robot.util.OCXboxController;
 
 public class RobotContainer {
-    private double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // kSpeedAt12Volts desired top speed
-    private double MaxAngularRate = RotationsPerSecond.of(1.5).in(RadiansPerSecond); // 1.5 rotations per second max angular velocity
+        
+    private final Telemetry logger = new Telemetry(kMaxLinearSpeed);
     
-    /* Setting up bindings for necessary control of the swerve drive platform */
-    private final SwerveRequest.FieldCentric drive = new SwerveRequest.FieldCentric()
-        .withDeadband(MaxSpeed * 0.05).withRotationalDeadband(MaxAngularRate * 0.05) // Add a 10% deadband
-        .withDriveRequestType(DriveRequestType.OpenLoopVoltage); // Use open-loop control for drive motors
-    private final SwerveRequest.FieldCentricFacingAngle orient = new SwerveRequest.FieldCentricFacingAngle();
-    
-    private final SwerveRequest.RobotCentric robotCentric = new SwerveRequest.RobotCentric()
-        .withDeadband(MaxSpeed * 0.05).withRotationalDeadband(MaxAngularRate * 0.01) // Add a 10% deadband
-
-        .withDriveRequestType(DriveRequestType.OpenLoopVoltage); // Use open-loop control for drive motors
-    private final SwerveRequest.SwerveDriveBrake brake = new SwerveRequest.SwerveDriveBrake();
-    private final SwerveRequest.PointWheelsAt point = new SwerveRequest.PointWheelsAt();
-    
-    private final Telemetry logger = new Telemetry(MaxSpeed);
-    
-    public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
+    public final CommandSwerveDrivetrain swerve = TunerConstants.createDrivetrain();
     public final Manipulator manipulator = new Manipulator();
     public final Elevator elevator = new Elevator();
-    
     
     private OCXboxController driver = new OCXboxController(0);
     // private OCXboxController operator = new OCXboxController(1);
 
-    private ChassisSpeeds lastTargetChassisSpeeds = new ChassisSpeeds();
-    private final SwerveDriveAccelLimiter limiter = new SwerveDriveAccelLimiter(TunerConstants.kLinearAcceleration, TunerConstants.kLinearDeceleration, TunerConstants.kRotationalAcceleration, TunerConstants.kRotationalDeceleration);
-
-    public final Superstructure superstructure = new Superstructure(drivetrain, limiter, manipulator, elevator, driver);
+    public final Superstructure superstructure = new Superstructure(swerve, manipulator, elevator, driver);
     
     private final Vision vision = new Vision();
     
@@ -73,8 +51,8 @@ public class RobotContainer {
     private final AutoChooser autoChooser = new AutoChooser();
     
     public RobotContainer() {
-        autoFactory = drivetrain.createAutoFactory();
-        autoRoutines = new AutoRoutines(autoFactory, drivetrain, elevator, manipulator);
+        autoFactory = swerve.createAutoFactory();
+        autoRoutines = new AutoRoutines(autoFactory, swerve, elevator, manipulator);
         
         autoChooser.addCmd("TaxiAuto", autoRoutines::taxiAuto);
         autoChooser.addCmd("TaxiFarAuto", autoRoutines::taxiFar);
@@ -86,19 +64,17 @@ public class RobotContainer {
         configureOperatorBindings(driver);
         // configureOperatorBindings(operator);
         TalonFX[] swerveMotors = {
-            drivetrain.getModule(0).getDriveMotor(),
-            drivetrain.getModule(0).getSteerMotor(),
-            drivetrain.getModule(1).getDriveMotor(),
-            drivetrain.getModule(1).getSteerMotor(),
-            drivetrain.getModule(2).getDriveMotor(),
-            drivetrain.getModule(2).getSteerMotor(),
-            drivetrain.getModule(3).getDriveMotor(),
-            drivetrain.getModule(3).getSteerMotor()
+            swerve.getModule(0).getDriveMotor(),
+            swerve.getModule(0).getSteerMotor(),
+            swerve.getModule(1).getDriveMotor(),
+            swerve.getModule(1).getSteerMotor(),
+            swerve.getModule(2).getDriveMotor(),
+            swerve.getModule(2).getSteerMotor(),
+            swerve.getModule(3).getDriveMotor(),
+            swerve.getModule(3).getSteerMotor()
         };
         setSwerveUpdateFrequency(swerveMotors);
-        ParentDevice.optimizeBusUtilizationForAll(swerveMotors);
-        
-        orient.HeadingController = new PhoenixPIDController(7, 0, 0.1);
+        ParentDevice.optimizeBusUtilizationForAll(swerveMotors);        
     }
     
     public void setSwerveUpdateFrequency(CommonTalon... motors) {
@@ -113,16 +89,10 @@ public class RobotContainer {
     
     private void configureDriverBindings(OCXboxController controller) {
         //DRIVE COMMAND
-        drivetrain.setDefaultCommand(
-        drivetrain.applyRequest(() -> {
-            var targetChassisSpeeds = controller.getSpeeds(MaxSpeed, MaxAngularRate);
-            targetChassisSpeeds = limiter.calculate(targetChassisSpeeds, lastTargetChassisSpeeds, Robot.kDefaultPeriod);
-            lastTargetChassisSpeeds = targetChassisSpeeds;
-            return drive.withVelocityX(targetChassisSpeeds.vxMetersPerSecond)
-            .withVelocityY(targetChassisSpeeds.vyMetersPerSecond)
-            .withRotationalRate(targetChassisSpeeds.omegaRadiansPerSecond);
-        }).withName("D:Controller Drive")
-        );
+        swerve.setDefaultCommand(swerve.drive(() -> controller.getSpeeds(
+            swerve.driveSpeed.in(MetersPerSecond),
+            swerve.turnSpeed.in(RadiansPerSecond))
+        ).withName("D:Controller Drive"));
         
         // controller.x().whileTrue(drivetrain.applyRequest(() -> brake));
         // controller.b().whileTrue(drivetrain.applyRequest(() ->
@@ -130,21 +100,20 @@ public class RobotContainer {
         // ));
         
         // reset the robot heading to forward
-        controller.start().onTrue(drivetrain.runOnce(() -> drivetrain.seedFieldCentric()));
+        controller.start().onTrue(swerve.runOnce(() -> swerve.seedFieldCentric()));
         
         //TODO: ADD GYRO BUTTONS FOR AUTO ALIGN
-        controller.povUp().whileTrue(drivetrain.applyRequest(()->orient.withTargetDirection(Rotation2d.kZero)).withName("Face Forward"));
-        controller.povLeft().whileTrue(drivetrain.applyRequest(()->orient.withTargetDirection(Rotation2d.fromDegrees(-45))).withName("Align Left Station"));
-        controller.povRight().whileTrue(drivetrain.applyRequest(()->orient.withTargetDirection(Rotation2d.fromDegrees(45))).withName("Align Right Station"));
+        // controller.povUp().whileTrue(swerve.applyRequest(()->orient.withTargetDirection(Rotation2d.kZero)).withName("Face Forward"));
+        // controller.povLeft().whileTrue(swerve.applyRequest(()->orient.withTargetDirection(Rotation2d.fromDegrees(-45))).withName("Align Left Station"));
+        // controller.povRight().whileTrue(swerve.applyRequest(()->orient.withTargetDirection(Rotation2d.fromDegrees(45))).withName("Align Right Station"));
         
         // controller.leftBumper().whileTrue(drivetrain.applyRequest(()->robotCentric.withVelocityY(MetersPerSecond.of(0.3))));
         // controller.rightBumper().whileTrue(drivetrain.applyRequest(()->robotCentric.withVelocityY(MetersPerSecond.of(-0.3))));
 
-        controller.rightTrigger().whileTrue(drivetrain.applyRequest(()->robotCentric.withVelocityY(MetersPerSecond.of(controller.getRightTriggerAxis()*-0.3))).withName("Strafe Left"));
-        controller.leftTrigger().whileTrue(drivetrain.applyRequest(()->robotCentric.withVelocityY(MetersPerSecond.of(controller.getLeftTriggerAxis()*0.3))).withName("Strafe Right"));
-
+        controller.leftTrigger().whileTrue(swerve.drive(() -> new ChassisSpeeds(0, controller.getRightTriggerAxis() * 0.3, 0), false, true).withName("Strafe Left"));
+        controller.rightTrigger().whileTrue(swerve.drive(() -> new ChassisSpeeds(0, controller.getRightTriggerAxis() * -0.3, 0), false, true).withName("Strafe Right"));
         
-        controller.back().whileTrue(superstructure.driveToScorePoint());
+        // controller.back().whileTrue(superstructure.driveToScorePoint());
         
         // Run SysId routines when holding back/start and X/Y.
         // Note that each routine should be run exactly once in a single log.
@@ -154,7 +123,7 @@ public class RobotContainer {
         // driver.start().and(driver.x()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kReverse));
         
         
-        drivetrain.registerTelemetry(logger::telemeterize);
+        swerve.registerTelemetry(logger::telemeterize);
     }
     
     private void configureOperatorBindings(OCXboxController controller) {
@@ -199,6 +168,6 @@ public class RobotContainer {
     }
 
     public void simulationPeriodic() {
-        vision.simulationPeriodic(drivetrain.getState().Pose);
+        vision.simulationPeriodic(swerve.getState().Pose);
     }
 }

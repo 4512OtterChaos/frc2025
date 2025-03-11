@@ -1,11 +1,9 @@
 package frc.robot.subsystems;
 
 import static edu.wpi.first.units.Units.*;
-import static edu.wpi.first.wpilibj2.command.Commands.run;
-import static edu.wpi.first.wpilibj2.command.Commands.sequence;
-import static frc.robot.util.FieldUtil.kReefPoleDist;
-import static frc.robot.util.FieldUtil.kReefTrl;
-import static frc.robot.util.FieldUtil.kReefWidth;
+import static edu.wpi.first.wpilibj2.command.Commands.*;
+import static frc.robot.util.FieldUtil.*;
+import static frc.robot.subsystems.drivetrain.DriveConstants.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -25,7 +23,6 @@ import edu.wpi.first.math.trajectory.TrapezoidProfile.Constraints;
 import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.subsystems.drivetrain.CommandSwerveDrivetrain;
-import frc.robot.subsystems.drivetrain.SwerveDriveAccelLimiter;
 import frc.robot.subsystems.drivetrain.TunerConstants;
 import frc.robot.subsystems.elevator.Elevator;
 import frc.robot.subsystems.elevator.ElevatorConstants;
@@ -36,20 +33,31 @@ import frc.robot.util.TunableNumber;
 
 public class Superstructure {
     private CommandSwerveDrivetrain drive;
-    private SwerveDriveAccelLimiter limiter;
     private Manipulator manipulator;
     private Elevator elevator;
 
     private OCXboxController driver;
 
-    public Superstructure(CommandSwerveDrivetrain drive, SwerveDriveAccelLimiter limiter, Manipulator manipulator, Elevator elevator, OCXboxController driver) {
+    public Superstructure(CommandSwerveDrivetrain drive, Manipulator manipulator, Elevator elevator, OCXboxController driver) {
         this.drive = drive;
-        this.limiter = limiter;
         this.manipulator = manipulator;
         this.elevator = elevator;
         this.driver = driver;
     }
 
+    private final TunableNumber driveSpeedNormal = new TunableNumber("Swerve/driveSpeedNormal", kDriveSpeed);
+    private final TunableNumber driveAccelNormal = new TunableNumber("Swerve/driveAccelNormal", kLinearAccel);
+    private final TunableNumber driveDecelNormal = new TunableNumber("Swerve/driveDecelNormal", kLinearDecel);
+    private final TunableNumber turnSpeedNormal = new TunableNumber("Swerve/turnSpeedNormal", kTurnSpeed);
+    private final TunableNumber turnAccelNormal = new TunableNumber("Swerve/turnAccelNormal", kAngularAccel);
+    private final TunableNumber turnDecelNormal = new TunableNumber("Swerve/turnDecelNormal", kAngularDecel);
+
+    private final TunableNumber driveSpeedTippy = new TunableNumber("Swerve/driveSpeedTippy", kDriveSpeedTippy);
+    private final TunableNumber driveAccelTippy = new TunableNumber("Swerve/driveAccelTippy", kLinearAccelTippy);
+    private final TunableNumber driveDecelTippy = new TunableNumber("Swerve/driveDecelTippy", kLinearDecelTippy);
+    private final TunableNumber turnSpeedTippy = new TunableNumber("Swerve/turnSpeedTippy", kTurnSpeedTippy);
+    private final TunableNumber turnAccelTippy = new TunableNumber("Swerve/turnAccelTippy", kAngularAccelTippy);
+    private final TunableNumber turnDecelTippy = new TunableNumber("Swerve/turnDecelTippy", kAngularDecelTippy);
     
     public static final Distance kRobotWidth = Inches.of(33.875);
 
@@ -59,15 +67,15 @@ public class Superstructure {
         // .withDeadband(MaxSpeed * 0.05).withRotationalDeadband(MaxAngularRate * 0.05) // Add a 10% deadband
         .withDriveRequestType(DriveRequestType.OpenLoopVoltage); // Use open-loop control for drive motors //TODO: Is this right?
 
-        private TunableNumber pathDriveKP = new TunableNumber("Path/pathDriveKP", TunerConstants.pathSteerGains.kP);
-    private TunableNumber pathDriveKI = new TunableNumber("Path/pathDriveKI", TunerConstants.pathSteerGains.kI);
-    private TunableNumber pathDriveKD = new TunableNumber("Path/pathDriveKD", TunerConstants.pathSteerGains.kD);
+    // private TunableNumber pathDriveKP = new TunableNumber("Path/pathDriveKP", TunerConstants.pathSteerGains.kP);
+    // private TunableNumber pathDriveKI = new TunableNumber("Path/pathDriveKI", TunerConstants.pathSteerGains.kI);
+    // private TunableNumber pathDriveKD = new TunableNumber("Path/pathDriveKD", TunerConstants.pathSteerGains.kD);
     
-    private TunableNumber pathSteerKP = new TunableNumber("Path/pathSteerKP", TunerConstants.pathSteerGains.kP);
-    private TunableNumber pathSteerKI = new TunableNumber("Path/pathSteerKI", TunerConstants.pathSteerGains.kI);
-    private TunableNumber pathSteerKD = new TunableNumber("Path/pathSteerKD", TunerConstants.pathSteerGains.kD);
+    // private TunableNumber pathSteerKP = new TunableNumber("Path/pathSteerKP", TunerConstants.pathSteerGains.kP);
+    // private TunableNumber pathSteerKI = new TunableNumber("Path/pathSteerKI", TunerConstants.pathSteerGains.kI);
+    // private TunableNumber pathSteerKD = new TunableNumber("Path/pathSteerKD", TunerConstants.pathSteerGains.kD);
 
-    private TunableNumber pathSpeed = new TunableNumber("Path/pathSpeed", 3);
+    // private TunableNumber pathSpeed = new TunableNumber("Path/pathSpeed", 3);
 
     
     private static final Translation2d kCoralScoreLeftPoseTemplate = new Translation2d(
@@ -99,102 +107,79 @@ public class Superstructure {
         // add(new Pose2d(kCoralScoreRightPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(300)), Rotation2d.fromDegrees(300)));
     }};
 
-
-
-
-
-
-
-
-
-
     public void periodic() {
-        if (!(elevator.getElevatorHeightMeters() <= ElevatorConstants.kMinHeight.plus(ElevatorConstants.kHeightTolerance).in(Meters))){
-            updateDriveSpeed(driver);
-        }
+        adjustDriving();
         tipProtection();
+
         changeTunable();
     }
 
-    public Command intake(){
-        return sequence(
-            elevator.setHeightC(ElevatorConstants.kMinHeight).withTimeout(0.75).unless(()->elevator.getElevatorHeightMeters() <= ElevatorConstants.kMinHeight.in(Inches)),
-            manipulator.setVoltageInC()
-        );
-    }
+    // public Command driveToScorePointVector(){ //TODO: add accel limiter
+    //     Pose2d currentPose = drive.getState().Pose;
+    //     Pose2d targetPose = currentPose.nearest(kCoralScoringPositions);
 
-    // public Command outtake(){
-    //     return sequence(
-    //         elevator.setHeightC(ElevatorConstants.kMinHeight).withTimeout(0.75).unless(()->elevator.getElevatorHeightMeters() <= ElevatorConstants.kMinHeight.in(Inches)),
-    //         manipulator.setVoltageOutC()
-    //     );
+    //     Translation2d translationError = drive.getState().Pose.relativeTo(targetPose).getTranslation();
+    //     Rotation2d rotError = drive.getState().Pose.relativeTo(targetPose).getRotation();
+    //     Distance straightDistError = Meters.of(Math.sqrt(Math.pow(translationError.getX(), 2) + Math.pow(translationError.getY(), 2)));
+
+    //     double desiredRotSpeed = RotationsPerSecond.of(1.5).in(RadiansPerSecond); // 1.5 rotations per second max angular velocity
+    //     // double desiredRotAcceleration = RotationsPerSecondPerSecond.of(3).in(RadiansPerSecondPerSecond);
+
+    //     double desiredSpeed;
+    //     double xSpeed;
+    //     double ySpeed;
+    //     double rotSpeed;
+
+    //     Translation2d adjustedError = translationError;
+
+    //     //TODO: adjustPose for y and rott offset
+
+    //     desiredSpeed = straightDistError.in(Meters)*.5;
+    //     MathUtil.clamp(desiredSpeed, 0, pathSpeed.get());
+        
+    //     rotSpeed = rotError.getRotations()*3;
+    //     MathUtil.clamp(rotSpeed, 0, desiredRotSpeed);
+
+    //     xSpeed = desiredSpeed * adjustedError.getX()/straightDistError.in(Meters);
+    //     ySpeed = desiredSpeed * adjustedError.getY()/straightDistError.in(Meters);
+        
+    //     ChassisSpeeds targetSpeeds = new ChassisSpeeds(xSpeed, ySpeed, rotSpeed);
+
+    //     return drive.applyRequest(()->robotSpeeds.withSpeeds(targetSpeeds))/*.until(()->driveController.atReference()).repeatedly()*/;
     // }
 
-    public Command driveToScorePointVector(){ //TODO: add accel limiter
-        Pose2d currentPose = drive.getState().Pose;
-        Pose2d targetPose = currentPose.nearest(kCoralScoringPositions);
+    // public Command driveToScorePoint(){
+    //     return drive.applyRequest(()->robotSpeeds.withSpeeds(chassisSpeedsToScorePoint()))/*.until(()->driveController.atReference()).repeatedly()*/;
+    // }
 
-        Translation2d translationError = drive.getState().Pose.relativeTo(targetPose).getTranslation();
-        Rotation2d rotError = drive.getState().Pose.relativeTo(targetPose).getRotation();
-        Distance straightDistError = Meters.of(Math.sqrt(Math.pow(translationError.getX(), 2) + Math.pow(translationError.getY(), 2)));
+    // private ChassisSpeeds chassisSpeedsToScorePoint(){    
+    //     Pose2d currentPose = drive.getState().Pose;
+    //     Pose2d targetPose = currentPose.nearest(kCoralScoringPositions);
 
-        double desiredRotSpeed = RotationsPerSecond.of(1.5).in(RadiansPerSecond); // 1.5 rotations per second max angular velocity
-        // double desiredRotAcceleration = RotationsPerSecondPerSecond.of(3).in(RadiansPerSecondPerSecond);
-
-        double desiredSpeed;
-        double xSpeed;
-        double ySpeed;
-        double rotSpeed;
-
-        Translation2d adjustedError = translationError;
-
-        //TODO: adjustPose for y and rott offset
-
-        desiredSpeed = straightDistError.in(Meters)*.5;
-        MathUtil.clamp(desiredSpeed, 0, pathSpeed.get());
+    //     double desiredSpeed = pathSpeed.get();
+    //     double desiredRotSpeed = RotationsPerSecond.of(1.5).in(RadiansPerSecond); // 1.5 rotations per second max angular velocity
+    //     double desiredRotAcceleration = RotationsPerSecondPerSecond.of(3).in(RadiansPerSecondPerSecond);
         
-        rotSpeed = rotError.getRotations()*3;
-        MathUtil.clamp(rotSpeed, 0, desiredRotSpeed);
+    //     PIDController xController = new PIDController(pathDriveKP.get(), pathDriveKI.get(), pathDriveKD.get());
+    //     ProfiledPIDController thetaController = new ProfiledPIDController(pathSteerKP.get(), pathSteerKI.get(), pathSteerKD.get(), new Constraints(desiredRotSpeed, desiredRotAcceleration));
 
-        xSpeed = desiredSpeed * adjustedError.getX()/straightDistError.in(Meters);
-        ySpeed = desiredSpeed * adjustedError.getY()/straightDistError.in(Meters);
-        
-        ChassisSpeeds targetSpeeds = new ChassisSpeeds(xSpeed, ySpeed, rotSpeed);
-
-        return drive.applyRequest(()->robotSpeeds.withSpeeds(targetSpeeds))/*.until(()->driveController.atReference()).repeatedly()*/;
-    }
-
-    public Command driveToScorePoint(){
-        return drive.applyRequest(()->robotSpeeds.withSpeeds(chassisSpeedsToScorePoint()))/*.until(()->driveController.atReference()).repeatedly()*/;
-    }
-
-    private ChassisSpeeds chassisSpeedsToScorePoint(){    
-        Pose2d currentPose = drive.getState().Pose;
-        Pose2d targetPose = currentPose.nearest(kCoralScoringPositions);
-
-        double desiredSpeed = pathSpeed.get();
-        double desiredRotSpeed = RotationsPerSecond.of(1.5).in(RadiansPerSecond); // 1.5 rotations per second max angular velocity
-        double desiredRotAcceleration = RotationsPerSecondPerSecond.of(3).in(RadiansPerSecondPerSecond);
-        
-        PIDController xController = new PIDController(pathDriveKP.get(), pathDriveKI.get(), pathDriveKD.get());
-        ProfiledPIDController thetaController = new ProfiledPIDController(pathSteerKP.get(), pathSteerKI.get(), pathSteerKD.get(), new Constraints(desiredRotSpeed, desiredRotAcceleration));
-
-        driveController = new HolonomicDriveController(xController, xController, thetaController);
-        driveController.setTolerance(new Pose2d(.2,.2, Rotation2d.fromDegrees(5)));
+    //     driveController = new HolonomicDriveController(xController, xController, thetaController);
+    //     driveController.setTolerance(new Pose2d(.2,.2, Rotation2d.fromDegrees(5)));
         
     
-        return driveController.calculate(currentPose, targetPose, desiredSpeed, targetPose.getRotation()); 
-    }
+    //     return driveController.calculate(currentPose, targetPose, desiredSpeed, targetPose.getRotation()); 
+    // }
 
-    public void updateDriveSpeed(OCXboxController controller){//TODO:Just like make it work/do it
-        Distance currentElevatorTravel = Meters.of(elevator.getElevatorHeightMeters()).minus(ElevatorConstants.kMinHeight);
-        Distance maxElevatorTravel = ElevatorConstants.kMaxHeight.minus(ElevatorConstants.kMinHeight);
-        double elevatorPercentTravel = currentElevatorTravel.in(Meters) / maxElevatorTravel.in(Meters);
+    public void adjustDriving() {
+        double elevatorPercentTravel = elevator.getHeight().div(ElevatorConstants.kMaxTravel).magnitude();
 
-        double speedDifference = OCXboxController.kSpeedDefault.get() - OCXboxController.kSpeedSlow.get();
+        drive.driveSpeed = MetersPerSecond.of(elevatorPercentTravel*(driveSpeedTippy.get() - driveSpeedNormal.get()) + driveSpeedNormal.get());
+        drive.turnSpeed = RadiansPerSecond.of(elevatorPercentTravel*(turnSpeedTippy.get() - turnSpeedNormal.get()) + turnSpeedNormal.get());
 
-        controller.setDriveSpeed(OCXboxController.kSpeedDefault.get() - (elevatorPercentTravel * speedDifference));
-
+        drive.limiter.linearAcceleration = elevatorPercentTravel*(driveAccelTippy.get() - driveAccelNormal.get()) + driveAccelNormal.get();
+        drive.limiter.linearDeceleration = elevatorPercentTravel*(driveDecelTippy.get() - driveDecelNormal.get()) + driveDecelNormal.get();
+        drive.limiter.angularAcceleration = elevatorPercentTravel*(turnAccelTippy.get() - turnAccelNormal.get()) + turnAccelNormal.get();
+        drive.limiter.angularDeceleration = elevatorPercentTravel*(turnDecelTippy.get() - turnDecelNormal.get()) + turnDecelNormal.get();
     }
 
     public void tipProtection(){
@@ -203,27 +188,33 @@ public class Superstructure {
         double angleTolerance = ElevatorConstants.kTipAngleTolerance.in(Radians);
 
         if ((rollRadians >= angleTolerance) || (pitchRadians >= angleTolerance)){
-            elevator.setHeightC(ElevatorConstants.kMinHeight);
+            elevator.setMinC();
         }
     }
 
-    public Command coralNoSlide(){
-        return run(()->{
-            if (elevator.getElevatorHeightMeters() < elevator.getTargetMeters() && !elevator.isWithinTolerance()){
-                manipulator.setVoltage(-1);
-            }
-        }, manipulator);
-    }
-
     private void changeTunable() {
-        pathDriveKP.poll();
-        pathDriveKI.poll();
-        pathDriveKD.poll();
+        driveSpeedNormal.poll();
+        driveAccelNormal.poll();
+        driveDecelNormal.poll();
+        turnSpeedNormal.poll();
+        turnAccelNormal.poll();
+        turnDecelNormal.poll();
 
-        pathSteerKP.poll();
-        pathSteerKI.poll();
-        pathSteerKD.poll();
+        driveSpeedTippy.poll();
+        driveAccelTippy.poll();
+        driveDecelTippy.poll();
+        turnSpeedTippy.poll();
+        turnAccelTippy.poll();
+        turnDecelTippy.poll();
 
-        pathSpeed.poll();
+        // pathDriveKP.poll();
+        // pathDriveKI.poll();
+        // pathDriveKD.poll();
+
+        // pathSteerKP.poll();
+        // pathSteerKI.poll();
+        // pathSteerKD.poll();
+
+        // pathSpeed.poll();
     }
 }

@@ -9,16 +9,22 @@ import com.ctre.phoenix6.Utils;
 import com.ctre.phoenix6.swerve.SwerveDrivetrainConstants;
 import com.ctre.phoenix6.swerve.SwerveModuleConstants;
 import com.ctre.phoenix6.swerve.SwerveRequest;
+import com.ctre.phoenix6.swerve.SwerveRequest.ForwardPerspectiveValue;
 
 import choreo.Choreo.TrajectoryLogger;
 import choreo.auto.AutoFactory;
 import choreo.trajectory.SwerveSample;
+import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.Matrix;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
+import edu.wpi.first.math.trajectory.TrapezoidProfile;
+import edu.wpi.first.units.measure.AngularVelocity;
+import edu.wpi.first.units.measure.LinearVelocity;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.Notifier;
@@ -26,7 +32,10 @@ import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Subsystem;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
+import frc.robot.Robot;
 import frc.robot.subsystems.drivetrain.TunerConstants.TunerSwerveDrivetrain;
+
+import static frc.robot.subsystems.drivetrain.DriveConstants.*;
 
 
 
@@ -46,11 +55,25 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     /* Keep track if we've ever applied the operator perspective before or not */
     private boolean m_hasAppliedOperatorPerspective = false;
 
+    /** Represents the linear velocity 100% controller input should currently translate to. Non-functional. */
+    public LinearVelocity driveSpeed = MetersPerSecond.of(kDriveSpeed);
+    /** Represents the angular velocity 100% controller input should currently translate to. Non-functional. */
+    public AngularVelocity turnSpeed = RadiansPerSecond.of(kTurnSpeed);
+
+    private ChassisSpeeds lastTargetSpeeds = new ChassisSpeeds();
+    public final SwerveDriveAccelLimiter limiter = new SwerveDriveAccelLimiter(
+        kLinearAccel,
+        kLinearDecel,
+        kAngularAccel,
+        kAngularDecel
+    );
+
     /** Swerve request to apply during field-centric path following */
     private final SwerveRequest.ApplyFieldSpeeds m_pathApplyFieldSpeeds = new SwerveRequest.ApplyFieldSpeeds();
-    private final PIDController m_pathXController = new PIDController(10, 0, 0);// TODO: Use for pathfollowing?
-    private final PIDController m_pathYController = new PIDController(10, 0, 0);
-    private final PIDController m_pathThetaController = new PIDController(7, 0, 0);
+    private final PIDController m_pathXController = new PIDController(4, 0, 0);// TODO: Use for pathfollowing?
+    private final PIDController m_pathYController = new PIDController(4, 0, 0);
+    private final PIDController m_pathThetaController = new PIDController(7, 0, 0.1);
+    private final TrapezoidProfile.Constraints headingConstraints = new TrapezoidProfile.Constraints(kMaxAngularRate, kAngularAccel);
 
     /* Swerve requests to apply during SysId characterization */
     private final SwerveRequest.SysIdSwerveTranslation m_translationCharacterization = new SwerveRequest.SysIdSwerveTranslation();
@@ -222,13 +245,54 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         );
     }
 
+    public Command drive(Supplier<ChassisSpeeds> speedsSupplier) {
+        return drive(speedsSupplier, true, true);
+    }
+
+    public Command drive(Supplier<ChassisSpeeds> speedsSupplier, boolean fieldCentric, boolean limitAccel) {
+        return run(() -> {
+            var targetSpeeds = speedsSupplier.get();
+            if (limitAccel) {
+                targetSpeeds = limiter.calculate(targetSpeeds, lastTargetSpeeds, Robot.kDefaultPeriod);
+            }
+            lastTargetSpeeds = targetSpeeds;
+            if (fieldCentric) {
+                setControl(new SwerveRequest.ApplyFieldSpeeds()
+                        .withForwardPerspective(ForwardPerspectiveValue.OperatorPerspective)
+                        .withSpeeds(targetSpeeds));
+            }
+            else {
+                setControl(new SwerveRequest.ApplyRobotSpeeds().withSpeeds(targetSpeeds));
+            }
+        });
+    }
+
+    public Command stop() {
+        return runOnce(() -> {
+            lastTargetSpeeds = new ChassisSpeeds();
+            setControl(new SwerveRequest.ApplyRobotSpeeds());
+        });
+    }
+
+    // public Command driveFacingAngle(Supplier<ChassisSpeeds> speedsSupplier, boolean limitAccel) {
+    //     return run(() -> {
+    //         var targetSpeeds = speedsSupplier.get();
+    //         if (limitAccel) {
+    //             targetSpeeds = limiter.calculate(targetSpeeds, lastTargetSpeeds, Robot.kDefaultPeriod);
+    //         }
+    //         lastTargetSpeeds = targetSpeeds;
+
+
+    //     });
+    // }
+
     /**
      * Returns a command that applies the specified control request to this swerve drivetrain.
      *
      * @param request Function returning the request to apply
      * @return Command to run
      */
-    public Command applyRequest(Supplier<SwerveRequest> requestSupplier) {
+    private Command applyRequest(Supplier<SwerveRequest> requestSupplier) {
         return run(() -> this.setControl(requestSupplier.get()));
     }
 

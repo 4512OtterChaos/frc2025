@@ -5,84 +5,73 @@ import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 
 public class SwerveDriveAccelLimiter {
-    double linearAcceleration;
-    double linearDeceleration;
-    double rotationalAcceleration;
-    double rotationalDeceleration;
+    public double linearAcceleration;
+    public double linearDeceleration;
+    public double angularAcceleration;
+    public double angularDeceleration;
 
     public SwerveDriveAccelLimiter(double linearAcceleration, double linearDeceleration, double rotationalAcceleration, double rotationalDeceleration){
         this.linearAcceleration = linearAcceleration;
         this.linearDeceleration = linearDeceleration;
-        this.rotationalAcceleration = rotationalAcceleration;
-        this.rotationalDeceleration = rotationalDeceleration;
+        this.angularAcceleration = rotationalAcceleration;
+        this.angularDeceleration = rotationalDeceleration;
     }
 
     public ChassisSpeeds calculate(ChassisSpeeds targetSpeeds, ChassisSpeeds currentSpeeds, double dt){
         double currentXVelocity = currentSpeeds.vxMetersPerSecond;
         double currentYVelocity = currentSpeeds.vyMetersPerSecond;
-        double currentRotationVelocity = currentSpeeds.omegaRadiansPerSecond;
-        double targetXAccel = (targetSpeeds.vxMetersPerSecond - currentXVelocity)/dt;
-        double targetYAccel = (targetSpeeds.vyMetersPerSecond - currentYVelocity)/dt;
-        Rotation2d velHeading = new Rotation2d(targetXAccel, targetYAccel);    
+        double currentAngVelocity = currentSpeeds.omegaRadiansPerSecond;
+        double targetXAccel = (targetSpeeds.vxMetersPerSecond - currentXVelocity) / dt;
+        double targetYAccel = (targetSpeeds.vyMetersPerSecond - currentYVelocity) / dt;
+        double targetAngAccel = (targetSpeeds.omegaRadiansPerSecond - currentAngVelocity) / dt;
+
+        Rotation2d velHeading;
+        if (Math.hypot(targetXAccel, targetYAccel) <= 1e-6) { // Already at target speeds
+            velHeading = Rotation2d.kZero;
+        }
+        else {
+            velHeading = new Rotation2d(targetXAccel, targetYAccel);
+        }
         double cosVelHeading = Math.abs(Math.cos(velHeading.getRadians()));
         double sinVelHeading = Math.abs(Math.sin(velHeading.getRadians()));
-        double targetRotationalAccel = (targetSpeeds.omegaRadiansPerSecond - currentRotationVelocity) / dt;
-        if (Math.signum(currentXVelocity)>0){
-            targetXAccel = MathUtil.clamp(targetXAccel, -linearDeceleration*cosVelHeading, linearAcceleration*cosVelHeading);
+
+        // Limit X accel
+        double low = -linearAcceleration;
+        double high = linearAcceleration;
+        if (Math.signum(currentXVelocity) > 0){
+            low = -linearDeceleration;
         }
-        else if ((Math.signum(currentXVelocity)<0)) {
-            targetXAccel = MathUtil.clamp(targetXAccel, -linearAcceleration*cosVelHeading, linearDeceleration*cosVelHeading);
+        else if ((Math.signum(currentXVelocity) < 0)) {
+            high = linearDeceleration;
         } 
-        else {
-            targetXAccel = MathUtil.clamp(targetXAccel, -linearAcceleration*cosVelHeading, linearAcceleration*cosVelHeading);
+        targetXAccel = MathUtil.clamp(targetXAccel, low * cosVelHeading, high * cosVelHeading);
+
+        // Limit Y accel
+        low = -linearAcceleration;
+        high = linearAcceleration;
+        if (Math.signum(currentYVelocity) > 0){
+            low = -linearDeceleration;
         }
-        if (Math.signum(currentYVelocity)>0){
-            targetYAccel = MathUtil.clamp(targetYAccel, -linearDeceleration*sinVelHeading, linearAcceleration*sinVelHeading);
+        else if ((Math.signum(currentYVelocity) < 0)) {
+            high = linearDeceleration;
+        } 
+        targetYAccel = MathUtil.clamp(targetYAccel, low * sinVelHeading, high * sinVelHeading);
+
+        // Limit rotational accel
+        low = -angularAcceleration;
+        high = angularAcceleration;
+        if (Math.signum(currentAngVelocity) > 0){
+            low = -angularDeceleration;
         }
-        else if (Math.signum(currentYVelocity)<0){
-            targetYAccel = MathUtil.clamp(targetYAccel, -linearAcceleration*sinVelHeading, linearDeceleration*sinVelHeading);
-        }
-        else {
-            targetYAccel = MathUtil.clamp(targetYAccel, -linearAcceleration*sinVelHeading, linearAcceleration*sinVelHeading);
-        }
-        if (Math.signum(currentRotationVelocity)>0){
-            targetRotationalAccel = MathUtil.clamp(targetRotationalAccel, -rotationalDeceleration, rotationalAcceleration);
-        }
-        else if (Math.signum(currentRotationVelocity)<0){
-            targetRotationalAccel = MathUtil.clamp(targetRotationalAccel, -rotationalAcceleration, rotationalDeceleration);
-        }
-        else {
-            targetRotationalAccel = MathUtil.clamp(targetRotationalAccel, -rotationalAcceleration, rotationalAcceleration);
-        }
-        return new ChassisSpeeds(currentXVelocity+(targetXAccel*dt), currentYVelocity+(targetYAccel*dt), currentRotationVelocity+(targetRotationalAccel*dt));
+        else if ((Math.signum(currentAngVelocity) < 0)) {
+            high = angularDeceleration;
+        } 
+        targetAngAccel = MathUtil.clamp(targetAngAccel, low, high);
+
+        return new ChassisSpeeds(
+            currentXVelocity + (targetXAccel * dt),
+            currentYVelocity + (targetYAccel * dt),
+            currentAngVelocity + (targetAngAccel * dt)
+        );
     }
 }
-
-
-// public ChassisSpeeds calculate(ChassisSpeeds targetSpeeds, ChassisSpeeds currentSpeeds, double dT){
-//     double currentXVelocity = currentSpeeds.vxMetersPerSecond;
-//     double currentYVelocity = currentSpeeds.vyMetersPerSecond;
-//     double currentRotationVelocity = currentSpeeds.vxMetersPerSecond;
-//     double targetXAccel = (targetSpeeds.vxMetersPerSecond - currentSpeeds.vxMetersPerSecond)/dT;
-//     double targetYAccel = (targetSpeeds.vyMetersPerSecond - currentYVelocity)/dT;
-//     double targetRotationalAccel = targetSpeeds.omegaRadiansPerSecond - currentRotationVelocity;
-//     if (Math.signum(targetXAccel)>0){
-//         targetXAccel = MathUtil.clamp(targetXAccel, -linearDeceleration, linearAcceleration);
-//     }
-//     else{
-//         targetXAccel = MathUtil.clamp(targetXAccel, -linearAcceleration, linearDeceleration);
-//     }
-//     if (Math.signum(targetYAccel)>0){
-//         targetYAccel = MathUtil.clamp(targetYAccel, -linearDeceleration, linearAcceleration);
-//     }
-//     else{
-//         targetYAccel = MathUtil.clamp(targetYAccel, -linearAcceleration, linearDeceleration);
-//     }
-//     if (Math.signum(targetRotationalAccel)>0){
-//         targetRotationalAccel = MathUtil.clamp(targetRotationalAccel, -rotationalDeceleration, rotationalAcceleration);
-//     }
-//     else{
-//         targetRotationalAccel = MathUtil.clamp(targetRotationalAccel, -rotationalAcceleration, rotationalDeceleration);
-//     }
-//     return new ChassisSpeeds(currentXVelocity+(targetXAccel*dT), currentYVelocity+(targetYAccel*dT), currentRotationVelocity+(targetRotationalAccel*dT));
-// }

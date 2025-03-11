@@ -1,7 +1,5 @@
 package frc.robot.util;
 
-import java.time.Period;
-
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.wpilibj.GenericHID.RumbleType;
@@ -15,37 +13,11 @@ public class OCXboxController extends CommandXboxController {
 
     private static final double kDeadband = 0.1;
 
-    public static final TunableNumber kSpeedSlow = new TunableNumber("Controller/speedSlow", .3);
-    public static final TunableNumber kSpeedDefault = new TunableNumber("Controller/speedDefault", .55);
-    public static final double kSpeedFast = 0.8;
-    public static final double kSpeedMax = 1.0;
-    
-    private double drivespeed = kSpeedDefault.get();
-    private double turnSpeed = kTurnSpeed.get();
-    public static final double kTurnSpeedSlow = 0.15;
-    public static final TunableNumber kTurnSpeed = new TunableNumber("Controller/turnSpeed", .35);;
-
     /**
      * Constructs XboxController on DS joystick port.
      */
     public OCXboxController(int port) {
         super(port);
-    }
-
-    public void setDriveSpeed(double drivespeed) {
-        this.drivespeed = drivespeed;
-    }
-
-    public double getDriveSpeed() {
-        return drivespeed;
-    }
-
-    public void setTurnSpeed(double turnSpeed) {
-        this.turnSpeed = turnSpeed;
-    }
-
-    public double getTurnSpeed() {
-        return turnSpeed;
     }
 
     @Override
@@ -88,9 +60,9 @@ public class OCXboxController extends CommandXboxController {
         turn *= turn * Math.signum(turn);
 
         // Convert to real units
-        forward *= maxLinearVel * drivespeed;
-        strafe *= maxLinearVel * drivespeed;
-        turn *= maxAngularVel * turnSpeed;
+        forward *= maxLinearVel;
+        strafe *= maxLinearVel;
+        turn *= maxAngularVel;
         return new ChassisSpeeds(forward, strafe, turn);
     }
 
@@ -103,15 +75,5 @@ public class OCXboxController extends CommandXboxController {
     public void rumble(boolean left, double value){
         RumbleType side = left ? RumbleType.kLeftRumble : RumbleType.kRightRumble;
         getHID().setRumble(side, value);
-    }
-
-    public static void periodic() {
-        changeTunable();
-    }
-
-    private static void changeTunable() {
-        kSpeedSlow.poll();
-        kSpeedDefault.poll();
-        kTurnSpeed.poll();
     }
 }

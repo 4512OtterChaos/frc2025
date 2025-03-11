@@ -40,7 +40,7 @@ public class TunableNumber implements DoubleSupplier {
         this.key = tableKey + "/" + key;
         this.defaultValue = defaultValue;
         this.value = defaultValue;
-        this.entry = NetworkTableInstance.getDefault().getDoubleTopic(key).getEntry(0.0);
+        this.entry = NetworkTableInstance.getDefault().getDoubleTopic(this.key).getEntry(0.0);
         entry.set(entry.get(defaultValue));
     }
 

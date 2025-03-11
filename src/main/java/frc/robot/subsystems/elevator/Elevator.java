@@ -41,7 +41,7 @@ public class Elevator extends SubsystemBase {
     private final MotionMagicVoltage mmRequest = new MotionMagicVoltage(0);
     private final VoltageOut voltageRequest = new VoltageOut(0);
 
-    private Distance targetHeight = kMinHeight;
+    private Distance targetHeight = Meters.of(0);
     private boolean isManual = false;
     private double targetVoltage = 0;
 
@@ -95,20 +95,22 @@ public class Elevator extends SubsystemBase {
 
         SmartDashboard.putData("Elevator/Subsystem", this);
 
-        resetElevatorHeight(kMinHeight.in(Meters)); 
+        resetElevatorHeight(0); 
     }
 
     @Override
     public void periodic() {
+        BaseStatusSignal.refreshAll(voltageStatus, positionStatus, dutyStatus, velocityStatus, statorStatus);
+
         // Height safety
         double currentHeightMeters = getElevatorHeightMeters(); 
         double currentKG = kConfig.Slot0.kG;
         double adjustedVoltage = targetVoltage + currentKG;
 
-        if (currentHeightMeters <= kMinHeight.in(Meters)) {
+        if (currentHeightMeters <= 0) {
             adjustedVoltage = Math.max(currentKG, adjustedVoltage);
         }
-        if (currentHeightMeters >= kMaxHeight.in(Meters)) {
+        if (currentHeightMeters >= kMaxTravel.in(Meters)) {
             adjustedVoltage = Math.min(currentKG, adjustedVoltage);
         }
         // if (!isHoming && (currentHeightMeters <= kMinHeight.plus(kHeightTolerance).in(Meters)) && (targetHeight.in(Meters) <= kMinHeight.plus(kHeightTolerance.times(3)).in(Meters))) {
@@ -141,8 +143,11 @@ public class Elevator extends SubsystemBase {
         log(); // log subsystem stats
     }
 
-    public double  getElevatorHeightMeters() {
-        positionStatus.refresh();
+    public Distance getHeight() {
+        return Meters.of(positionStatus.getValueAsDouble());
+    }
+
+    public double getElevatorHeightMeters() {
         return positionStatus.getValueAsDouble();
     }
 
@@ -166,12 +171,7 @@ public class Elevator extends SubsystemBase {
 
     public void setHeight(Distance targetHeight){
         isManual = false;
-        this.targetHeight = Meters.of(MathUtil.clamp(targetHeight.in(Meters), kMinHeight.in(Meters), kMaxHeight.in(Meters)));
-    }
-
-    public void decreaseHeight(double heightDecreaseMeters){
-        isManual = false;
-        this.targetHeight = Meters.of(MathUtil.clamp(targetHeight.in(Meters) - heightDecreaseMeters, kMinHeight.in(Meters), getElevatorHeightMeters())); 
+        this.targetHeight = Meters.of(MathUtil.clamp(targetHeight.in(Meters), 0, kMaxTravel.in(Meters)));
     }
 
     public void stop(){ 
@@ -209,7 +209,7 @@ public class Elevator extends SubsystemBase {
 
     /** Sets the target elevator height to the L1 height and ends when it is within tolerance. */
     public Command setMinC(){
-        return setHeightC(kMinHeight).withName("Go to base");
+        return setHeightC(Meters.of(0)).withName("Go to base");
     }
 
     /** Sets the target elevator height to the L1 height and ends when it is within tolerance. */
@@ -234,7 +234,7 @@ public class Elevator extends SubsystemBase {
 
     /** Runs the elevator into the base, detecting a current spike and resetting the elevator height. */
     public Command homingSequenceC(){
-        if(RobotBase.isSimulation()){ return setHeightC(kMinHeight);}
+        if(RobotBase.isSimulation()){ return setMinC();}
         return startEnd(
             () -> {
                 isHoming = true;
@@ -243,7 +243,7 @@ public class Elevator extends SubsystemBase {
             () -> {
                 isHoming = false;
                 setVoltage(0);
-                resetElevatorHeight(kMinHeight.in(Meters));
+                resetElevatorHeight(0);
             }
         ).until(()->isStalled()).withName("Homing");
     }
@@ -280,7 +280,6 @@ public class Elevator extends SubsystemBase {
     }
 
     private void log() {
-        BaseStatusSignal.refreshAll(voltageStatus, positionStatus, dutyStatus, velocityStatus, statorStatus);
         SmartDashboard.putNumber("Elevator/Elevator Rotor", leftMotor.getRotorPosition().getValueAsDouble());
         SmartDashboard.putNumber("Elevator/Elevator Native", leftMotor.getPosition().getValueAsDouble());
         SmartDashboard.putNumber("Elevator/Elevator Fake Units", Units.metersToInches(getElevatorHeightMeters()));
