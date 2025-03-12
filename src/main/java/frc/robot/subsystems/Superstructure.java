@@ -99,7 +99,6 @@ public class Superstructure {
 
     public void periodic() {
         adjustDriving();
-        tipProtection();
 
         changeTunable();
     }
@@ -181,15 +180,15 @@ public class Superstructure {
         swerve.limiter.angularDeceleration = elevatorPercentTravel*(turnDecelTippy.get() - turnDecelNormal.get()) + turnDecelNormal.get();
     }
 
-    public void tipProtection(){
-        double rollRadians = Math.abs(swerve.getRotation3d().getX());
-        double pitchRadians = Math.abs(swerve.getRotation3d().getY());
-        double angleTolerance = ElevatorConstants.kTipAngleTolerance.in(Radians);
+    // public void tipProtection(){
+    //     double rollRadians = Math.abs(swerve.getRotation3d().getX());
+    //     double pitchRadians = Math.abs(swerve.getRotation3d().getY());
+    //     double angleTolerance = ElevatorConstants.kTipAngleTolerance.in(Radians);
 
-        if ((rollRadians >= angleTolerance) || (pitchRadians >= angleTolerance)){
-            elevator.setMinC();
-        }
-    }
+    //     if ((rollRadians >= angleTolerance) || (pitchRadians >= angleTolerance)){
+    //         elevator.setMinC(); // this should be on a Trigger
+    //     }
+    // }
 
     private void changeTunable() {
         driveSpeedNormal.poll();

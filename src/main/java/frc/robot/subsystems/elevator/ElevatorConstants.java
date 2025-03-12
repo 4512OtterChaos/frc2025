@@ -23,27 +23,27 @@ public class ElevatorConstants {
     public static final int kLeftMotorID = 21;
     public static final int kRightMotorID = 22;
 
-    public static final int kGearRatio = 9;
+    public static final int kGearRatio = 9; // Motor rotations to sprocket rotations (Carriage is effectively a 1:2 upduction!)
     public static final Distance kSprocketPD = Inches.of(1.76);
 
+    public static final Mass kStage1Mass = Pounds.of(6);
     public static final Mass kCarriageMass = Pounds.of(15);
     
-    // public static final Distance kMinHeight = Inches.of(17.75); // As measured from the top of the cariage 
-    // public static final Distance kMaxHeight = Inches.of(kMinHeight.in(Inches) + 58); // 58in of travel
+    public static final Distance kMaxTravel = Inches.of(58.95); // Travel of the CARRIAGE
 
-    // public static final Distance kL1Height = Inches.of(kMinHeight.in(Inches) + 8);
-    // public static final Distance kL2Height = Inches.of(kMinHeight.in(Inches) + 12);
-    // public static final Distance kL3Height = Inches.of(kMinHeight.in(Inches) + 28);
-    // public static final Distance kL4Height = kMaxHeight;
+    public static final Distance kL1Height = Inches.of(6.15);
+    public static final Distance kL2Height = Inches.of(16);
+    public static final Distance kL3Height = Inches.of(32);
+    public static final Distance kL4Height = Inches.of(58.6);
 
-    public static final Distance kMaxTravel = Meters.of(48); // 58in of travel
+    public static final Distance kHeightTolerance = Inches.of(0.3);
 
-    public static final Distance kL1Height = Meters.of(5);
-    public static final Distance kL2Height = Meters.of(13);
-    public static final Distance kL3Height = Meters.of(26);
-    public static final Distance kL4Height = Meters.of(47.75);
-    
-    public static final Distance kHeightTolerance = Meters.of(0.5);
+    public static final Distance kMech2dOffsetX = Inches.of(3.5);
+    public static final Distance kMech2dOffsetZ = Inches.of(2.75);
+    public static final Distance kMech2dCoralZ = Inches.of(24.25).minus(kMech2dOffsetZ);
+    public static final Distance kMech2dCoralLength = Inches.of(13.75);
+    public static final Angle kMech2dCoralAngle = Degrees.of(-123);
+
     public static final Angle kTipAngleTolerance = Degrees.of(10);
 
     public static final double kStallThresholdAmps = 20;
@@ -53,8 +53,7 @@ public class ElevatorConstants {
     public static final TalonFXConfiguration kConfig = new TalonFXConfiguration();
     static {
         FeedbackConfigs feedback = kConfig.Feedback;
-        // feedback.SensorToMechanismRatio = kGearRatio        *   (Math.PI * sprocketPitchDiameter.in(Meters))  *   2;
-        //          motor rotations  -->  shaft rotations  -->  chain travel                                 -->  carriage travel
+        feedback.SensorToMechanismRatio = 1.0 / motorAngleToCarriageDist(Rotations.of(1)).in(Inches); // 1 motor rotation -> x Inches travelled
 
         MotorOutputConfigs output = kConfig.MotorOutput;
         output.NeutralMode = NeutralModeValue.Brake;
@@ -71,7 +70,7 @@ public class ElevatorConstants {
         // limits.ReverseSoftLimitThreshold = kMinHeight.in(Meters);
 
         Slot0Configs control = kConfig.Slot0;
-        control.kP = 5;
+        control.kP = 4;
         control.kI = 0;
         control.kD = 0;
 
@@ -79,24 +78,27 @@ public class ElevatorConstants {
         control.kG = 0.2;
         control.kS = 0.1;
         control.kV = 0;
+        control.kA = 0;
 
         MotionMagicConfigs mm = kConfig.MotionMagic;
-        mm.MotionMagicCruiseVelocity = 100; // meters per second
-        mm.MotionMagicAcceleration = 250; // meters per second per second
+        mm.MotionMagicCruiseVelocity = Inches.of(120).in(Inches); // inches per second
+        mm.MotionMagicAcceleration = Inches.of(300).in(Inches); // inches per second per second
     }
 
-    public static Distance motorAngleToElevDist(Angle angle) {
-        return Meters.of(angle.in(Rotations) / kGearRatio * (kSprocketPD.in(Meters) * Math.PI));
+    /** 1 motor rotation to [1.22871 inches, 0.03121 meters] */
+    public static Distance motorAngleToCarriageDist(Angle angle) {
+        // motor rotations -> shaft rotations -> 1st stage linear travel -> carriage linear travel
+        return Meters.of(angle.in(Rotations) / kGearRatio * (kSprocketPD.in(Meters) * Math.PI) * 2);
     }
 
-    public static Angle elevDistToMotorAngle(Distance dist) {
-        return Rotations.of(dist.in(Meters) / (kSprocketPD.in(Meters) * Math.PI) * kGearRatio);
+    public static Angle carriageDistToMotorAngle(Distance dist) {
+        return Rotations.of(dist.in(Meters) / 2.0 / (kSprocketPD.in(Meters) * Math.PI) * kGearRatio);
     }
 
     public static final ElevatorSim model = new ElevatorSim(
         DCMotor.getKrakenX60(2),
-        kGearRatio,
-        kCarriageMass.in(Kilograms),
+        kGearRatio / 2.0, // Carriage upduction
+        kCarriageMass.plus(kStage1Mass.div(2)).in(Kilograms),
         kSprocketPD.in(Meters) / 2.0,
         0,
         kMaxTravel.in(Meters),

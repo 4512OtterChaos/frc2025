@@ -12,6 +12,10 @@ import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.sim.ChassisReference;
 
 import edu.wpi.first.math.MathUtil;
+import edu.wpi.first.math.controller.ElevatorFeedforward;
+import edu.wpi.first.math.controller.ProfiledPIDController;
+import edu.wpi.first.math.controller.SimpleMotorFeedforward;
+import edu.wpi.first.math.trajectory.TrapezoidProfile;
 import edu.wpi.first.math.util.Units;
 
 import static edu.wpi.first.units.Units.*;
@@ -20,12 +24,18 @@ import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Current;
 import edu.wpi.first.units.measure.Distance;
+import edu.wpi.first.units.measure.LinearVelocity;
+import edu.wpi.first.units.measure.Velocity;
 import edu.wpi.first.units.measure.Voltage;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.Timer;
+import edu.wpi.first.wpilibj.smartdashboard.Mechanism2d;
+import edu.wpi.first.wpilibj.smartdashboard.MechanismLigament2d;
+import edu.wpi.first.wpilibj.smartdashboard.MechanismRoot2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj.util.Color8Bit;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.util.TunableNumber;
@@ -38,10 +48,10 @@ public class Elevator extends SubsystemBase {
     private TalonFX leftMotor = new TalonFX(kLeftMotorID);
     private TalonFX rightMotor = new TalonFX(kRightMotorID);
 
-    private final MotionMagicVoltage mmRequest = new MotionMagicVoltage(0);
+    private final MotionMagicVoltage mmRequest = new MotionMagicVoltage(0).withEnableFOC(false);
     private final VoltageOut voltageRequest = new VoltageOut(0);
 
-    private Distance targetHeight = Meters.of(0);
+    private Distance goalHeight = Meters.of(0);
     private boolean isManual = false;
     private double targetVoltage = 0;
 
@@ -63,14 +73,15 @@ public class Elevator extends SubsystemBase {
     private final TunableNumber kG = new TunableNumber("Elevator/kG", kConfig.Slot0.kG);
     private final TunableNumber kS = new TunableNumber("Elevator/kS", kConfig.Slot0.kS);
     private final TunableNumber kV = new TunableNumber("Elevator/kV", kConfig.Slot0.kV);
+    private final TunableNumber kA = new TunableNumber("Elevator/kA", kConfig.Slot0.kA);
 
-    private final TunableNumber mmCruise = new TunableNumber("Elevator/mmCruise", kConfig.MotionMagic.MotionMagicCruiseVelocity);
-    private final TunableNumber mmAccel = new TunableNumber("Elevator/mmAccel", kConfig.MotionMagic.MotionMagicAcceleration);
+    private final TunableNumber mmCruise = new TunableNumber("Elevator/mmCruiseInches", kConfig.MotionMagic.MotionMagicCruiseVelocity);
+    private final TunableNumber mmAccel = new TunableNumber("Elevator/mmAccelInches", kConfig.MotionMagic.MotionMagicAcceleration);
 
-    private final TunableNumber heightL1Inches = new TunableNumber("Elevator/heightL1Inches", kL1Height.in(Meters));
-    private final TunableNumber heightL2Inches = new TunableNumber("Elevator/heightL2Inches", kL2Height.in(Meters));
-    private final TunableNumber heightL3Inches = new TunableNumber("Elevator/heightL3Inches", kL3Height.in(Meters));
-    private final TunableNumber heightL4Inches = new TunableNumber("Elevator/heightL4Inches", kL4Height.in(Meters));
+    private final TunableNumber heightL1Inches = new TunableNumber("Elevator/heightL1Inches", kL1Height.in(Inches));
+    private final TunableNumber heightL2Inches = new TunableNumber("Elevator/heightL2Inches", kL2Height.in(Inches));
+    private final TunableNumber heightL3Inches = new TunableNumber("Elevator/heightL3Inches", kL3Height.in(Inches));
+    private final TunableNumber heightL4Inches = new TunableNumber("Elevator/heightL4Inches", kL4Height.in(Inches));
 
     public Elevator(){
         // try applying motor configs
@@ -95,15 +106,16 @@ public class Elevator extends SubsystemBase {
 
         SmartDashboard.putData("Elevator/Subsystem", this);
 
-        resetElevatorHeight(0); 
+        resetElevatorHeight(Inches.of(0)); 
     }
 
     @Override
     public void periodic() {
         BaseStatusSignal.refreshAll(voltageStatus, positionStatus, dutyStatus, velocityStatus, statorStatus);
+        changeTunable(); // update config if tunable numbers have changed
 
         // Height safety
-        double currentHeightMeters = getElevatorHeightMeters(); 
+        double currentHeightMeters = getHeight().in(Meters); 
         double currentKG = kConfig.Slot0.kG;
         double adjustedVoltage = targetVoltage + currentKG;
 
@@ -123,7 +135,7 @@ public class Elevator extends SubsystemBase {
 
         // Voltage/Position control
         if (!isManual) {
-            leftMotor.setControl(mmRequest.withPosition(targetHeight.in(Meters))); 
+            leftMotor.setControl(mmRequest.withPosition(goalHeight.in(Inches))); 
         }
         else {
             leftMotor.setControl(voltageRequest.withOutput(adjustedVoltage));
@@ -134,34 +146,24 @@ public class Elevator extends SubsystemBase {
             lastNonStallTime = Timer.getFPGATimestamp();
         }
 
-        // //Update mechanism 2D
-        // visualizeState(getArmRotations());
-        // visualizeSetpoint(targetAngle.getRotations());
-
-        changeTunable(); // update config if tunable numbers have changed
 
         log(); // log subsystem stats
     }
 
     public Distance getHeight() {
-        return Meters.of(positionStatus.getValueAsDouble());
+        return Inches.of(positionStatus.getValueAsDouble());
     }
 
-    public double getElevatorHeightMeters() {
-        return positionStatus.getValueAsDouble();
-    }
-
-    public double getTargetMeters() {
-        return targetHeight.in(Meters);
+    public Distance getGoalHeight() {
+        return goalHeight;
     }
 
     public boolean isWithinTolerance() {
-        double error = targetHeight.in(Meters) - getElevatorHeightMeters();
-        return Math.abs(error) < kHeightTolerance.in(Meters);
+        return goalHeight.minus(getHeight()).isNear(Inches.zero(), kHeightTolerance);
     }
 
-    public void resetElevatorHeight(double meters){
-        leftMotor.setPosition(meters);
+    public void resetElevatorHeight(Distance height){
+        leftMotor.setPosition(height.in(Inches));
     }
 
     public void setVoltage(double volts){
@@ -171,15 +173,15 @@ public class Elevator extends SubsystemBase {
 
     public void setHeight(Distance targetHeight){
         isManual = false;
-        this.targetHeight = Meters.of(MathUtil.clamp(targetHeight.in(Meters), 0, kMaxTravel.in(Meters)));
+        this.goalHeight = Inches.of(MathUtil.clamp(targetHeight.in(Inches), 0, kMaxTravel.in(Inches)));
     }
 
     public void stop(){ 
         setVoltage(0);
     }
 
-    public double getVelocity(){
-        return velocityStatus.getValueAsDouble();
+    public LinearVelocity getVelocity(){
+        return InchesPerSecond.of(velocityStatus.getValueAsDouble());
     }
 
     public double getCurrent(){
@@ -214,22 +216,22 @@ public class Elevator extends SubsystemBase {
 
     /** Sets the target elevator height to the L1 height and ends when it is within tolerance. */
     public Command setL1C(){
-        return setHeightC(() -> Meters.of(heightL1Inches.get())).withName("Go to L1");
+        return setHeightC(() -> Inches.of(heightL1Inches.get())).withName("Go to L1");
     }
 
     /** Sets the target elevator height to the L2 height and ends when it is within tolerance. */
     public Command setL2C(){
-        return setHeightC(() -> Meters.of(heightL2Inches.get())).withName("Go to L2");
+        return setHeightC(() -> Inches.of(heightL2Inches.get())).withName("Go to L2");
     }
 
     /** Sets the target elevator height to the L3 height and ends when it is within tolerance. */
     public Command setL3C(){
-        return setHeightC(() -> Meters.of(heightL3Inches.get())).withName("Go to L3");
+        return setHeightC(() -> Inches.of(heightL3Inches.get())).withName("Go to L3");
     }
 
     /** Sets the target elevator height to the L4 height and ends when it is within tolerance. */
     public Command setL4C(){
-        return setHeightC(() -> Meters.of(heightL4Inches.get())).withName("Go to L4");
+        return setHeightC(() -> Inches.of(heightL4Inches.get())).withName("Go to L4");
     }
 
     /** Runs the elevator into the base, detecting a current spike and resetting the elevator height. */
@@ -243,7 +245,7 @@ public class Elevator extends SubsystemBase {
             () -> {
                 isHoming = false;
                 setVoltage(0);
-                resetElevatorHeight(0);
+                resetElevatorHeight(Inches.of(0));
             }
         ).until(()->isStalled()).withName("Homing");
     }
@@ -254,6 +256,7 @@ public class Elevator extends SubsystemBase {
         kG.poll();
         kS.poll();
         kV.poll();
+        kA.poll();
         mmCruise.poll();
         mmAccel.poll();
         heightL1Inches.poll();
@@ -263,12 +266,13 @@ public class Elevator extends SubsystemBase {
 
         int hash = hashCode();
         // PID
-        if (kP.hasChanged(hash) || kD.hasChanged(hash) || kG.hasChanged(hash) || kS.hasChanged(hash) || kV.hasChanged(hash)) {
+        if (kP.hasChanged(hash) || kD.hasChanged(hash) || kG.hasChanged(hash) || kS.hasChanged(hash) || kV.hasChanged(hash) || kA.hasChanged(hash)) {
             kConfig.Slot0.kP = kP.get();
             kConfig.Slot0.kD = kD.get();
             kConfig.Slot0.kG = kG.get();
             kConfig.Slot0.kS = kS.get();
             kConfig.Slot0.kV = kV.get();
+            kConfig.Slot0.kA = kA.get();
             leftMotor.getConfigurator().apply(kConfig.Slot0);
         }
         // Motion magic
@@ -279,18 +283,30 @@ public class Elevator extends SubsystemBase {
         }
     }
 
+    //########## Logging
+
+    private Mechanism2d mech = new Mechanism2d(1, 2.3);
+    private MechanismRoot2d mechRoot = mech.getRoot("elevator", 0.5 + kMech2dOffsetX.in(Meters), kMech2dOffsetZ.in(Meters));
+    private MechanismLigament2d mechElev = mechRoot.append(
+            new MechanismLigament2d("elevator", 1, 90, 10, new Color8Bit(235, 137, 52)));
+    private MechanismLigament2d mechCoral = mechElev.append(
+            new MechanismLigament2d("coral", kMech2dCoralLength.in(Meters), kMech2dCoralAngle.in(Degrees), 6, new Color8Bit(240, 240, 220)));
+
     private void log() {
-        SmartDashboard.putNumber("Elevator/Elevator Rotor", leftMotor.getRotorPosition().getValueAsDouble());
-        SmartDashboard.putNumber("Elevator/Elevator Native", leftMotor.getPosition().getValueAsDouble());
-        SmartDashboard.putNumber("Elevator/Elevator Fake Units", Units.metersToInches(getElevatorHeightMeters()));
-        SmartDashboard.putNumber("Elevator/Elevator Inches(?)", getElevatorHeightMeters()*(kGearRatio * (Math.PI * kSprocketPD.in(Meters)) * 2));
-        SmartDashboard.putNumber("Elevator/Elevator Target Inches", targetHeight.in(Inches));
+        SmartDashboard.putNumber("Elevator/Rotor Position", leftMotor.getRotorPosition().getValueAsDouble());
+        SmartDashboard.putNumber("Elevator/Position Inches", getHeight().in(Inches));
+        SmartDashboard.putNumber("Elevator/Goal Inches", goalHeight.in(Inches));
+        SmartDashboard.putNumber("Elevator/Velocity Inches", getVelocity().in(InchesPerSecond));
         SmartDashboard.putNumber("Elevator/Motor Current", getCurrent());
         SmartDashboard.putBoolean("Elevator/isStalled", isStalled());
         SmartDashboard.putNumber("Elevator/Motor Voltage", voltageStatus.getValueAsDouble());
         SmartDashboard.putNumber("Elevator/Motor Target Voltage", targetVoltage);
-        SmartDashboard.putNumber("Elevator/Motor Velocity", getVelocity());
-    //     SmartDashboard.putData("Elevator/Mech2d", mech);
+        
+        SmartDashboard.putNumber("Elevator/Setpoint Inches", leftMotor.getClosedLoopReference().getValueAsDouble());
+        SmartDashboard.putNumber("Elevator/Acceleration Inches", leftMotor.getAcceleration().getValueAsDouble());
+
+        mechElev.setLength(getHeight().plus(kMech2dCoralZ).in(Meters));
+        SmartDashboard.putData("Elevator/Mech2d", mech);
     }
 
 
@@ -308,9 +324,9 @@ public class Elevator extends SubsystemBase {
         model.setInput(leftSim.getMotorVoltage());
         model.update(0.02);
 
-        leftSim.setRawRotorPosition(ElevatorConstants.elevDistToMotorAngle(Meters.of(model.getPositionMeters())));
-        leftSim.setRotorVelocity(ElevatorConstants.elevDistToMotorAngle(Meters.of(model.getVelocityMetersPerSecond())).per(Second));
-        rightSim.setRawRotorPosition(ElevatorConstants.elevDistToMotorAngle(Meters.of(model.getPositionMeters())));
-        rightSim.setRotorVelocity(ElevatorConstants.elevDistToMotorAngle(Meters.of(model.getVelocityMetersPerSecond())).per(Second));
+        leftSim.setRawRotorPosition(ElevatorConstants.carriageDistToMotorAngle(Meters.of(model.getPositionMeters())));
+        leftSim.setRotorVelocity(ElevatorConstants.carriageDistToMotorAngle(Meters.of(model.getVelocityMetersPerSecond())).per(Second));
+        rightSim.setRawRotorPosition(ElevatorConstants.carriageDistToMotorAngle(Meters.of(model.getPositionMeters())));
+        rightSim.setRotorVelocity(ElevatorConstants.carriageDistToMotorAngle(Meters.of(model.getVelocityMetersPerSecond())).per(Second));
     }
 }
