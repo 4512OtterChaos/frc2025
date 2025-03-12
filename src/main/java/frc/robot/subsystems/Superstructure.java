@@ -36,28 +36,25 @@ public class Superstructure {
     private Manipulator manipulator;
     private Elevator elevator;
 
-    private OCXboxController driver;
-
-    public Superstructure(CommandSwerveDrivetrain drive, Manipulator manipulator, Elevator elevator, OCXboxController driver) {
+    public Superstructure(CommandSwerveDrivetrain drive, Manipulator manipulator, Elevator elevator) {
         this.swerve = drive;
         this.manipulator = manipulator;
         this.elevator = elevator;
-        this.driver = driver;
     }
 
-    private final TunableNumber driveSpeedNormal = new TunableNumber("Swerve/driveSpeedNormal", kDriveSpeed);
-    private final TunableNumber driveAccelNormal = new TunableNumber("Swerve/driveAccelNormal", kLinearAccel);
-    private final TunableNumber driveDecelNormal = new TunableNumber("Swerve/driveDecelNormal", kLinearDecel);
-    private final TunableNumber turnSpeedNormal = new TunableNumber("Swerve/turnSpeedNormal", kTurnSpeed);
-    private final TunableNumber turnAccelNormal = new TunableNumber("Swerve/turnAccelNormal", kAngularAccel);
-    private final TunableNumber turnDecelNormal = new TunableNumber("Swerve/turnDecelNormal", kAngularDecel);
+    private final TunableNumber driveSpeedNormal = new TunableNumber("Driver/driveSpeedNormal", kDriveSpeed);
+    private final TunableNumber driveAccelNormal = new TunableNumber("Driver/driveAccelNormal", kLinearAccel);
+    private final TunableNumber driveDecelNormal = new TunableNumber("Driver/driveDecelNormal", kLinearDecel);
+    private final TunableNumber turnSpeedNormal = new TunableNumber("Driver/turnSpeedNormal", kTurnSpeed);
+    private final TunableNumber turnAccelNormal = new TunableNumber("Driver/turnAccelNormal", kAngularAccel);
+    private final TunableNumber turnDecelNormal = new TunableNumber("Driver/turnDecelNormal", kAngularDecel);
 
-    private final TunableNumber driveSpeedTippy = new TunableNumber("Swerve/driveSpeedTippy", kDriveSpeedTippy);
-    private final TunableNumber driveAccelTippy = new TunableNumber("Swerve/driveAccelTippy", kLinearAccelTippy);
-    private final TunableNumber driveDecelTippy = new TunableNumber("Swerve/driveDecelTippy", kLinearDecelTippy);
-    private final TunableNumber turnSpeedTippy = new TunableNumber("Swerve/turnSpeedTippy", kTurnSpeedTippy);
-    private final TunableNumber turnAccelTippy = new TunableNumber("Swerve/turnAccelTippy", kAngularAccelTippy);
-    private final TunableNumber turnDecelTippy = new TunableNumber("Swerve/turnDecelTippy", kAngularDecelTippy);
+    private final TunableNumber driveSpeedTippy = new TunableNumber("Driver/driveSpeedTippy", kDriveSpeedTippy);
+    private final TunableNumber driveAccelTippy = new TunableNumber("Driver/driveAccelTippy", kLinearAccelTippy);
+    private final TunableNumber driveDecelTippy = new TunableNumber("Driver/driveDecelTippy", kLinearDecelTippy);
+    private final TunableNumber turnSpeedTippy = new TunableNumber("Driver/turnSpeedTippy", kTurnSpeedTippy);
+    private final TunableNumber turnAccelTippy = new TunableNumber("Driver/turnAccelTippy", kAngularAccelTippy);
+    private final TunableNumber turnDecelTippy = new TunableNumber("Driver/turnDecelTippy", kAngularDecelTippy);
     
     HolonomicDriveController driveController;
 

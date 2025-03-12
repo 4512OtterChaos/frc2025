@@ -43,7 +43,7 @@ public class RobotContainer {
     private OCXboxController driver = new OCXboxController(0);
     // private OCXboxController operator = new OCXboxController(1);
 
-    public final Superstructure superstructure = new Superstructure(swerve, manipulator, elevator, driver);
+    public final Superstructure superstructure = new Superstructure(swerve, manipulator, elevator);
     
     private final Vision vision = new Vision();
     
