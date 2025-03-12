@@ -26,11 +26,11 @@ public class SwerveDriveAccelLimiter {
         double targetAngAccel = (targetSpeeds.omegaRadiansPerSecond - currentAngVelocity) / dt;
 
         Rotation2d velHeading;
-        if (Math.hypot(targetXAccel, targetYAccel) <= 1e-6) { // Already at target speeds
-            velHeading = Rotation2d.kZero;
-        }
-        else {
+        if (Math.hypot(targetXAccel, targetYAccel) > 1e-6) {
             velHeading = new Rotation2d(targetXAccel, targetYAccel);
+        }
+        else { // Already at target speeds
+            velHeading = Rotation2d.kZero;
         }
         double cosVelHeading = Math.abs(Math.cos(velHeading.getRadians()));
         double sinVelHeading = Math.abs(Math.sin(velHeading.getRadians()));

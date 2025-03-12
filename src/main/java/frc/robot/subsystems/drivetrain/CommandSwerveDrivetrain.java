@@ -1,6 +1,7 @@
 package frc.robot.subsystems.drivetrain;
 
 import static edu.wpi.first.units.Units.*;
+import static edu.wpi.first.wpilibj2.command.Commands.sequence;
 
 import java.util.Optional;
 import java.util.function.Supplier;
@@ -17,12 +18,16 @@ import choreo.auto.AutoFactory;
 import choreo.trajectory.SwerveSample;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.Matrix;
+import edu.wpi.first.math.VecBuilder;
+import edu.wpi.first.math.Vector;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.estimator.SwerveDrivePoseEstimator;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.numbers.N1;
+import edu.wpi.first.math.numbers.N2;
 import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.math.trajectory.TrapezoidProfile;
 import edu.wpi.first.networktables.NetworkTableInstance;
@@ -77,24 +82,37 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     private final SwerveRequest.ApplyRobotSpeeds applyRobotSpeeds = new SwerveRequest.ApplyRobotSpeeds();
     private final SwerveRequest.ApplyFieldSpeeds applyFieldSpeeds = new SwerveRequest.ApplyFieldSpeeds();
 
-    private final PIDController m_pathXController = new PIDController(kPathDriveKP, kPathDriveKI, kPathDriveKD);// TODO: Use for pathfollowing?
-    private final PIDController m_pathYController = new PIDController(kPathDriveKP, kPathDriveKI, kPathDriveKD);
-    private final PIDController m_pathThetaController = new PIDController(kPathTurnKP, kPathTurnKI, kPathTurnKD);
-    private final TrapezoidProfile.Constraints headingConstraints = new TrapezoidProfile.Constraints(kTurnSpeed, kAngularAccel);
+    private final PIDController pathXController = new PIDController(kPathDriveKP, kPathDriveKI, kPathDriveKD);
+    private final PIDController pathYController = new PIDController(kPathDriveKP, kPathDriveKI, kPathDriveKD);
+    private TrapezoidProfile.Constraints pathDriveConstraints = new TrapezoidProfile.Constraints(kDriveSpeed, kLinearAccel);
+    private TrapezoidProfile.State pathDriveLastState = new TrapezoidProfile.State();
+    private final PIDController pathThetaController = new PIDController(kPathTurnKP, kPathTurnKI, kPathTurnKD);
+    private TrapezoidProfile.Constraints pathTurnConstraints = new TrapezoidProfile.Constraints(kTurnSpeed, kAngularAccel);
+    private TrapezoidProfile.State pathTurnLastState = new TrapezoidProfile.State();
+    private Pose2d initialTargetPose = Pose2d.kZero;
+    private Pose2d lastTargetPose = Pose2d.kZero;
 
     {
-        m_pathThetaController.enableContinuousInput(-Math.PI, Math.PI);
-        m_pathXController.setTolerance(kPathDrivePosTol, kPathDriveVelTol);
-        m_pathYController.setTolerance(kPathDrivePosTol, kPathDriveVelTol);
-        m_pathThetaController.setTolerance(kPathTurnPosTol, kPathTurnVelTol);
+        pathThetaController.enableContinuousInput(-Math.PI, Math.PI);
+        pathXController.setTolerance(kPathDrivePosTol, kPathDriveVelTol);
+        pathYController.setTolerance(kPathDrivePosTol, kPathDriveVelTol);
+        pathThetaController.setTolerance(kPathTurnPosTol, kPathTurnVelTol);
     }
+
+    private final StructPublisher<Pose2d> goalPosePub = NetworkTableInstance.getDefault().getStructTopic("Swerve/Goal Pose", Pose2d.struct).publish();
+    private final StructPublisher<Pose2d> targetPosePub = NetworkTableInstance.getDefault().getStructTopic("Swerve/Target Pose", Pose2d.struct).publish();
 
     private final TunableNumber pathDriveKP = new TunableNumber("Swerve/pathDriveKP", kPathDriveKP);
     private final TunableNumber pathDriveKI = new TunableNumber("Swerve/pathDriveKI", kPathDriveKI);
     private final TunableNumber pathDriveKD = new TunableNumber("Swerve/pathDriveKD", kPathDriveKD);
+    private final TunableNumber pathDrivePosTol = new TunableNumber("Swerve/pathDrivePosTol", kPathDrivePosTol);
+    private final TunableNumber pathDriveVelTol = new TunableNumber("Swerve/pathDriveVelTol", kPathDriveVelTol);
+    
     private final TunableNumber pathTurnKP = new TunableNumber("Swerve/pathTurnKP", kPathTurnKP);
     private final TunableNumber pathTurnKI = new TunableNumber("Swerve/pathTurnKI", kPathTurnKI);
     private final TunableNumber pathTurnKD = new TunableNumber("Swerve/pathTurnKD", kPathTurnKD);
+    private final TunableNumber pathTurnPosTol = new TunableNumber("Swerve/pathTurnPosTol", kPathTurnPosTol);
+    private final TunableNumber pathTurnVelTol = new TunableNumber("Swerve/pathTurnVelTol", kPathTurnVelTol);
 
     private final SwerveDrivePoseEstimator visionEstimator = new SwerveDrivePoseEstimator(
         getKinematics(),
@@ -281,6 +299,9 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     public Command drive(Supplier<ChassisSpeeds> speedsSupplier, boolean fieldCentric, boolean limitAccel) {
         return run(() -> {
             var targetSpeeds = speedsSupplier.get();
+            if (!fieldCentric) {
+                targetSpeeds = ChassisSpeeds.fromRobotRelativeSpeeds(targetSpeeds, getState().Pose.getRotation());
+            }
             if (limitAccel) {
                 targetSpeeds = limiter.calculate(targetSpeeds, lastTargetSpeeds, Robot.kDefaultPeriod);
             }
@@ -291,7 +312,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
                         .withSpeeds(targetSpeeds));
             }
             else {
-                setControl(new SwerveRequest.ApplyRobotSpeeds().withSpeeds(targetSpeeds));
+                setControl(new SwerveRequest.ApplyRobotSpeeds().withSpeeds(ChassisSpeeds.fromFieldRelativeSpeeds(targetSpeeds, getState().Pose.getRotation())));
             }
         });
     }
@@ -325,23 +346,117 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         return run(() -> this.setControl(requestSupplier.get()));
     }
 
-    public Command driveToPose(Supplier<Pose2d> targetSupplier) {
-        return drive(() -> {
-            var actual = getState().Pose;
-            var target = targetSupplier.get();
+    public Command driveToPose(Supplier<Pose2d> goalSupplier) {
+        return sequence(
+            // Reset profiles on init
+            runOnce(() -> {
+                var actual = getState().Pose;
+                var goal = goalSupplier.get();
+                var speeds = getState().Speeds;
 
-            var targetSpeeds = new ChassisSpeeds();
-            targetSpeeds.vxMetersPerSecond += m_pathXController.calculate(
-                actual.getX(), target.getX()
-            );
-            targetSpeeds.vyMetersPerSecond += m_pathYController.calculate(
-                actual.getY(), target.getY()
-            );
-            targetSpeeds.omegaRadiansPerSecond += m_pathThetaController.calculate(
-                actual.getRotation().getRadians(), target.getRotation().getRadians()
-            );
-            return targetSpeeds;
-        }).until(() -> m_pathXController.atSetpoint() && m_pathYController.atSetpoint() && m_pathThetaController.atSetpoint());
+                // Find current velocity towards goal
+                var relative = goal.relativeTo(actual);
+                var relTrlVec = relative.getTranslation().toVector();
+                pathDriveLastState = new TrapezoidProfile.State(0, VecBuilder.fill(speeds.vxMetersPerSecond, speeds.vyMetersPerSecond).dot(relTrlVec) / relTrlVec.norm());
+
+                pathTurnLastState = new TrapezoidProfile.State(actual.getRotation().getRadians(), speeds.omegaRadiansPerSecond);
+
+                initialTargetPose = actual;
+                lastTargetPose = actual;
+            }),
+            // ..then drive to the pose
+            drive(() -> {
+                var actual = getState().Pose;
+                var goal = goalSupplier.get();
+                goalPosePub.set(goal);
+    
+                // PID control on the PREVIOUS setpoint ("compensate for error from feedforward control in the previous timestep")
+                var targetSpeeds = new ChassisSpeeds();
+                targetSpeeds.vxMetersPerSecond += pathXController.calculate(
+                    actual.getX(), lastTargetPose.getX()
+                );
+                targetSpeeds.vyMetersPerSecond += pathYController.calculate(
+                    actual.getY(), lastTargetPose.getY()
+                );
+                targetSpeeds.omegaRadiansPerSecond += pathThetaController.calculate(
+                    actual.getRotation().getRadians(), lastTargetPose.getRotation().getRadians()
+                );
+    
+                // Profile translational movement towards the goal pose
+                pathDriveConstraints = new TrapezoidProfile.Constraints(driveSpeed.in(MetersPerSecond), limiter.linearAcceleration);
+                var driveProfile = new TrapezoidProfile(pathDriveConstraints);
+
+                // readjust last setpoint to acount for moving goals
+                var trlDiff = goal.getTranslation().minus(lastTargetPose.getTranslation());
+                var trlDiffVec = trlDiff.toVector();
+                var lastSpeedsVec = VecBuilder.fill(lastTargetSpeeds.vxMetersPerSecond, lastTargetSpeeds.vyMetersPerSecond);
+                
+                pathDriveLastState = new TrapezoidProfile.State(0, lastSpeedsVec.dot(trlDiffVec) / trlDiffVec.norm());
+
+                // find the next setpoint from the last setpoint to the (possibly new) goal
+                double driveDist = trlDiff.getNorm();
+                pathDriveLastState = driveProfile.calculate(
+                    0.02,
+                    pathDriveLastState,
+                    new TrapezoidProfile.State(driveDist, 0)
+                );
+                var targetTrl = goal.getTranslation();
+                if (trlDiff.getNorm() > 1e-4) {
+                    targetTrl = lastTargetPose.getTranslation().interpolate(
+                        goal.getTranslation(),
+                        pathDriveLastState.position / driveDist
+                    );
+                }
+
+                // var trlDiff = goal.getTranslation().minus(initialTargetPose.getTranslation());
+                // double totalDriveDist = trlDiff.getNorm(); // maintain initial distance to goal over timesteps
+                // pathDriveLastState = driveProfile.calculate(
+                //     0.02,
+                //     pathDriveLastState,
+                //     new TrapezoidProfile.State(totalDriveDist, 0)
+                // );
+                // var targetTrl = initialTargetPose.getTranslation().interpolate(
+                //     goal.getTranslation(),
+                //     pathDriveLastState.position / totalDriveDist
+                // );
+
+                // Profile rotational movement towards the goal pose
+                pathTurnConstraints = new TrapezoidProfile.Constraints(turnSpeed.in(RadiansPerSecond), limiter.angularAcceleration);
+                var turnProfile = new TrapezoidProfile(pathTurnConstraints);
+                // Handle continuous angle wrapping
+                double goalRadians = goal.getRotation().getRadians();
+                double actualRadians = actual.getRotation().getRadians();
+                double errorBound = Math.PI;
+                double goalMinDistance =
+                    MathUtil.inputModulus(goalRadians - actualRadians, -errorBound, errorBound);
+                double setpointMinDistance =
+                    MathUtil.inputModulus(pathTurnLastState.position - actualRadians, -errorBound, errorBound);
+
+                goalRadians = goalMinDistance + actualRadians;
+                pathTurnLastState.position = setpointMinDistance + actualRadians;
+                pathTurnLastState = turnProfile.calculate(0.02, pathTurnLastState, new TrapezoidProfile.State(goalRadians, 0));
+    
+                // Profiled target pose
+                lastTargetPose = new Pose2d(targetTrl.getX(), targetTrl.getY(), Rotation2d.fromRadians(pathTurnLastState.position));
+                targetPosePub.set(lastTargetPose);
+                
+                // Use profile setpoint velocities as feedforward targets
+                var targetDriveSpeedsTrl = new Translation2d(pathDriveLastState.velocity, 0).rotateBy(trlDiff.getAngle()); // field-relative
+                targetSpeeds.vxMetersPerSecond += targetDriveSpeedsTrl.getX();
+                targetSpeeds.vyMetersPerSecond += targetDriveSpeedsTrl.getY();
+                targetSpeeds.omegaRadiansPerSecond += pathTurnLastState.velocity;
+    
+                return targetSpeeds;
+            }, true, false)
+            .until(() -> { // finish when goal pose is reached
+                boolean atSetpoints = pathXController.atSetpoint() && pathYController.atSetpoint() && pathThetaController.atSetpoint();
+                var relative = goalSupplier.get().minus(getState().Pose);
+                boolean atGoal = MathUtil.isNear(0, relative.getX(), pathDrivePosTol.get());
+                atGoal &= MathUtil.isNear(0, relative.getY(), pathDrivePosTol.get());
+                atGoal &= MathUtil.isNear(0, relative.getRotation().getRadians(), pathTurnPosTol.get(), -Math.PI, Math.PI);
+                return atSetpoints && atGoal;
+            })
+        );
     }
 
     /**
@@ -355,13 +470,13 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         var pose = getState().Pose;
 
         var targetSpeeds = sample.getChassisSpeeds();
-        targetSpeeds.vxMetersPerSecond += m_pathXController.calculate(
+        targetSpeeds.vxMetersPerSecond += pathXController.calculate(
             pose.getX(), sample.x
         );
-        targetSpeeds.vyMetersPerSecond += m_pathYController.calculate(
+        targetSpeeds.vyMetersPerSecond += pathYController.calculate(
             pose.getY(), sample.y
         );
-        targetSpeeds.omegaRadiansPerSecond += m_pathThetaController.calculate(
+        targetSpeeds.omegaRadiansPerSecond += pathThetaController.calculate(
             pose.getRotation().getRadians(), sample.heading
         );
 
@@ -529,18 +644,29 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         pathDriveKP.poll();
         pathDriveKI.poll();
         pathDriveKD.poll();
+        pathDrivePosTol.poll();
+        pathDriveVelTol.poll();
         pathTurnKP.poll();
         pathTurnKI.poll();
         pathTurnKD.poll();
+        pathTurnPosTol.poll();
+        pathTurnVelTol.poll();
 
         int hash = hashCode();
         // PID
         if (pathDriveKP.hasChanged(hash) || pathDriveKI.hasChanged(hash) || pathDriveKD.hasChanged(hash)) {
-            m_pathXController.setPID(pathDriveKP.get(), pathDriveKI.get(), pathDriveKD.get());
-            m_pathYController.setPID(pathDriveKP.get(), pathDriveKI.get(), pathDriveKD.get());
+            pathXController.setPID(pathDriveKP.get(), pathDriveKI.get(), pathDriveKD.get());
+            pathYController.setPID(pathDriveKP.get(), pathDriveKI.get(), pathDriveKD.get());
+        }
+        if (pathDrivePosTol.hasChanged(hash) || pathDriveVelTol.hasChanged(hash)) {
+            pathXController.setTolerance(pathDrivePosTol.get(), pathDriveVelTol.get());
+            pathYController.setTolerance(pathDrivePosTol.get(), pathDriveVelTol.get());
         }
         if (pathTurnKP.hasChanged(hash) || pathTurnKI.hasChanged(hash) || pathTurnKD.hasChanged(hash)) {
-            m_pathThetaController.setPID(pathTurnKP.get(), pathTurnKI.get(), pathTurnKD.get());
+            pathThetaController.setPID(pathTurnKP.get(), pathTurnKI.get(), pathTurnKD.get());
+        }
+        if (pathTurnPosTol.hasChanged(hash) || pathTurnVelTol.hasChanged(hash)) {
+            pathThetaController.setTolerance(pathTurnPosTol.get(), pathTurnVelTol.get());
         }
     }
 }

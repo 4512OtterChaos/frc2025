@@ -31,10 +31,10 @@ public class DriveConstants {
     public static final double kAngularDecelTippy = RotationsPerSecondPerSecond.of(4).in(RadiansPerSecondPerSecond);
 
     // Path following constants
-    public static final double kPathDriveKP = 4;
+    public static final double kPathDriveKP = 5;
     public static final double kPathDriveKI = 0;
-    public static final double kPathDriveKD = 0.1;
-    public static final double kPathDrivePosTol = Inches.of(2).in(Meters);
+    public static final double kPathDriveKD = 0.5;
+    public static final double kPathDrivePosTol = Inches.of(1).in(Meters);
     public static final double kPathDriveVelTol = Inches.of(2).in(Meters);
     public static final double kPathTurnKP = 7;
     public static final double kPathTurnKI = 0;
