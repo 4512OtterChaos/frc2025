@@ -7,6 +7,7 @@ package frc.robot;
 import choreo.auto.AutoChooser;
 import choreo.auto.AutoFactory;
 
+import com.ctre.phoenix6.Utils;
 import com.ctre.phoenix6.hardware.ParentDevice;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.hardware.traits.CommonTalon;
@@ -16,6 +17,7 @@ import static edu.wpi.first.wpilibj2.command.Commands.*;
 
 import static frc.robot.subsystems.drivetrain.DriveConstants.*;
 
+import edu.wpi.first.math.estimator.SwerveDrivePoseEstimator;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -44,6 +46,7 @@ public class RobotContainer {
     public final Superstructure superstructure = new Superstructure(swerve, manipulator, elevator, driver);
     
     private final Vision vision = new Vision();
+    
     
     /* Path follower */
     private final AutoFactory autoFactory;
@@ -165,6 +168,12 @@ public class RobotContainer {
     
     public void periodic() {
         superstructure.periodic();
+
+        vision.getEstimatedGlobalPose().ifPresent(estimate -> {
+            var pose = estimate.estimatedPose.toPose2d();
+            var stdDevs = vision.getEstimationStdDevs(pose);
+            swerve.addVisionMeasurement(pose, estimate.timestampSeconds, stdDevs);
+        });
     }
 
     public void simulationPeriodic() {

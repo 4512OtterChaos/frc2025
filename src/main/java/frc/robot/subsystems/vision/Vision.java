@@ -13,13 +13,19 @@ import org.photonvision.simulation.SimCameraProperties;
 import org.photonvision.simulation.VisionSystemSim;
 import org.photonvision.targeting.PhotonPipelineResult;
 
+import edu.wpi.first.apriltag.AprilTagFieldLayout.OriginPosition;
 import edu.wpi.first.math.MatBuilder;
 import edu.wpi.first.math.Matrix;
 import edu.wpi.first.math.Nat;
 import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.numbers.*;
+import edu.wpi.first.networktables.NetworkTableInstance;
+import edu.wpi.first.networktables.StructPublisher;
+import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import frc.robot.Robot;
 
@@ -27,6 +33,8 @@ public class Vision {
     private final PhotonCamera camera;
     private final PhotonPoseEstimator photonEstimator;
     private double lastEstTimestamp = 0;
+
+    private final StructPublisher<Pose3d> pipelinePosePub = NetworkTableInstance.getDefault().getStructTopic("Vision/Pipeline Pose", Pose3d.struct).publish();
 
     // // Simulation
     private PhotonCameraSim cameraSim;
@@ -63,7 +71,7 @@ public class Vision {
             // Add the simulated camera to view the targets on this simulated field.
             visionSim.addCamera(cameraSim, kRobotToCam);
 
-            cameraSim.enableDrawWireframe(true);
+            cameraSim.enableDrawWireframe(false);
         }
     }
 
@@ -79,17 +87,31 @@ public class Vision {
      *     used for estimation.
      */
     public Optional<EstimatedRobotPose> getEstimatedGlobalPose() {
+        if (!DriverStation.isDisabled()) {
+            DriverStation.getAlliance().ifPresent(allianceColor -> {
+                kTagLayout.setOrigin(
+                    allianceColor == Alliance.Red
+                        ? OriginPosition.kRedAllianceWallRightSide
+                        : OriginPosition.kBlueAllianceWallRightSide
+                );
+            });
+        }
         var visionEst = photonEstimator.update(getLatestResult());
         double latestTimestamp = camera.getLatestResult().getTimestampSeconds();
         boolean newResult = Math.abs(latestTimestamp - lastEstTimestamp) > 1e-5;
         if (Robot.isSimulation()) {
             visionEst.ifPresentOrElse(
-                    est ->
-                            getSimDebugField()
-                                    .getObject("VisionEstimation")
-                                    .setPose(est.estimatedPose.toPose2d()),
+                    est -> {
+                        pipelinePosePub.set(est.estimatedPose);
+                        getSimDebugField()
+                                .getObject("VisionEstimation")
+                                .setPose(est.estimatedPose.toPose2d());
+                    },
                     () -> {
-                        if (newResult) getSimDebugField().getObject("VisionEstimation").setPoses();
+                        if (newResult) {
+                            pipelinePosePub.set(null);
+                            getSimDebugField().getObject("VisionEstimation").setPoses();
+                        }
                     });
         }
         if (newResult) lastEstTimestamp = latestTimestamp;
