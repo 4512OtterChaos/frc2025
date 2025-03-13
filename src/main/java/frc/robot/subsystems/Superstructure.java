@@ -73,6 +73,24 @@ public class Superstructure {
     private static final Translation2d kCoralScoreRightPoseTemplate = new Translation2d(
         kReefTrl.getX() - (kReefWidth.div(2).plus(kRobotLength.div(2)).in(Meters)),
         kReefTrl.getMeasureY().minus(kReefPoleDist.div(2)).in(Meters));
+
+    public static final List<Pose2d> kLeftCoralScoringPositions = new ArrayList<Pose2d>() {{
+        add(new Pose2d(kCoralScoreLeftPoseTemplate, Rotation2d.fromDegrees(0)));
+        add(new Pose2d(kCoralScoreLeftPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(60)), Rotation2d.fromDegrees(60)));
+        add(new Pose2d(kCoralScoreLeftPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(120)), Rotation2d.fromDegrees(120)));
+        add(new Pose2d(kCoralScoreLeftPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(180)), Rotation2d.fromDegrees(180)));
+        add(new Pose2d(kCoralScoreLeftPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(240)), Rotation2d.fromDegrees(240)));
+        add(new Pose2d(kCoralScoreLeftPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(300)), Rotation2d.fromDegrees(300)));
+    }};
+
+    public static final List<Pose2d> kRightCoralScoringPositions = new ArrayList<Pose2d>() {{
+        add(new Pose2d(kCoralScoreRightPoseTemplate, Rotation2d.fromDegrees(0)));
+        add(new Pose2d(kCoralScoreRightPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(60)), Rotation2d.fromDegrees(60)));
+        add(new Pose2d(kCoralScoreRightPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(120)), Rotation2d.fromDegrees(120)));
+        add(new Pose2d(kCoralScoreRightPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(180)), Rotation2d.fromDegrees(180)));
+        add(new Pose2d(kCoralScoreRightPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(240)), Rotation2d.fromDegrees(240)));
+        add(new Pose2d(kCoralScoreRightPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(300)), Rotation2d.fromDegrees(300)));
+    }};
     
     public static final List<Pose2d> kCoralScoringPositions = new ArrayList<Pose2d>() {{
         add(new Pose2d(kCoralScoreLeftPoseTemplate, Rotation2d.fromDegrees(0)));
@@ -134,8 +152,18 @@ public class Superstructure {
     //     return drive.applyRequest(()->robotSpeeds.withSpeeds(targetSpeeds))/*.until(()->driveController.atReference()).repeatedly()*/;
     // }
 
-    public Command driveToScorePoint(){
+    public Command autoAlignToReef(){
         return swerve.driveToPose(() -> swerve.getState().Pose.nearest(kCoralScoringPositions));
+        // return swerve.applyRequest(()->robotSpeeds.withSpeeds(chassisSpeedsToScorePoint()))/*.until(()->driveController.atReference()).repeatedly()*/;
+    }
+
+    public Command autoAlignLeft(){
+        return swerve.driveToPose(() -> swerve.getState().Pose.nearest(kLeftCoralScoringPositions));
+        // return swerve.applyRequest(()->robotSpeeds.withSpeeds(chassisSpeedsToScorePoint()))/*.until(()->driveController.atReference()).repeatedly()*/;
+    }
+
+    public Command autoAlignRight(){
+        return swerve.driveToPose(() -> swerve.getState().Pose.nearest(kRightCoralScoringPositions));
         // return swerve.applyRequest(()->robotSpeeds.withSpeeds(chassisSpeedsToScorePoint()))/*.until(()->driveController.atReference()).repeatedly()*/;
     }
 

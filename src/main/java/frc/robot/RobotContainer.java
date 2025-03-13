@@ -20,7 +20,11 @@ import static frc.robot.subsystems.drivetrain.DriveConstants.*;
 import edu.wpi.first.math.estimator.SwerveDrivePoseEstimator;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
+import edu.wpi.first.wpilibj.AddressableLED;
+import edu.wpi.first.wpilibj.AddressableLEDBuffer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj.util.Color;
+import edu.wpi.first.wpilibj.util.Color8Bit;
 import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.auto.AutoRoutines;
 import frc.robot.subsystems.Superstructure;
@@ -46,6 +50,9 @@ public class RobotContainer {
     public final Superstructure superstructure = new Superstructure(swerve, manipulator, elevator);
     
     private final Vision vision = new Vision();
+
+    private AddressableLED led = new AddressableLED(9);
+    private AddressableLEDBuffer ledBuffer = new AddressableLEDBuffer(15);
     
     
     /* Path follower */
@@ -77,7 +84,9 @@ public class RobotContainer {
             swerve.getModule(3).getSteerMotor()
         };
         setSwerveUpdateFrequency(swerveMotors);
-        ParentDevice.optimizeBusUtilizationForAll(swerveMotors);        
+        ParentDevice.optimizeBusUtilizationForAll(swerveMotors);  
+        led.setLength(15); 
+        setLed(90, 200, 200);  
     }
     
     public void setSwerveUpdateFrequency(CommonTalon... motors) {
@@ -89,7 +98,14 @@ public class RobotContainer {
             motor.getStatorCurrent().setUpdateFrequency(50);
         }
     }
-    
+
+    public void setLed(int h, int s, int v){
+        for(int i = 0; i < ledBuffer.getLength(); i++){
+            ledBuffer.setHSV(i, h, s, v);
+        }
+        led.setData(ledBuffer);
+    }
+
     private void configureDriverBindings(OCXboxController controller) {
         //DRIVE COMMAND
         swerve.setDefaultCommand(swerve.drive(() -> controller.getSpeeds(
@@ -97,34 +113,14 @@ public class RobotContainer {
             swerve.turnSpeed.in(RadiansPerSecond))
         ).withName("D:Controller Drive"));
         
-        // controller.x().whileTrue(drivetrain.applyRequest(() -> brake));
-        // controller.b().whileTrue(drivetrain.applyRequest(() ->
-        //     point.withModuleDirection(new Rotation2d(-controller.getLeftY(), -controller.getLeftX()))
-        // ));
-        
         // reset the robot heading to forward
         controller.start().onTrue(swerve.runOnce(() -> swerve.seedFieldCentric()));
-        
-        //TODO: ADD GYRO BUTTONS FOR AUTO ALIGN
-        // controller.povUp().whileTrue(swerve.applyRequest(()->orient.withTargetDirection(Rotation2d.kZero)).withName("Face Forward"));
-        // controller.povLeft().whileTrue(swerve.applyRequest(()->orient.withTargetDirection(Rotation2d.fromDegrees(-45))).withName("Align Left Station"));
-        // controller.povRight().whileTrue(swerve.applyRequest(()->orient.withTargetDirection(Rotation2d.fromDegrees(45))).withName("Align Right Station"));
-        
-        // controller.leftBumper().whileTrue(drivetrain.applyRequest(()->robotCentric.withVelocityY(MetersPerSecond.of(0.3))));
-        // controller.rightBumper().whileTrue(drivetrain.applyRequest(()->robotCentric.withVelocityY(MetersPerSecond.of(-0.3))));
 
-        controller.leftTrigger().whileTrue(swerve.drive(() -> new ChassisSpeeds(0, controller.getLeftTriggerAxis() * 0.3, 0), false, true).withName("Strafe Left"));
-        controller.rightTrigger().whileTrue(swerve.drive(() -> new ChassisSpeeds(0, controller.getRightTriggerAxis() * -0.3, 0), false, true).withName("Strafe Right"));
+        controller.leftTrigger().whileTrue(superstructure.autoAlignLeft());
+        controller.rightTrigger().whileTrue(superstructure.autoAlignRight());
         
-        controller.back().whileTrue(superstructure.driveToScorePoint());
-        
-        // Run SysId routines when holding back/start and X/Y.
-        // Note that each routine should be run exactly once in a single log.
-        // driver.back().and(driver.y()).whileTrue(drivetrain.sysIdDynamic(Direction.kForward));
-        // driver.back().and(driver.x()).whileTrue(drivetrain.sysIdDynamic(Direction.kReverse));
-        // driver.start().and(driver.y()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kForward));
-        // driver.start().and(driver.x()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kReverse));
-        
+        // controller.leftTrigger().whileTrue(swerve.drive(() -> new ChassisSpeeds(0, controller.getLeftTriggerAxis() * 0.3, 0), false, true).withName("Strafe Left"));
+        // controller.rightTrigger().whileTrue(swerve.drive(() -> new ChassisSpeeds(0, controller.getRightTriggerAxis() * -0.3, 0), false, true).withName("Strafe Right"));       
         
         swerve.registerTelemetry(logger::telemeterize);
     }
@@ -132,7 +128,6 @@ public class RobotContainer {
     private void configureOperatorBindings(OCXboxController controller) {
         //===== ELEVATOR COMMANDS
         controller.povDown().onTrue(elevator.setMinC());
-        // controller.back().whileTrue(elevator.setVoltageC(2.5)).onFalse(elevator.setVoltageC(0));
         controller.a().onTrue(elevator.setL1C());
         controller.x().onTrue(
           elevator.setL2C().deadlineFor(
@@ -160,6 +155,77 @@ public class RobotContainer {
         //=====
         
     }
+    
+    // private void configureDriverBindings(OCXboxController controller) {
+    //     //DRIVE COMMAND
+    //     swerve.setDefaultCommand(swerve.drive(() -> controller.getSpeeds(
+    //         swerve.driveSpeed.in(MetersPerSecond),
+    //         swerve.turnSpeed.in(RadiansPerSecond))
+    //     ).withName("D:Controller Drive"));
+        
+    //     // controller.x().whileTrue(drivetrain.applyRequest(() -> brake));
+    //     // controller.b().whileTrue(drivetrain.applyRequest(() ->
+    //     //     point.withModuleDirection(new Rotation2d(-controller.getLeftY(), -controller.getLeftX()))
+    //     // ));
+        
+    //     // reset the robot heading to forward
+    //     controller.start().onTrue(swerve.runOnce(() -> swerve.seedFieldCentric()));
+        
+    //     //TODO: ADD GYRO BUTTONS FOR AUTO ALIGN
+    //     // controller.povUp().whileTrue(swerve.applyRequest(()->orient.withTargetDirection(Rotation2d.kZero)).withName("Face Forward"));
+    //     // controller.povLeft().whileTrue(swerve.applyRequest(()->orient.withTargetDirection(Rotation2d.fromDegrees(-45))).withName("Align Left Station"));
+    //     // controller.povRight().whileTrue(swerve.applyRequest(()->orient.withTargetDirection(Rotation2d.fromDegrees(45))).withName("Align Right Station"));
+        
+    //     // controller.leftBumper().whileTrue(drivetrain.applyRequest(()->robotCentric.withVelocityY(MetersPerSecond.of(0.3))));
+    //     // controller.rightBumper().whileTrue(drivetrain.applyRequest(()->robotCentric.withVelocityY(MetersPerSecond.of(-0.3))));
+
+    //     controller.leftTrigger().whileTrue(swerve.drive(() -> new ChassisSpeeds(0, controller.getLeftTriggerAxis() * 0.3, 0), false, true).withName("Strafe Left"));
+    //     controller.rightTrigger().whileTrue(swerve.drive(() -> new ChassisSpeeds(0, controller.getRightTriggerAxis() * -0.3, 0), false, true).withName("Strafe Right"));
+        
+    //     controller.back().whileTrue(superstructure.autoAlignToReef());
+        
+    //     // Run SysId routines when holding back/start and X/Y.
+    //     // Note that each routine should be run exactly once in a single log.
+    //     // driver.back().and(driver.y()).whileTrue(drivetrain.sysIdDynamic(Direction.kForward));
+    //     // driver.back().and(driver.x()).whileTrue(drivetrain.sysIdDynamic(Direction.kReverse));
+    //     // driver.start().and(driver.y()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kForward));
+    //     // driver.start().and(driver.x()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kReverse));
+        
+        
+    //     swerve.registerTelemetry(logger::telemeterize);
+    // }
+    
+    // private void configureOperatorBindings(OCXboxController controller) {
+    //     //===== ELEVATOR COMMANDS
+    //     controller.povDown().onTrue(elevator.setMinC());
+    //     // controller.back().whileTrue(elevator.setVoltageC(2.5)).onFalse(elevator.setVoltageC(0));
+    //     controller.a().onTrue(elevator.setL1C());
+    //     controller.x().onTrue(
+    //       elevator.setL2C().deadlineFor(
+    //       sequence(
+    //         manipulator.setVoltageC(-0.5).withTimeout(0.5),
+    //         waitSeconds(0.5)
+    //       )
+    //     )
+    //     );
+    //     controller.y().onTrue(
+    //       elevator.setL3C()
+    //       );
+    //     controller.b().onTrue(
+    //       elevator.setL4C()
+    //       );
+    //     //=====
+        
+    //     //===== CORAL MANIPULATOR
+    //     manipulator.setDefaultCommand(manipulator.holdCoralC());
+    //     // Automatically feed coral to a consistent position when detected
+    //     manipulator.isCoralDetected().and(()->manipulator.getCurrentCommand() == manipulator.getDefaultCommand())
+    //     .onTrue(manipulator.feedCoralC());
+    //     controller.rightBumper().whileTrue(manipulator.setVoltageOutC());
+    //     controller.leftBumper().whileTrue(manipulator.setVoltageInC());
+    //     //=====
+        
+    // }
     
     public Command getAutonomousCommand() {
         /* Run the routine selected from the auto chooser */
