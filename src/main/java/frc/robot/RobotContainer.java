@@ -91,6 +91,7 @@ public class RobotContainer {
         setSwerveUpdateFrequency(swerveMotors);
         ParentDevice.optimizeBusUtilizationForAll(swerveMotors);
         
+        bindLEDAnimations();
         led.setLength(15);
         led.start();
     }
@@ -174,7 +175,23 @@ public class RobotContainer {
         controller.rightBumper().whileTrue(manipulator.setVoltageOutC());
         controller.leftBumper().whileTrue(manipulator.setVoltageInC());
         //=====
-        
+    }
+
+    private void bindLEDAnimations() {
+        manipulator.isCoralDetected().whileTrue(sequence(
+            run(()->layer2Pattern = LEDConstants.kPatternGreenBlink).withTimeout(0.5),
+            run(()->layer2Pattern = LEDConstants.kPatternGreenSolid)
+        ).finallyDo(()->layer2Pattern = LEDPattern.kOff));
+
+        swerve.isAligning().whileTrue(startEnd(
+            ()->layer3Pattern = LEDConstants.kPatternOrangeBlink,
+            ()->layer3Pattern = LEDPattern.kOff
+        ));
+
+        swerve.isAligned().onTrue(startEnd(
+            ()->layer3Pattern = LEDConstants.kPatternPurpleSolid,
+            ()->layer3Pattern = LEDPattern.kOff
+        ).withTimeout(1));
     }
     
     // private void configureDriverBindings(OCXboxController controller) {
