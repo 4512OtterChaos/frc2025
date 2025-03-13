@@ -22,6 +22,7 @@ import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.wpilibj.AddressableLED;
 import edu.wpi.first.wpilibj.AddressableLEDBuffer;
+import edu.wpi.first.wpilibj.LEDPattern;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.util.Color;
 import edu.wpi.first.wpilibj.util.Color8Bit;
@@ -53,6 +54,10 @@ public class RobotContainer {
 
     private AddressableLED led = new AddressableLED(9);
     private AddressableLEDBuffer ledBuffer = new AddressableLEDBuffer(15);
+
+    private LEDPattern layer1Pattern = LEDConstants.kPatternBlueScroll;
+    private LEDPattern layer2Pattern = LEDPattern.kOff;
+    private LEDPattern layer3Pattern = LEDPattern.kOff;
     
     
     /* Path follower */
@@ -84,9 +89,32 @@ public class RobotContainer {
             swerve.getModule(3).getSteerMotor()
         };
         setSwerveUpdateFrequency(swerveMotors);
-        ParentDevice.optimizeBusUtilizationForAll(swerveMotors);  
-        led.setLength(15); 
-        setLed(90, 200, 200);  
+        ParentDevice.optimizeBusUtilizationForAll(swerveMotors);
+        
+        led.setLength(15);
+        led.start();
+    }
+
+    public void periodic() {
+        superstructure.periodic();
+
+        vision.getEstimatedGlobalPose().ifPresent(estimate -> {
+            var pose = estimate.estimatedPose.toPose2d();
+            var stdDevs = vision.getEstimationStdDevs(pose);
+            swerve.addVisionMeasurement(pose, estimate.timestampSeconds, stdDevs);
+        });
+
+        // LED patterns
+        if (!layer3Pattern.equals(LEDPattern.kOff)) {
+            layer3Pattern.applyTo(ledBuffer);
+        }
+        else if (!layer2Pattern.equals(LEDPattern.kOff)) {
+            layer2Pattern.applyTo(ledBuffer);
+        }
+        else {
+            layer1Pattern.applyTo(ledBuffer);
+        }
+        led.setData(ledBuffer);
     }
     
     public void setSwerveUpdateFrequency(CommonTalon... motors) {
@@ -97,13 +125,6 @@ public class RobotContainer {
             motor.getVelocity().setUpdateFrequency(50);
             motor.getStatorCurrent().setUpdateFrequency(50);
         }
-    }
-
-    public void setLed(int h, int s, int v){
-        for(int i = 0; i < ledBuffer.getLength(); i++){
-            ledBuffer.setHSV(i, h, s, v);
-        }
-        led.setData(ledBuffer);
     }
 
     private void configureDriverBindings(OCXboxController controller) {
@@ -230,16 +251,6 @@ public class RobotContainer {
     public Command getAutonomousCommand() {
         /* Run the routine selected from the auto chooser */
         return autoChooser.selectedCommand();
-    }
-    
-    public void periodic() {
-        superstructure.periodic();
-
-        vision.getEstimatedGlobalPose().ifPresent(estimate -> {
-            var pose = estimate.estimatedPose.toPose2d();
-            var stdDevs = vision.getEstimationStdDevs(pose);
-            swerve.addVisionMeasurement(pose, estimate.timestampSeconds, stdDevs);
-        });
     }
 
     public void simulationPeriodic() {
