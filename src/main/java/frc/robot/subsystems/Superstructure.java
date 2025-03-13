@@ -17,6 +17,7 @@ import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Transform2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.trajectory.TrapezoidProfile.Constraints;
@@ -158,13 +159,36 @@ public class Superstructure {
     }
 
     public Command autoAlignLeft(){
-        return swerve.driveToPose(() -> swerve.getState().Pose.nearest(kLeftCoralScoringPositions));
+        // return swerve.driveToPose(() -> swerve.getState().Pose.nearest(kLeftCoralScoringPositions));
+        return swerve.driveToPose(() -> {
+            var curr = swerve.getState().Pose;
+            var goal = curr.nearest(kLeftCoralScoringPositions);
+            return adjustAlignPose(goal, curr);
+        });
         // return swerve.applyRequest(()->robotSpeeds.withSpeeds(chassisSpeedsToScorePoint()))/*.until(()->driveController.atReference()).repeatedly()*/;
     }
 
     public Command autoAlignRight(){
-        return swerve.driveToPose(() -> swerve.getState().Pose.nearest(kRightCoralScoringPositions));
+        // return swerve.driveToPose(() -> swerve.getState().Pose.nearest(kRightCoralScoringPositions));
+        return swerve.driveToPose(() -> {
+            var curr = swerve.getState().Pose;
+            var goal = curr.nearest(kRightCoralScoringPositions);
+            return adjustAlignPose(goal, curr);
+        });
         // return swerve.applyRequest(()->robotSpeeds.withSpeeds(chassisSpeedsToScorePoint()))/*.until(()->driveController.atReference()).repeatedly()*/;
+    }
+
+    public Pose2d adjustAlignPose(Pose2d goalPose, Pose2d currentPose) {
+        var currRelToGoal = currentPose.relativeTo(goalPose);
+        double angularErrorRots = Math.abs(currRelToGoal.getRotation().getRotations());
+        double trlErrorMeters = currRelToGoal.getTranslation().getNorm();
+        double trlAngleToGoalError = Math.abs(currRelToGoal.getTranslation().getAngle().plus(Rotation2d.kPi).getRotations());
+
+        double xOffsetAngular = angularErrorRots * 2;
+        double xOffsetTrlY = Math.min(trlAngleToGoalError * trlErrorMeters * 5, 1);
+
+        double xOffset = Math.max(xOffsetAngular, xOffsetTrlY);
+        return goalPose.plus(new Transform2d(-xOffset, 0, Rotation2d.kZero));
     }
 
     // private Command driveToScorePointFancy(){

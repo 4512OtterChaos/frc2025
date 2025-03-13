@@ -41,6 +41,7 @@ import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Subsystem;
+import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.Robot;
 import frc.robot.subsystems.drivetrain.TunerConstants.TunerSwerveDrivetrain;
@@ -89,14 +90,18 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     private final PIDController pathThetaController = new PIDController(kPathTurnKP, kPathTurnKI, kPathTurnKD);
     private TrapezoidProfile.Constraints pathTurnConstraints = new TrapezoidProfile.Constraints(kTurnSpeed, kAngularAccel);
     private TrapezoidProfile.State pathTurnLastState = new TrapezoidProfile.State();
-    private Pose2d initialTargetPose = Pose2d.kZero;
+    private boolean isAligning = false;
+    private boolean isAligned = false;
     private Pose2d lastTargetPose = Pose2d.kZero;
+    private ChassisSpeeds lastAlignSetpointSpeeds = new ChassisSpeeds();
 
     {
         pathThetaController.enableContinuousInput(-Math.PI, Math.PI);
         pathXController.setTolerance(kPathDrivePosTol, kPathDriveVelTol);
         pathYController.setTolerance(kPathDrivePosTol, kPathDriveVelTol);
         pathThetaController.setTolerance(kPathTurnPosTol, kPathTurnVelTol);
+
+        // isAligned().onTrue(runOnce(()->isAligned = false));
     }
 
     private final StructPublisher<Pose2d> goalPosePub = NetworkTableInstance.getDefault().getStructTopic("Swerve/Goal Pose", Pose2d.struct).publish();
@@ -346,10 +351,19 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         return run(() -> this.setControl(requestSupplier.get()));
     }
 
+    public Trigger isAligning() {
+        return new Trigger(() -> isAligning);
+    }
+
+    public Trigger isAligned() {
+        return new Trigger(() -> isAligned);
+    }
+
     public Command driveToPose(Supplier<Pose2d> goalSupplier) {
         return sequence(
             // Reset profiles on init
             runOnce(() -> {
+                isAligning = true;
                 var actual = getState().Pose;
                 var goal = goalSupplier.get();
                 var speeds = getState().Speeds;
@@ -357,12 +371,18 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
                 // Find current velocity towards goal
                 var relative = goal.relativeTo(actual);
                 var relTrlVec = relative.getTranslation().toVector();
-                pathDriveLastState = new TrapezoidProfile.State(0, VecBuilder.fill(speeds.vxMetersPerSecond, speeds.vyMetersPerSecond).dot(relTrlVec) / relTrlVec.norm());
+                double velTowardsGoal = 0;
+                if (relTrlVec.norm() > 1e-5) {
+                    velTowardsGoal = VecBuilder.fill(speeds.vxMetersPerSecond, speeds.vyMetersPerSecond).dot(relTrlVec) / relTrlVec.norm();                }
+                pathDriveLastState = new TrapezoidProfile.State(0, velTowardsGoal);
 
                 pathTurnLastState = new TrapezoidProfile.State(actual.getRotation().getRadians(), speeds.omegaRadiansPerSecond);
 
-                initialTargetPose = actual;
                 lastTargetPose = actual;
+                lastAlignSetpointSpeeds = lastTargetSpeeds.plus(new ChassisSpeeds());
+                pathXController.reset();
+                pathYController.reset();
+                pathThetaController.reset();
             }),
             // ..then drive to the pose
             drive(() -> {
@@ -389,36 +409,24 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
                 // readjust last setpoint to acount for moving goals
                 var trlDiff = goal.getTranslation().minus(lastTargetPose.getTranslation());
                 var trlDiffVec = trlDiff.toVector();
-                var lastSpeedsVec = VecBuilder.fill(lastTargetSpeeds.vxMetersPerSecond, lastTargetSpeeds.vyMetersPerSecond);
+                var lastSpeedsVec = VecBuilder.fill(lastAlignSetpointSpeeds.vxMetersPerSecond, lastAlignSetpointSpeeds.vyMetersPerSecond);
+                double velTowardsGoal = 0;
+                if (trlDiff.getNorm() > 1e-5) {
+                    velTowardsGoal = lastSpeedsVec.dot(trlDiffVec) / trlDiffVec.norm();
+                }
                 
-                pathDriveLastState = new TrapezoidProfile.State(0, lastSpeedsVec.dot(trlDiffVec) / trlDiffVec.norm());
-
                 // find the next setpoint from the last setpoint to the (possibly new) goal
                 double driveDist = trlDiff.getNorm();
                 pathDriveLastState = driveProfile.calculate(
                     0.02,
-                    pathDriveLastState,
+                    new TrapezoidProfile.State(0, velTowardsGoal),
                     new TrapezoidProfile.State(driveDist, 0)
                 );
                 var targetTrl = goal.getTranslation();
-                if (trlDiff.getNorm() > 1e-4) {
-                    targetTrl = lastTargetPose.getTranslation().interpolate(
-                        goal.getTranslation(),
-                        pathDriveLastState.position / driveDist
-                    );
+                if (trlDiff.getNorm() > 1e-5) {
+                    double t = pathDriveLastState.position / driveDist;
+                    targetTrl = lastTargetPose.getTranslation().plus(trlDiff.times(t));
                 }
-
-                // var trlDiff = goal.getTranslation().minus(initialTargetPose.getTranslation());
-                // double totalDriveDist = trlDiff.getNorm(); // maintain initial distance to goal over timesteps
-                // pathDriveLastState = driveProfile.calculate(
-                //     0.02,
-                //     pathDriveLastState,
-                //     new TrapezoidProfile.State(totalDriveDist, 0)
-                // );
-                // var targetTrl = initialTargetPose.getTranslation().interpolate(
-                //     goal.getTranslation(),
-                //     pathDriveLastState.position / totalDriveDist
-                // );
 
                 // Profile rotational movement towards the goal pose
                 pathTurnConstraints = new TrapezoidProfile.Constraints(turnSpeed.in(RadiansPerSecond), limiter.angularAcceleration);
@@ -441,10 +449,13 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
                 targetPosePub.set(lastTargetPose);
                 
                 // Use profile setpoint velocities as feedforward targets
-                var targetDriveSpeedsTrl = new Translation2d(pathDriveLastState.velocity, 0).rotateBy(trlDiff.getAngle()); // field-relative
-                targetSpeeds.vxMetersPerSecond += targetDriveSpeedsTrl.getX();
-                targetSpeeds.vyMetersPerSecond += targetDriveSpeedsTrl.getY();
-                targetSpeeds.omegaRadiansPerSecond += pathTurnLastState.velocity;
+                if (trlDiff.getNorm() > 1e-5) {
+                    var targetDriveSpeedsTrl = new Translation2d(pathDriveLastState.velocity, 0).rotateBy(trlDiff.getAngle()); // field-relative
+                    lastAlignSetpointSpeeds.vxMetersPerSecond = targetDriveSpeedsTrl.getX();
+                    lastAlignSetpointSpeeds.vyMetersPerSecond = targetDriveSpeedsTrl.getY();
+                    lastAlignSetpointSpeeds.omegaRadiansPerSecond = pathTurnLastState.velocity;
+                    targetSpeeds = targetSpeeds.plus(lastAlignSetpointSpeeds);
+                }
     
                 return targetSpeeds;
             }, true, false)
@@ -454,7 +465,12 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
                 boolean atGoal = MathUtil.isNear(0, relative.getX(), pathDrivePosTol.get());
                 atGoal &= MathUtil.isNear(0, relative.getY(), pathDrivePosTol.get());
                 atGoal &= MathUtil.isNear(0, relative.getRotation().getRadians(), pathTurnPosTol.get(), -Math.PI, Math.PI);
-                return atSetpoints && atGoal;
+                boolean finished = atSetpoints && atGoal;
+                isAligned = finished;
+                return finished;
+            })
+            .finallyDo((interrupted)->{
+                isAligning = false;
             })
         );
     }
