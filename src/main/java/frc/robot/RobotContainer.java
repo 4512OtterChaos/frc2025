@@ -19,6 +19,8 @@ import static frc.robot.subsystems.drivetrain.DriveConstants.*;
 
 import edu.wpi.first.math.estimator.SwerveDrivePoseEstimator;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Transform2d;
+import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.wpilibj.AddressableLED;
 import edu.wpi.first.wpilibj.AddressableLEDBuffer;
@@ -27,6 +29,7 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.util.Color;
 import edu.wpi.first.wpilibj.util.Color8Bit;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.Commands;
 import frc.robot.auto.AutoRoutines;
 import frc.robot.subsystems.Superstructure;
 import frc.robot.subsystems.drivetrain.CommandSwerveDrivetrain;
@@ -77,6 +80,9 @@ public class RobotContainer {
         
         configureDriverBindings(driver);
         configureOperatorBindings(driver);
+        if (Robot.isSimulation()){
+            simBindings(driver);
+        }
         // configureOperatorBindings(operator);
         TalonFX[] swerveMotors = {
             swerve.getModule(0).getDriveMotor(),
@@ -151,20 +157,22 @@ public class RobotContainer {
         //===== ELEVATOR COMMANDS
         controller.povDown().onTrue(elevator.setMinC());
         controller.a().onTrue(elevator.setL1C());
-        controller.x().onTrue(
-          elevator.setL2C().deadlineFor(
-          sequence(
-            manipulator.setVoltageC(-0.5).withTimeout(0.5),
-            waitSeconds(0.5)
-          )
-        )
-        );
-        controller.y().onTrue(
-          elevator.setL3C()
-          );
-        controller.b().onTrue(
-          elevator.setL4C()
-          );
+        controller.x().onTrue(elevator.setL2C());
+        controller.y().onTrue(elevator.setL3C());
+        controller.b().onTrue(elevator.setL4C());
+
+        controller.leftTrigger().or(controller.rightTrigger()).and(controller.a()).onTrue(sequence(
+            Commands.waitUntil(swerve.isAligned()),
+            elevator.setL1C()));
+        controller.leftTrigger().or(controller.rightTrigger()).and(controller.x()).onTrue(sequence(
+            Commands.waitUntil(swerve.isAligned()),
+            elevator.setL2C()));
+        controller.leftTrigger().or(controller.rightTrigger()).and(controller.y()).onTrue(sequence(
+            Commands.waitUntil(swerve.isAligned()),
+            elevator.setL3C()));
+        controller.leftTrigger().or(controller.rightTrigger()).and(controller.b()).onTrue(sequence(
+            Commands.waitUntil(swerve.isAligned()),
+            elevator.setL4C()));
         //=====
         
         //===== CORAL MANIPULATOR
@@ -175,6 +183,11 @@ public class RobotContainer {
         controller.rightBumper().whileTrue(manipulator.setVoltageOutC());
         controller.leftBumper().whileTrue(manipulator.setVoltageInC());
         //=====
+    }
+
+    private void simBindings(OCXboxController controller) {
+        controller.start().onTrue(runOnce(()->swerve.disturbeSimPose()));
+        
     }
 
     private void bindLEDAnimations() {

@@ -11,24 +11,16 @@ import java.util.List;
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 
-import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.controller.HolonomicDriveController;
-import edu.wpi.first.math.controller.PIDController;
-import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Transform2d;
 import edu.wpi.first.math.geometry.Translation2d;
-import edu.wpi.first.math.kinematics.ChassisSpeeds;
-import edu.wpi.first.math.trajectory.TrapezoidProfile.Constraints;
-import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.subsystems.drivetrain.CommandSwerveDrivetrain;
-import frc.robot.subsystems.drivetrain.TunerConstants;
 import frc.robot.subsystems.elevator.Elevator;
 import frc.robot.subsystems.elevator.ElevatorConstants;
 import frc.robot.subsystems.manipulator.Manipulator;
-import frc.robot.util.OCXboxController;
 import frc.robot.util.TunableNumber;
 
 
@@ -67,12 +59,12 @@ public class Superstructure {
 
     
     private static final Translation2d kCoralScoreLeftPoseTemplate = new Translation2d(
-        kReefTrl.getX() - (kReefWidth.div(2).plus(kRobotLength.div(2)).in(Meters)),
+        kReefTrl.getX() - (kReefWidth.div(2).plus(kRobotLength/*.div(2) */).in(Meters)),
         kReefTrl.getMeasureY().plus(kReefPoleDist.div(2)).in(Meters));
 
     
     private static final Translation2d kCoralScoreRightPoseTemplate = new Translation2d(
-        kReefTrl.getX() - (kReefWidth.div(2).plus(kRobotLength.div(2)).in(Meters)),
+        kReefTrl.getX() - (kReefWidth.div(2).plus(kRobotLength/*.div(2) */).in(Meters)),
         kReefTrl.getMeasureY().minus(kReefPoleDist.div(2)).in(Meters));
 
     public static final List<Pose2d> kLeftCoralScoringPositions = new ArrayList<Pose2d>() {{
@@ -153,15 +145,18 @@ public class Superstructure {
     //     return drive.applyRequest(()->robotSpeeds.withSpeeds(targetSpeeds))/*.until(()->driveController.atReference()).repeatedly()*/;
     // }
 
+
+    //Alignnment Commands
+
     public Command autoAlignToReef(){
-        return swerve.driveToPose(() -> swerve.getState().Pose.nearest(kCoralScoringPositions));
+        return swerve.driveToPose(() -> swerve.getVisionEstimatedPose().nearest(kCoralScoringPositions));
         // return swerve.applyRequest(()->robotSpeeds.withSpeeds(chassisSpeedsToScorePoint()))/*.until(()->driveController.atReference()).repeatedly()*/;
     }
 
     public Command autoAlignLeft(){
         // return swerve.driveToPose(() -> swerve.getState().Pose.nearest(kLeftCoralScoringPositions));
         return swerve.driveToPose(() -> {
-            var curr = swerve.getState().Pose;
+            var curr = swerve.getVisionEstimatedPose();
             var goal = curr.nearest(kLeftCoralScoringPositions);
             return adjustAlignPose(goal, curr);
         });
@@ -171,7 +166,7 @@ public class Superstructure {
     public Command autoAlignRight(){
         // return swerve.driveToPose(() -> swerve.getState().Pose.nearest(kRightCoralScoringPositions));
         return swerve.driveToPose(() -> {
-            var curr = swerve.getState().Pose;
+            var curr = swerve.getVisionEstimatedPose();
             var goal = curr.nearest(kRightCoralScoringPositions);
             return adjustAlignPose(goal, curr);
         });
@@ -182,6 +177,11 @@ public class Superstructure {
         var currRelToGoal = currentPose.relativeTo(goalPose);
         double angularErrorRots = Math.abs(currRelToGoal.getRotation().getRotations());
         double trlErrorMeters = currRelToGoal.getTranslation().getNorm();
+
+        if ((trlErrorMeters < kAlignmentDrivePosTol) && (angularErrorRots < kAlignmentTurnPosTol)){
+            return goalPose;
+        }
+
         double trlAngleToGoalError = Math.abs(currRelToGoal.getTranslation().getAngle().plus(Rotation2d.kPi).getRotations());
 
         double xOffsetAngular = angularErrorRots * 2;

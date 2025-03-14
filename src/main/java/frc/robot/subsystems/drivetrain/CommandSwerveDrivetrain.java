@@ -24,6 +24,7 @@ import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.estimator.SwerveDrivePoseEstimator;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Transform2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.numbers.N1;
@@ -305,20 +306,23 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         return run(() -> {
             var targetSpeeds = speedsSupplier.get();
             if (!fieldCentric) {
-                targetSpeeds = ChassisSpeeds.fromRobotRelativeSpeeds(targetSpeeds, getState().Pose.getRotation());
+                targetSpeeds = ChassisSpeeds.fromRobotRelativeSpeeds(targetSpeeds, getVisionEstimatedPose().getRotation());
             }
             if (limitAccel) {
                 targetSpeeds = limiter.calculate(targetSpeeds, lastTargetSpeeds, Robot.kDefaultPeriod);
             }
             lastTargetSpeeds = targetSpeeds;
-            if (fieldCentric) {
-                setControl(new SwerveRequest.ApplyFieldSpeeds()
-                        .withForwardPerspective(ForwardPerspectiveValue.OperatorPerspective)
-                        .withSpeeds(targetSpeeds));
-            }
-            else {
-                setControl(new SwerveRequest.ApplyRobotSpeeds().withSpeeds(ChassisSpeeds.fromFieldRelativeSpeeds(targetSpeeds, getState().Pose.getRotation())));
-            }
+            // if (fieldCentric) {
+            //     setControl(new SwerveRequest.ApplyFieldSpeeds()
+            //             .withForwardPerspective(ForwardPerspectiveValue.OperatorPerspective)
+            //             .withSpeeds(targetSpeeds));
+            // }
+            // else {
+            //     setControl(new SwerveRequest.ApplyRobotSpeeds().withSpeeds(targetSpeeds));
+            // }
+            setControl(new SwerveRequest.ApplyRobotSpeeds().withSpeeds(ChassisSpeeds.fromFieldRelativeSpeeds(
+                    targetSpeeds,
+                    getVisionEstimatedPose().getRotation())));
         });
     }
 
@@ -364,7 +368,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
             // Reset profiles on init
             runOnce(() -> {
                 isAligning = true;
-                var actual = getState().Pose;
+                var actual = getVisionEstimatedPose();
                 var goal = goalSupplier.get();
                 var speeds = getState().Speeds;
 
@@ -386,7 +390,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
             }),
             // ..then drive to the pose
             drive(() -> {
-                var actual = getState().Pose;
+                var actual = getVisionEstimatedPose();
                 var goal = goalSupplier.get();
                 goalPosePub.set(goal);
     
@@ -458,7 +462,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
                 }
     
                 return targetSpeeds;
-            }, true, false)
+            }, true, true)
             .until(() -> { // finish when goal pose is reached
                 boolean atSetpoints = pathXController.atSetpoint() && pathYController.atSetpoint() && pathThetaController.atSetpoint();
                 var relative = goalSupplier.get().minus(getState().Pose);
@@ -580,6 +584,12 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     public void resetPose(Pose2d pose) {
         super.resetPose(pose);
         visionEstimator.resetPose(pose);
+    }
+
+    public void disturbeSimPose() {
+        var disturbance =
+                    new Transform2d(new Translation2d(1.0, 1.0), new Rotation2d(0.17 * 2 * Math.PI));
+        super.resetPose(getState().Pose.plus(disturbance));
     }
 
     @Override

@@ -12,7 +12,7 @@ import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.math.util.Units;
 
 public class VisionConstants {
-    public static final String kCameraName = "YOUR CAMERA NAME";
+    public static final String kCameraName = "OV9281";
     // Cam mounting pose
     public static final Transform3d kRobotToCam = new Transform3d(
         new Translation3d(Units.inchesToMeters(4.5), Units.inchesToMeters(10), Units.inchesToMeters(11.75)), // 9 holes between gusset to mount

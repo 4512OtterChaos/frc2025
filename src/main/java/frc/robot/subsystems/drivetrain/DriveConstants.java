@@ -42,6 +42,10 @@ public class DriveConstants {
     public static final double kPathTurnPosTol = Degrees.of(4).in(Radians);
     public static final double kPathTurnVelTol = Degrees.of(5).in(Radians);
 
+    public static final double kAlignmentDrivePosTol = Inches.of(7).in(Meters);
+    public static final double kAlignmentTurnPosTol = Degrees.of(10).in(Radians);
+
+
     public static final Distance kFrameWidth = Inches.of(28);
     public static final Distance kFrameLength = Inches.of(28);
     public static final Distance kRobotWidth = kFrameWidth.plus(Inches.of(3.25).times(2));
