@@ -38,7 +38,6 @@ public class Manipulator extends SubsystemBase {
     private TalonFX motor = new TalonFX(kMotorID);
 
     private LaserCan sensor = new LaserCan(kSensorID);
-    //TODO: Use sensor for methods
     
     private SimpleMotorFeedforward ff = new SimpleMotorFeedforward(kConfig.Slot0.kS, kConfig.Slot0.kV);
     private PIDController PID = new PIDController(kConfig.Slot0.kP, kConfig.Slot0.kI, kConfig.Slot0.kD);
@@ -153,6 +152,10 @@ public class Manipulator extends SubsystemBase {
 
     public Command setVoltageOutC(){
         return run(()->setVoltage(outtakeVoltage.get())).withName("Outtake");
+    }
+
+    public Command algaeOff(){
+        return run(()->setVoltage(-2)).withName("AlgaeOff");
     }
 
     // public Command setVelocityC(double RPM){

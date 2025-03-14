@@ -3,20 +3,13 @@ package frc.robot.subsystems.elevator;
 import com.ctre.phoenix6.BaseStatusSignal;
 import com.ctre.phoenix6.StatusCode;
 import com.ctre.phoenix6.StatusSignal;
-import com.ctre.phoenix6.controls.CoastOut;
 import com.ctre.phoenix6.controls.Follower;
 import com.ctre.phoenix6.controls.MotionMagicVoltage;
 import com.ctre.phoenix6.controls.VoltageOut;
-import com.ctre.phoenix6.hardware.ParentDevice;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.sim.ChassisReference;
 
 import edu.wpi.first.math.MathUtil;
-import edu.wpi.first.math.controller.ElevatorFeedforward;
-import edu.wpi.first.math.controller.ProfiledPIDController;
-import edu.wpi.first.math.controller.SimpleMotorFeedforward;
-import edu.wpi.first.math.trajectory.TrapezoidProfile;
-import edu.wpi.first.math.util.Units;
 
 import static edu.wpi.first.units.Units.*;
 
@@ -25,7 +18,6 @@ import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Current;
 import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.units.measure.LinearVelocity;
-import edu.wpi.first.units.measure.Velocity;
 import edu.wpi.first.units.measure.Voltage;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.RobotBase;
@@ -92,7 +84,6 @@ public class Elevator extends SubsystemBase {
             statusL = leftMotor.getConfigurator().apply(kConfig);
             statusR = rightMotor.getConfigurator().apply(kConfig);
             rightMotor.setControl(new Follower(leftMotor.getDeviceID(), true));
-            // rightMotor.setControl(new CoastOut());
             if (statusL.isOK() && statusR.isOK()) break;
         }
         if (!statusL.isOK() || !statusR.isOK()) DriverStation.reportWarning("Failed applying Elevator motor configuration!", false);
@@ -102,7 +93,7 @@ public class Elevator extends SubsystemBase {
         positionStatus.setUpdateFrequency(100);
         velocityStatus.setUpdateFrequency(50);
         statorStatus.setUpdateFrequency(50);
-        // ParentDevice.optimizeBusUtilizationForAll(leftMotor, rightMotor);
+        // ParentDevice.optimizeBusUtilizationForAll(leftMotor, rightMotor); //TODO: Uncomment?
 
         SmartDashboard.putData("Elevator/Subsystem", this);
 

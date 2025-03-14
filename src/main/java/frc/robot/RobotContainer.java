@@ -180,8 +180,13 @@ public class RobotContainer {
         // Automatically feed coral to a consistent position when detected
         manipulator.isCoralDetected().and(()->manipulator.getCurrentCommand() == manipulator.getDefaultCommand())
         .onTrue(manipulator.feedCoralC());
+
+        controller.leftBumper().whileTrue(manipulator.algaeOff());
         controller.rightBumper().whileTrue(manipulator.setVoltageOutC());
-        controller.leftBumper().whileTrue(superstructure.algeaShoot());
+        //=====
+
+        //===== COMPOSITION CCOMMANDS
+        controller.back().whileTrue(superstructure.algeaShoot());
         //=====
     }
 

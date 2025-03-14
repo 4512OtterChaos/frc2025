@@ -222,7 +222,7 @@ public class Superstructure {
             elevator.setMinC(),
             elevator.setL4C().until(()->elevator.getHeight().in(Meters) >= ElevatorConstants.kL4Height.minus(Inches.of(12)).in(Meters)),
             manipulator.setVoltageC(-5)
-        );
+        ).withName("Shoot Algea");
     }
 
     public void adjustDriving() {
