@@ -181,7 +181,7 @@ public class RobotContainer {
         manipulator.isCoralDetected().and(()->manipulator.getCurrentCommand() == manipulator.getDefaultCommand())
         .onTrue(manipulator.feedCoralC());
         controller.rightBumper().whileTrue(manipulator.setVoltageOutC());
-        controller.leftBumper().whileTrue(manipulator.setVoltageInC());
+        controller.leftBumper().whileTrue(superstructure.algeaShoot());
         //=====
     }
 

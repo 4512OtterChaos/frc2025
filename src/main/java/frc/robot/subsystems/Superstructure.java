@@ -217,6 +217,14 @@ public class Superstructure {
     //     return driveController.calculate(currentPose, targetPose, desiredSpeed, targetPose.getRotation()); 
     // }
 
+    public Command algeaShoot(){
+        return sequence(
+            elevator.setMinC(),
+            elevator.setL4C().until(()->elevator.getHeight().in(Meters) >= ElevatorConstants.kL4Height.minus(Inches.of(12)).in(Meters)),
+            manipulator.setVoltageC(-5)
+        );
+    }
+
     public void adjustDriving() {
         double elevatorPercentTravel = elevator.getHeight().div(ElevatorConstants.kMaxTravel).magnitude();
 
