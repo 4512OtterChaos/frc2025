@@ -221,8 +221,16 @@ public class Superstructure {
         return sequence(
             elevator.setMinC(),
             elevator.setL4C().until(()->elevator.getHeight().in(Meters) >= ElevatorConstants.kL4Height.minus(Inches.of(12)).in(Meters)),
-            manipulator.setVoltageC(-5)
-        ).withName("Shoot Algea");
+            manipulator.algaeShoot()
+        ).withName("AlgeaShoot");
+    }
+
+    public Command algeaShootVelocity(){
+        return sequence(
+            elevator.setMinC(),
+            elevator.setL4C().until(()->elevator.getHeight().in(Meters) >= ElevatorConstants.kL4Height.minus(Inches.of(12)).in(Meters)),
+            manipulator.algaeShootVelocity()
+        ).withName("AlgeaShootVelocity");
     }
 
     public void adjustDriving() {

@@ -54,7 +54,7 @@ public class AutoRoutines {
             swerve.drive(()->new ChassisSpeeds(-0.5, 0, 0)).withTimeout(1.5),
             swerve.stop(),
             elevator.setL1C().withTimeout(2),
-            manipulator.setVoltageOutC().withTimeout(2)
+            manipulator.setVoltageScoreC().withTimeout(2)
         );
     }
 

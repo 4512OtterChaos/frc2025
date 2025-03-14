@@ -48,7 +48,9 @@ public class Manipulator extends SubsystemBase {
 
     // Tunable numbers
     private final TunableNumber intakeVoltage = new TunableNumber("Coral/intakeVoltage", kIntakeVoltage);
-    private final TunableNumber outtakeVoltage = new TunableNumber("Coral/outtakeVoltage", kScoreVoltage);
+    private final TunableNumber feedVoltage = new TunableNumber("Coral/feedVoltage", kFeedVoltage);
+    private final TunableNumber scoreVoltage = new TunableNumber("Coral/scoreVoltage", kScoreVoltage);
+    private final TunableNumber algeaShootVoltage = new TunableNumber("Coral/algeaShootVoltage", kAlgaeShootVoltage);
     private final TunableNumber rpmPerVolt = new TunableNumber("Coral/rpmPerVolt", kRPMPerVolt);
 
 
@@ -151,11 +153,11 @@ public class Manipulator extends SubsystemBase {
 
     /**
      * 
-     * @return A command that sets an outtaking/placing voltage.
+     * @return A command that sets an scoring voltage.
      */
 
-    public Command setVoltageOutC(){
-        return run(()->setVoltage(outtakeVoltage.get())).withName("Outtake");
+    public Command setVoltageScoreC(){
+        return run(()->setVoltage(scoreVoltage.get())).withName("Scoring");
     }
 
     public Command algaeOff(){
@@ -173,7 +175,7 @@ public class Manipulator extends SubsystemBase {
         // return setVoltageInC().until(isCoralDetected().negate()).withName("FeedCoral");
         return sequence(
             // setVoltageInC().withTimeout(0.5),
-            setVoltageC(kFeedVoltage)
+            setVoltageC(feedVoltage.get())
         ).until(isCoralDetected().negate()).withName("FeedCoral");
         // return sequence(
         //     setVoltageInC().until(isCoralDetected().negate()),
@@ -183,20 +185,24 @@ public class Manipulator extends SubsystemBase {
         // );
     }
 
+    public Command algaeShoot() {
+        return run(()->setVoltage(algeaShootVoltage.get())).withName("ShootAlgae");
+    }
+
     public Command setVelocityC(double RPM){
         return run(()->setVelocity(RPM));
     }
 
     public Command setVelocityInC(){
-        return run(()->setVelocity(intakeVoltage.get()*rpmPerVolt.get()));
+        return run(()->setVelocity(intakeVoltage.get()*rpmPerVolt.get())).withName("Intake PID");
     }
 
-    public Command setVelocityOutC(){
-        return run(()->setVelocity(outtakeVoltage.get()*rpmPerVolt.get()));
+    public Command setVelocityScoreC(){
+        return run(()->setVelocity(scoreVoltage.get()*rpmPerVolt.get())).withName("Score PID");
     }
 
     public Command setVelocityStop(){
-        return run(()->setVelocity(0));
+        return run(()->setVelocity(0)).withName("Hold Pose PID");
     }
 
     public Command algaeOffVelocity(){
@@ -212,13 +218,17 @@ public class Manipulator extends SubsystemBase {
 
     public Command feedCoralVelocityC() {
         return sequence(
-            setVelocityC(kFeedVoltage*rpmPerVolt.get())
+            setVelocityC(feedVoltage.get()*rpmPerVolt.get())
         ).until(isCoralDetected().negate()).withName("FeedCoralVelocity");
+    }
+
+    public Command algaeShootVelocity() {
+        return run(()->setVelocity(algeaShootVoltage.get()*rpmPerVolt.get())).withName("ShootAlgaeVelocity");
     }
 
     private void changeTunable() {
         intakeVoltage.poll();
-        outtakeVoltage.poll();
+        scoreVoltage.poll();
 
         kP.poll();
         kD.poll();
@@ -239,6 +249,7 @@ public class Manipulator extends SubsystemBase {
     private void log() {
         BaseStatusSignal.refreshAll(voltageStatus, positionStatus, velocityStatus, statorStatus);
         SmartDashboard.putNumber("Coral/Motor Voltage", voltageStatus.getValueAsDouble());
+        SmartDashboard.putNumber("Coral/Motor Velocity", getVelocity());
         SmartDashboard.putNumber("Coral/Motor Current", getCurrent());
         SmartDashboard.putBoolean("Coral/isStalled", isStalled().getAsBoolean());
     }

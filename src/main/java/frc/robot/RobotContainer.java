@@ -7,7 +7,6 @@ package frc.robot;
 import choreo.auto.AutoChooser;
 import choreo.auto.AutoFactory;
 
-import com.ctre.phoenix6.Utils;
 import com.ctre.phoenix6.hardware.ParentDevice;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.hardware.traits.CommonTalon;
@@ -17,17 +16,10 @@ import static edu.wpi.first.wpilibj2.command.Commands.*;
 
 import static frc.robot.subsystems.drivetrain.DriveConstants.*;
 
-import edu.wpi.first.math.estimator.SwerveDrivePoseEstimator;
-import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.geometry.Transform2d;
-import edu.wpi.first.math.geometry.Translation2d;
-import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.wpilibj.AddressableLED;
 import edu.wpi.first.wpilibj.AddressableLEDBuffer;
 import edu.wpi.first.wpilibj.LEDPattern;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
-import edu.wpi.first.wpilibj.util.Color;
-import edu.wpi.first.wpilibj.util.Color8Bit;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import frc.robot.auto.AutoRoutines;
@@ -161,32 +153,46 @@ public class RobotContainer {
         controller.y().onTrue(elevator.setL3C());
         controller.b().onTrue(elevator.setL4C());
 
-        controller.leftTrigger().or(controller.rightTrigger()).and(controller.a()).onTrue(sequence(
+        swerve.isAligning().and(controller.a()).onTrue(sequence(
             Commands.waitUntil(swerve.isAligned()),
             elevator.setL1C()));
-        controller.leftTrigger().or(controller.rightTrigger()).and(controller.x()).onTrue(sequence(
+        swerve.isAligning().and(controller.x()).onTrue(sequence(
             Commands.waitUntil(swerve.isAligned()),
             elevator.setL2C()));
-        controller.leftTrigger().or(controller.rightTrigger()).and(controller.y()).onTrue(sequence(
+        swerve.isAligning().and(controller.y()).onTrue(sequence(
             Commands.waitUntil(swerve.isAligned()),
             elevator.setL3C()));
-        controller.leftTrigger().or(controller.rightTrigger()).and(controller.b()).onTrue(sequence(
+        swerve.isAligning().and(controller.b()).onTrue(sequence(
             Commands.waitUntil(swerve.isAligned()),
             elevator.setL4C()));
         //=====
         
-        //===== CORAL MANIPULATOR
-        manipulator.setDefaultCommand(manipulator.holdCoralC());
+        //===== CORAL MANIPULATOR (velocity)
+        manipulator.setDefaultCommand(manipulator.holdCoralVelocityC());
         // Automatically feed coral to a consistent position when detected
         manipulator.isCoralDetected().and(()->manipulator.getCurrentCommand() == manipulator.getDefaultCommand())
-        .onTrue(manipulator.feedCoralC());
+        .onTrue(manipulator.feedCoralVelocityC());
 
-        controller.leftBumper().whileTrue(manipulator.algaeOff());
-        controller.rightBumper().whileTrue(manipulator.setVoltageOutC());
+        controller.leftBumper().whileTrue(manipulator.algaeOffVelocity());
+        controller.rightBumper().whileTrue(manipulator.setVelocityScoreC());
         //=====
 
+        //===== COMPOSITION CCOMMANDS (velocity)
+        controller.back().whileTrue(superstructure.algeaShootVelocity());
+        //=====
+
+        // //===== CORAL MANIPULATOR
+        // manipulator.setDefaultCommand(manipulator.holdCoralC());
+        // // Automatically feed coral to a consistent position when detected
+        // manipulator.isCoralDetected().and(()->manipulator.getCurrentCommand() == manipulator.getDefaultCommand())
+        // .onTrue(manipulator.feedCoralC());
+
+        // controller.leftBumper().whileTrue(manipulator.algaeOff());
+        // controller.rightBumper().whileTrue(manipulator.setVoltageScoreC());
+        // //=====
+
         //===== COMPOSITION CCOMMANDS
-        controller.back().whileTrue(superstructure.algeaShoot());
+        // controller.back().whileTrue(superstructure.algeaShoot());
         //=====
     }
 

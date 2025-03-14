@@ -26,8 +26,9 @@ public class ManipulatorConstants {
     public static double kIntakeVoltage = 0.9;
     public static double kFeedVoltage = 0.5;
     public static double kScoreVoltage = 3.5;
+    public static double kAlgaeShootVoltage = -5;
 
-    public static double kRPMPerVolt = 20;
+    public static double kRPMPerVolt = 20; //TODO: Tune to reflect reality, probably use math
 
     public static int kGearRatio = 3;
 
