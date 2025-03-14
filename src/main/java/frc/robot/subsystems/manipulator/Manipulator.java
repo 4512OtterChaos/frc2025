@@ -11,7 +11,6 @@ import au.grapplerobotics.ConfigurationFailedException;
 import au.grapplerobotics.LaserCan;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.controller.SimpleMotorFeedforward;
-import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Current;
@@ -24,13 +23,9 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
-import frc.robot.subsystems.elevator.ElevatorConstants;
 import frc.robot.util.TunableNumber;
 
 import static edu.wpi.first.units.Units.Millimeters;
-import static edu.wpi.first.units.Units.RadiansPerSecond;
-import static edu.wpi.first.units.Units.Rotations;
-import static edu.wpi.first.units.Units.RotationsPerSecond;
 import static edu.wpi.first.wpilibj2.command.Commands.sequence;
 import static frc.robot.subsystems.manipulator.ManipulatorConstants.*;
 
@@ -54,6 +49,15 @@ public class Manipulator extends SubsystemBase {
     // Tunable numbers
     private final TunableNumber intakeVoltage = new TunableNumber("Coral/intakeVoltage", kIntakeVoltage);
     private final TunableNumber outtakeVoltage = new TunableNumber("Coral/outtakeVoltage", kScoreVoltage);
+    private final TunableNumber rpmPerVolt = new TunableNumber("Coral/rpmPerVolt", kRPMPerVolt);
+
+
+    private final TunableNumber kP = new TunableNumber("Coral/kP", kConfig.Slot0.kP);
+    private final TunableNumber kD = new TunableNumber("Coral/kD", kConfig.Slot0.kD);
+
+    private final TunableNumber kS = new TunableNumber("Coral/kS", kConfig.Slot0.kS);
+    private final TunableNumber kV = new TunableNumber("Coral/kV", kConfig.Slot0.kV);
+    
     
     public Manipulator(){
         // try applying motor configs
@@ -83,9 +87,9 @@ public class Manipulator extends SubsystemBase {
 
     @Override
     public void periodic() {
-        // if(!isManual) {
-        //     motor.setVoltage(ff.calculate(PID.getSetpoint())+PID.calculate(getVelocity()));
-        // }
+        if(!isManual) {
+            motor.setVoltage(ff.calculate(PID.getSetpoint())+PID.calculate(getVelocity()));
+        }
 
         if (getCurrent() <= kStallCurrent){
             lastFreeTime = Timer.getFPGATimestamp();
@@ -101,9 +105,9 @@ public class Manipulator extends SubsystemBase {
         motor.setVoltage(-voltage);
     }
 
-    public void setVelocity(double floorRPM) {
+    public void setVelocity(double RPM) {
         isManual = false;
-        PID.setSetpoint(floorRPM);
+        PID.setSetpoint(RPM);
     }
 
     public double getVelocity(){
@@ -158,18 +162,6 @@ public class Manipulator extends SubsystemBase {
         return run(()->setVoltage(-2)).withName("AlgaeOff");
     }
 
-    // public Command setVelocityC(double RPM){
-    //     return run(()->setVelocity(RPM));
-    // }
-
-    // public Command setVelocityInC(){
-    //     return run(()->setVelocity(30));
-    // }
-
-    // public Command setVelocityOutC(){
-    //     return run(()->setVelocity(-30));
-    // }
-
     public Command holdCoralC(){
         return sequence(
             setVoltageC(0).withTimeout(0.5),
@@ -191,9 +183,57 @@ public class Manipulator extends SubsystemBase {
         // );
     }
 
+    public Command setVelocityC(double RPM){
+        return run(()->setVelocity(RPM));
+    }
+
+    public Command setVelocityInC(){
+        return run(()->setVelocity(intakeVoltage.get()*rpmPerVolt.get()));
+    }
+
+    public Command setVelocityOutC(){
+        return run(()->setVelocity(outtakeVoltage.get()*rpmPerVolt.get()));
+    }
+
+    public Command setVelocityStop(){
+        return run(()->setVelocity(0));
+    }
+
+    public Command algaeOffVelocity(){
+        return run(()->setVelocity(-2*rpmPerVolt.get())).withName("AlgaeOffVelocity");
+    }
+
+    public Command holdCoralVelocityC(){
+        return sequence(
+            setVelocityC(0).withTimeout(0.5),
+            setVelocityC(-0.5*rpmPerVolt.get()).withTimeout(0.5)
+            ).repeatedly().withName("D:HoldCoralVelocity");
+    }
+
+    public Command feedCoralVelocityC() {
+        return sequence(
+            setVelocityC(kFeedVoltage*rpmPerVolt.get())
+        ).until(isCoralDetected().negate()).withName("FeedCoralVelocity");
+    }
+
     private void changeTunable() {
         intakeVoltage.poll();
         outtakeVoltage.poll();
+
+        kP.poll();
+        kD.poll();
+        kS.poll();
+        kV.poll();
+
+        int hash = hashCode();
+        // PID
+        if (kP.hasChanged(hash) || kD.hasChanged(hash) || kS.hasChanged(hash) || kV.hasChanged(hash)) {
+            kConfig.Slot0.kP = kP.get();
+            kConfig.Slot0.kD = kD.get();
+            kConfig.Slot0.kS = kS.get();
+            kConfig.Slot0.kV = kV.get();
+            motor.getConfigurator().apply(kConfig.Slot0);
+        }
     }
 
     private void log() {

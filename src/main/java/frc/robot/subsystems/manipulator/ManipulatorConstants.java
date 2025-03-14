@@ -27,6 +27,8 @@ public class ManipulatorConstants {
     public static double kFeedVoltage = 0.5;
     public static double kScoreVoltage = 3.5;
 
+    public static double kRPMPerVolt = 20;
+
     public static int kGearRatio = 3;
 
     public static RangingMode rangingMode = RangingMode.SHORT;
