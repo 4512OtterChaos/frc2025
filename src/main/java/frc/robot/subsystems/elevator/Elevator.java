@@ -23,11 +23,7 @@ import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.Timer;
-import edu.wpi.first.wpilibj.smartdashboard.Mechanism2d;
-import edu.wpi.first.wpilibj.smartdashboard.MechanismLigament2d;
-import edu.wpi.first.wpilibj.smartdashboard.MechanismRoot2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
-import edu.wpi.first.wpilibj.util.Color8Bit;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.util.TunableNumber;
@@ -276,13 +272,6 @@ public class Elevator extends SubsystemBase {
 
     //########## Logging
 
-    private Mechanism2d mech = new Mechanism2d(1, 2.3);
-    private MechanismRoot2d mechRoot = mech.getRoot("elevator", 0.5 + kMech2dOffsetX.in(Meters), kMech2dOffsetZ.in(Meters));
-    private MechanismLigament2d mechElev = mechRoot.append(
-            new MechanismLigament2d("elevator", 1, 90, 10, new Color8Bit(235, 137, 52)));
-    private MechanismLigament2d mechCoral = mechElev.append(
-            new MechanismLigament2d("coral", kMech2dCoralLength.in(Meters), kMech2dCoralAngle.in(Degrees), 6, new Color8Bit(240, 240, 220)));
-
     private void log() {
         SmartDashboard.putNumber("Elevator/Rotor Position", leftMotor.getRotorPosition().getValueAsDouble());
         SmartDashboard.putNumber("Elevator/Position Inches", getHeight().in(Inches));
@@ -295,9 +284,6 @@ public class Elevator extends SubsystemBase {
         
         SmartDashboard.putNumber("Elevator/Setpoint Inches", leftMotor.getClosedLoopReference().getValueAsDouble());
         SmartDashboard.putNumber("Elevator/Acceleration Inches", leftMotor.getAcceleration().getValueAsDouble());
-
-        mechElev.setLength(getHeight().plus(kMech2dCoralZ).in(Meters));
-        SmartDashboard.putData("Elevator/Mech2d", mech);
     }
 
 

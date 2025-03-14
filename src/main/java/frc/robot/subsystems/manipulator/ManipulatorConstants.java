@@ -31,6 +31,8 @@ public class ManipulatorConstants {
     public static double kRPMPerVolt = 20; //TODO: Tune to reflect reality, probably use math
 
     public static int kGearRatio = 3;
+    public static Distance kCoralRollerDia = Inches.of(2);
+    public static Distance kAlgaeRollerDia = Inches.of(3);
 
     public static RangingMode rangingMode = RangingMode.SHORT;
     public static RegionOfInterest regionOfInterest = new RegionOfInterest(8, 8, 16, 16);

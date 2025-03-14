@@ -38,12 +38,6 @@ public class ElevatorConstants {
 
     public static final Distance kHeightTolerance = Inches.of(0.3);
 
-    public static final Distance kMech2dOffsetX = Inches.of(3.5);
-    public static final Distance kMech2dOffsetZ = Inches.of(2.75);
-    public static final Distance kMech2dCoralZ = Inches.of(24.25).minus(kMech2dOffsetZ);
-    public static final Distance kMech2dCoralLength = Inches.of(13.75);
-    public static final Angle kMech2dCoralAngle = Degrees.of(-123);
-
     public static final Angle kTipAngleTolerance = Degrees.of(10);
 
     public static final double kStallThresholdAmps = 20;

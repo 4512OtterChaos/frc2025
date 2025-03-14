@@ -25,7 +25,7 @@ import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import frc.robot.util.TunableNumber;
 
-import static edu.wpi.first.units.Units.Millimeters;
+import static edu.wpi.first.units.Units.*;
 import static edu.wpi.first.wpilibj2.command.Commands.sequence;
 import static frc.robot.subsystems.manipulator.ManipulatorConstants.*;
 
@@ -90,7 +90,7 @@ public class Manipulator extends SubsystemBase {
     @Override
     public void periodic() {
         if(!isManual) {
-            motor.setVoltage(ff.calculate(PID.getSetpoint())+PID.calculate(getVelocity()));
+            motor.setVoltage(ff.calculate(PID.getSetpoint())+PID.calculate(getVelocity().in(RotationsPerSecond)));
         }
 
         if (getCurrent() <= kStallCurrent){
@@ -112,8 +112,12 @@ public class Manipulator extends SubsystemBase {
         PID.setSetpoint(RPM);
     }
 
-    public double getVelocity(){
-        return velocityStatus.getValueAsDouble();
+    public Angle getPosition() {
+        return positionStatus.getValue();
+    }
+
+    public AngularVelocity getVelocity(){
+        return velocityStatus.getValue();
     }
 
     public double getCurrent(){
@@ -249,8 +253,9 @@ public class Manipulator extends SubsystemBase {
     private void log() {
         BaseStatusSignal.refreshAll(voltageStatus, positionStatus, velocityStatus, statorStatus);
         SmartDashboard.putNumber("Coral/Motor Voltage", voltageStatus.getValueAsDouble());
-        SmartDashboard.putNumber("Coral/Motor Velocity", getVelocity());
         SmartDashboard.putNumber("Coral/Motor Current", getCurrent());
+        SmartDashboard.putNumber("Coral/Rotations", getPosition().in(Rotations));
+        SmartDashboard.putNumber("Coral/Rotations per second", getVelocity().in(RotationsPerSecond));
         SmartDashboard.putBoolean("Coral/isStalled", isStalled().getAsBoolean());
     }
     

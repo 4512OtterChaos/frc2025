@@ -29,6 +29,8 @@ public class Superstructure {
     private Manipulator manipulator;
     private Elevator elevator;
 
+    private SuperstructureViz viz = new SuperstructureViz();
+
     public Superstructure(CommandSwerveDrivetrain drive, Manipulator manipulator, Elevator elevator) {
         this.swerve = drive;
         this.manipulator = manipulator;
@@ -106,9 +108,11 @@ public class Superstructure {
     }};
 
     public void periodic() {
+        changeTunable();
+
         adjustDriving();
 
-        changeTunable();
+        viz.update(elevator.getHeight(), manipulator.getPosition());
     }
 
     // public Command driveToScorePointVector(){ //TODO: add accel limiter
