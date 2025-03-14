@@ -34,9 +34,9 @@ public class ManipulatorConstants {
     public static Distance kCoralRollerDia = Inches.of(2);
     public static Distance kAlgaeRollerDia = Inches.of(3);
 
-    public static RangingMode rangingMode = RangingMode.SHORT;
-    public static RegionOfInterest regionOfInterest = new RegionOfInterest(8, 8, 16, 16);
-    public static TimingBudget timingBudget = TimingBudget.TIMING_BUDGET_20MS;
+    public static RangingMode kRangingMode = RangingMode.SHORT;
+    public static RegionOfInterest kRegionOfInterest = new RegionOfInterest(8, 8, 8, 8);
+    public static TimingBudget kTimingBudget = TimingBudget.TIMING_BUDGET_20MS;
 
     public static final Distance kSensorMaxCoralDist = Inches.of(5);
 
@@ -67,12 +67,12 @@ public class ManipulatorConstants {
         control.kI = 0;
         control.kD = 0;
 
-        control.kS = 0.25; 
+        control.kS = 0.25;
         control.kV = 1.0 / Units.radiansToRotations(DCMotor.getKrakenX60(1).withReduction(kGearRatio).KvRadPerSecPerVolt);
     }
 
     public static final DCMotorSim model = new DCMotorSim(
-        LinearSystemId.createDCMotorSystem(1.0 / DCMotor.getKrakenX60(1).withReduction(kGearRatio).KvRadPerSecPerVolt, 0.001),
+        LinearSystemId.createDCMotorSystem(1.3 * 1.0 / DCMotor.getKrakenX60(1).withReduction(kGearRatio).KvRadPerSecPerVolt, 0.002),
         DCMotor.getKrakenX60(1)
     );
 }

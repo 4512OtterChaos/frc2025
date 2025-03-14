@@ -71,9 +71,9 @@ public class Manipulator extends SubsystemBase {
         if (!status.isOK()) DriverStation.reportWarning("Failed applying Manipulator motor configuration!", false);
 
         try {
-            sensor.setRangingMode(LaserCan.RangingMode.SHORT);
-            sensor.setRegionOfInterest(new LaserCan.RegionOfInterest(8, 8, 16, 16));
-            sensor.setTimingBudget(LaserCan.TimingBudget.TIMING_BUDGET_33MS);
+            sensor.setRangingMode(kRangingMode);
+            sensor.setRegionOfInterest(kRegionOfInterest);
+            sensor.setTimingBudget(kTimingBudget);
         } catch (ConfigurationFailedException e) {
             System.out.println("Configuration failed! " + e);
         }
@@ -140,7 +140,14 @@ public class Manipulator extends SubsystemBase {
     }
 
     public Trigger isCoralDetected(){
-        return new Trigger(() -> getCoralDist().in(Millimeters) <= kSensorMaxCoralDist.in(Millimeters) && getCoralDist().gt(Millimeters.zero()));
+        return new Trigger(() -> {
+            var measurement = sensor.getMeasurement();
+            if (measurement == null) return false;
+            boolean withinRange = measurement.distance_mm <= kSensorMaxCoralDist.in(Millimeters);
+            boolean validRange = measurement.distance_mm > 0;
+            boolean statusOk = measurement.status == LaserCan.LASERCAN_STATUS_VALID_MEASUREMENT;
+            return withinRange && validRange && statusOk;
+        });
     }
 
     public Command setVoltageC(double voltage){
@@ -257,6 +264,8 @@ public class Manipulator extends SubsystemBase {
         SmartDashboard.putNumber("Coral/Rotations", getPosition().in(Rotations));
         SmartDashboard.putNumber("Coral/Rotations per second", getVelocity().in(RotationsPerSecond));
         SmartDashboard.putBoolean("Coral/isStalled", isStalled().getAsBoolean());
+
+        SmartDashboard.putNumber("Coral/Coral Travelled Inches", kCoralRollerDia.times(Math.PI).per(Rotation).timesDivisor(getPosition()).in(Inches));
     }
     
 
@@ -271,8 +280,8 @@ public class Manipulator extends SubsystemBase {
         model.setInput(motorSim.getMotorVoltage());
         model.update(0.02);
 
-        motorSim.setRawRotorPosition(model.getAngularPosition().times(kGearRatio));
-        motorSim.setRotorVelocity(model.getAngularVelocity().times(kGearRatio));
-        motorSim.setRotorAcceleration(model.getAngularAcceleration().times(kGearRatio));
+        motorSim.setRawRotorPosition(model.getAngularPosition());
+        motorSim.setRotorVelocity(model.getAngularVelocity());
+        motorSim.setRotorAcceleration(model.getAngularAcceleration());
     }
 }
