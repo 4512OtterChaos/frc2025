@@ -209,8 +209,7 @@ public class Manipulator extends SubsystemBase {
 
     public Command feedCoralFastSequenceC() {
         return sequence(
-            feedCoralFastC().withTimeout(0.3),
-            feedCoralFastC().until(() -> getCurrent() >= kStallCurrent),
+            feedCoralFastC().until(isCoralDetected()),
             feedCoralSequenceC()
         );
     }
