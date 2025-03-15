@@ -26,6 +26,7 @@ import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.robot.util.PhoenixUtil;
 import frc.robot.util.TunableNumber;
 
 import static frc.robot.subsystems.elevator.ElevatorConstants.*;
@@ -73,16 +74,12 @@ public class Elevator extends SubsystemBase {
 
     public Elevator(){
         // try applying motor configs
-        StatusCode statusL = StatusCode.StatusCodeNotInitialized;
-        StatusCode statusR = StatusCode.StatusCodeNotInitialized;
-
-        for (int i = 0; i < 1; i++) {
-            statusL = leftMotor.getConfigurator().apply(kConfig);
-            statusR = rightMotor.getConfigurator().apply(kConfig);
-            rightMotor.setControl(new Follower(leftMotor.getDeviceID(), true));
-            if (statusL.isOK() && statusR.isOK()) break;
+        boolean success = PhoenixUtil.tryUntilOk(5, () -> leftMotor.getConfigurator().apply(kConfig));
+        success &= PhoenixUtil.tryUntilOk(5, () -> rightMotor.getConfigurator().apply(kConfig));
+        success &= PhoenixUtil.tryUntilOk(5, () -> rightMotor.setControl(new Follower(leftMotor.getDeviceID(), true)));
+        if (!success) {
+            DriverStation.reportWarning("Failed applying Elevator motor configuration!", false);
         }
-        if (!statusL.isOK() || !statusR.isOK()) DriverStation.reportWarning("Failed applying Elevator motor configuration!", false);
 
         dutyStatus.setUpdateFrequency(100);
         voltageStatus.setUpdateFrequency(100);

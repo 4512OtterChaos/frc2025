@@ -23,6 +23,7 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
+import frc.robot.util.PhoenixUtil;
 import frc.robot.util.TunableNumber;
 
 import static edu.wpi.first.units.Units.*;
@@ -63,19 +64,15 @@ public class Manipulator extends SubsystemBase {
     
     public Manipulator(){
         // try applying motor configs
-        StatusCode status = StatusCode.StatusCodeNotInitialized;
-        for (int i = 0; i < 5; i++) {
-            status = motor.getConfigurator().apply(kConfig);
-            if (status.isOK()) break;
-        }
-        if (!status.isOK()) DriverStation.reportWarning("Failed applying Manipulator motor configuration!", false);
+        boolean success = PhoenixUtil.tryUntilOk(5, () -> motor.getConfigurator().apply(kConfig));
+        if (!success) DriverStation.reportWarning("Failed applying Manipulator motor configuration!", false);
 
         try {
             sensor.setRangingMode(kRangingMode);
             sensor.setRegionOfInterest(kRegionOfInterest);
             sensor.setTimingBudget(kTimingBudget);
         } catch (ConfigurationFailedException e) {
-            System.out.println("Configuration failed! " + e);
+            DriverStation.reportWarning("Failed applying LaserCAN configuration: " + e, false);
         }
 
         voltageStatus.setUpdateFrequency(100);
