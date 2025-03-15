@@ -3,6 +3,7 @@ package frc.robot.subsystems.manipulator;
 import com.ctre.phoenix6.BaseStatusSignal;
 import com.ctre.phoenix6.StatusCode;
 import com.ctre.phoenix6.StatusSignal;
+import com.ctre.phoenix6.controls.PositionVoltage;
 import com.ctre.phoenix6.hardware.ParentDevice;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.sim.ChassisReference;
@@ -35,8 +36,10 @@ public class Manipulator extends SubsystemBase {
 
     private LaserCan sensor = new LaserCan(kSensorID);
     
-    private SimpleMotorFeedforward ff = new SimpleMotorFeedforward(kConfig.Slot0.kS, kConfig.Slot0.kV);
-    private PIDController PID = new PIDController(kConfig.Slot0.kP, kConfig.Slot0.kI, kConfig.Slot0.kD);
+    // private SimpleMotorFeedforward ff = new SimpleMotorFeedforward(kConfig.Slot0.kS, kConfig.Slot0.kV);
+    // private PIDController PID = new PIDController(kConfig.Slot0.kP, kConfig.Slot0.kI, kConfig.Slot0.kD);
+
+    private PositionVoltage positionRequest = new PositionVoltage(0).withEnableFOC(false);
 
     boolean isManual = true;
     
@@ -48,11 +51,13 @@ public class Manipulator extends SubsystemBase {
     private final StatusSignal<Current> statorStatus = motor.getStatorCurrent();
 
     // Tunable numbers
-    private final TunableNumber intakeVoltage = new TunableNumber("Coral/intakeVoltage", kIntakeVoltage);
-    private final TunableNumber feedVoltage = new TunableNumber("Coral/feedVoltage", kFeedVoltage);
-    private final TunableNumber scoreVoltage = new TunableNumber("Coral/scoreVoltage", kScoreVoltage);
-    private final TunableNumber algeaShootVoltage = new TunableNumber("Coral/algeaShootVoltage", kAlgaeShootVoltage);
-    private final TunableNumber rpmPerVolt = new TunableNumber("Coral/rpmPerVolt", kRPMPerVolt);
+    private final TunableNumber feedSlowVoltage = new TunableNumber("Coral/feedSlowVoltage", kFeedSlowVolts);
+    private final TunableNumber feedFastVoltage = new TunableNumber("Coral/feedFastVoltage", kFeedFastVolts);
+    private final TunableNumber scoreCoralVolts = new TunableNumber("Coral/scoreCoralVolts", kScoreCoralVolts);
+    private final TunableNumber holdAlgaeVolts = new TunableNumber("Coral/holdAlgaeVolts", kHoldAlgaeVolts);
+    private final TunableNumber scoreAlgaeVolts = new TunableNumber("Coral/scoreAlgaeVolts", kScoreAlgaeVolts);
+
+    // private final TunableNumber rpmPerVolt = new TunableNumber("Coral/rpmPerVolt", kRPMPerVolt);
 
 
     private final TunableNumber kP = new TunableNumber("Coral/kP", kConfig.Slot0.kP);
@@ -86,9 +91,9 @@ public class Manipulator extends SubsystemBase {
 
     @Override
     public void periodic() {
-        if(!isManual) {
-            motor.setVoltage(ff.calculate(PID.getSetpoint())+PID.calculate(getVelocity().in(RotationsPerSecond)));
-        }
+        // if(!isManual) {
+        //     motor.setVoltage(ff.calculate(PID.getSetpoint())+PID.calculate(getVelocity().in(RotationsPerSecond)));
+        // }
 
         if (getCurrent() <= kStallCurrent){
             lastFreeTime = Timer.getFPGATimestamp();
@@ -100,14 +105,19 @@ public class Manipulator extends SubsystemBase {
     }
 
     public void setVoltage(double voltage){
-        isManual=true;
+        isManual = true;
         motor.setVoltage(-voltage);
     }
 
-    public void setVelocity(double RPM) {
+    public void setTargetPos(Angle position) {
         isManual = false;
-        PID.setSetpoint(RPM);
+        motor.setControl(positionRequest.withPosition(position));
     }
+
+    // public void setVelocity(double RPM) {
+    //     isManual = false;
+    //     PID.setSetpoint(RPM);
+    // }
 
     public Angle getPosition() {
         return positionStatus.getValue();
@@ -151,92 +161,107 @@ public class Manipulator extends SubsystemBase {
         return run(()->setVoltage(voltage));
     }
 
-    /**
-     * 
-     * @return A command that sets an intaking voltage.
-     */
-    public Command setVoltageInC(){
-        return run(()->setVoltage(intakeVoltage.get())).withName("Intake");
+    public Command feedCoralSlowC() {
+        return run(()->setVoltage(feedSlowVoltage.get())).withName("FeedCoralSlow");
     }
 
-    /**
-     * 
-     * @return A command that sets an scoring voltage.
-     */
-
-    public Command setVoltageScoreC(){
-        return run(()->setVoltage(scoreVoltage.get())).withName("Scoring");
+    public Command feedCoralFastC() {
+        return run(()->setVoltage(feedFastVoltage.get())).withName("FeedCoralFast");
     }
 
-    public Command algaeOff(){
-        return run(()->setVoltage(-2)).withName("AlgaeOff");
+    public Command backfeedCoralSlowC() {
+        return run(()->setVoltage(-feedSlowVoltage.get())).withName("BackfeedCoralSlow");
     }
 
-    public Command holdCoralC(){
+    public Command scoreCoralC() {
+        return run(()->setVoltage(scoreCoralVolts.get())).withName("ScoreCoral");
+    }
+
+    public Command holdAlgaeC() {
+        return run(()->setVoltage(holdAlgaeVolts.get())).withName("HoldAlgae");
+    }
+
+    public Command scoreAlgaeC() {
+        return run(()->setVoltage(scoreAlgaeVolts.get())).withName("ScoreAlgae");
+    }
+
+    public Command holdCoralVoltsC(){
         return sequence(
             setVoltageC(0).withTimeout(0.5),
             setVoltageC(-0.5).withTimeout(0.5)
             ).repeatedly().withName("D:HoldCoral");
     }
 
-    public Command feedCoralC() {
-        // return setVoltageInC().until(isCoralDetected().negate()).withName("FeedCoral");
-        return sequence(
-            // setVoltageInC().withTimeout(0.5),
-            setVoltageC(feedVoltage.get())
-        ).until(isCoralDetected().negate()).withName("FeedCoral");
+    public Command feedCoralSequenceC() {
+        // return feedCoralSlowC().until(isCoralDetected().negate()).withName("FeedCoral");
+
         // return sequence(
-        //     setVoltageInC().until(isCoralDetected().negate()),
-        //     setVoltageC(-3).until(isCoralDetected()),
-        //     setVoltageC(3).until(isCoralDetected().negate()),
-        //     setVoltageC(3).withTimeout(0.05)
-        // );
+        //     feedCoralFastC().withTimeout(0.25),
+        //     feedCoralSlowC()
+        // ).until(isCoralDetected().negate()).withName("FeedCoral");
+
+        return sequence( // Grab coral quickly, then slowly home it to a consistent position
+            feedCoralFastC().until(isCoralDetected().negate()),
+            backfeedCoralSlowC().until(isCoralDetected()),
+            feedCoralSlowC().until(isCoralDetected().negate())
+        ).withName("FeedCoral");
     }
 
-    public Command algaeShoot() {
-        return run(()->setVoltage(algeaShootVoltage.get())).withName("ShootAlgae");
+    /** Does not end */
+    public Command setPositionC(Angle position) {
+        return run(() -> setTargetPos(position)).withName("SetPosition");
     }
 
-    public Command setVelocityC(double RPM){
-        return run(()->setVelocity(RPM));
+    public Command holdPositionC() {
+        return startEnd(
+            () -> setTargetPos(getPosition()),
+            () -> {}
+        ).withName("HoldPosition");
     }
 
-    public Command setVelocityInC(){
-        return run(()->setVelocity(intakeVoltage.get()*rpmPerVolt.get())).withName("Intake PID");
-    }
+    // public Command setVelocityC(double RPM){
+    //     return run(()->setVelocity(RPM));
+    // }
 
-    public Command setVelocityScoreC(){
-        return run(()->setVelocity(scoreVoltage.get()*rpmPerVolt.get())).withName("Score PID");
-    }
+    // public Command setVelocityInC(){
+    //     return run(()->setVelocity(intakeVoltage.get()*rpmPerVolt.get())).withName("Intake PID");
+    // }
 
-    public Command setVelocityStop(){
-        return run(()->setVelocity(0)).withName("Hold Pose PID");
-    }
+    // public Command setVelocityScoreC(){
+    //     return run(()->setVelocity(scoreVoltage.get()*rpmPerVolt.get())).withName("Score PID");
+    // }
 
-    public Command algaeOffVelocity(){
-        return run(()->setVelocity(-2*rpmPerVolt.get())).withName("AlgaeOffVelocity");
-    }
+    // public Command setVelocityStop(){
+    //     return run(()->setVelocity(0)).withName("Hold Pose PID");
+    // }
 
-    public Command holdCoralVelocityC(){
-        return sequence(
-            setVelocityC(0).withTimeout(0.5),
-            setVelocityC(-0.5*rpmPerVolt.get()).withTimeout(0.5)
-            ).repeatedly().withName("D:HoldCoralVelocity");
-    }
+    // public Command algaeOffVelocity(){
+    //     return run(()->setVelocity(-2*rpmPerVolt.get())).withName("AlgaeOffVelocity");
+    // }
 
-    public Command feedCoralVelocityC() {
-        return sequence(
-            setVelocityC(feedVoltage.get()*rpmPerVolt.get())
-        ).until(isCoralDetected().negate()).withName("FeedCoralVelocity");
-    }
+    // public Command holdCoralVelocityC(){
+    //     return sequence(
+    //         setVelocityC(0).withTimeout(0.5),
+    //         setVelocityC(-0.5*rpmPerVolt.get()).withTimeout(0.5)
+    //         ).repeatedly().withName("D:HoldCoralVelocity");
+    // }
 
-    public Command algaeShootVelocity() {
-        return run(()->setVelocity(algeaShootVoltage.get()*rpmPerVolt.get())).withName("ShootAlgaeVelocity");
-    }
+    // public Command feedCoralVelocityC() {
+    //     return sequence(
+    //         setVelocityC(feedVoltage.get()*rpmPerVolt.get())
+    //     ).until(isCoralDetected().negate()).withName("FeedCoralVelocity");
+    // }
+
+    // public Command algaeShootVelocity() {
+    //     return run(()->setVelocity(algeaShootVoltage.get()*rpmPerVolt.get())).withName("ShootAlgaeVelocity");
+    // }
 
     private void changeTunable() {
-        intakeVoltage.poll();
-        scoreVoltage.poll();
+        feedSlowVoltage.poll();
+        feedFastVoltage.poll();
+        scoreCoralVolts.poll();
+        holdAlgaeVolts.poll();
+        scoreAlgaeVolts.poll();
 
         kP.poll();
         kD.poll();
@@ -274,11 +299,11 @@ public class Manipulator extends SubsystemBase {
         motorSim.Orientation = ChassisReference.CounterClockwise_Positive;
         motorSim.setSupplyVoltage(RobotController.getBatteryVoltage());
 
-        model.setInput(motorSim.getMotorVoltage());
+        model.setInput(-motorSim.getMotorVoltage());
         model.update(0.02);
 
-        motorSim.setRawRotorPosition(model.getAngularPosition());
-        motorSim.setRotorVelocity(model.getAngularVelocity());
-        motorSim.setRotorAcceleration(model.getAngularAcceleration());
+        motorSim.setRawRotorPosition(model.getAngularPosition().times(kGearRatio));
+        motorSim.setRotorVelocity(model.getAngularVelocity().times(kGearRatio));
+        motorSim.setRotorAcceleration(model.getAngularAcceleration().times(kGearRatio));
     }
 }

@@ -148,51 +148,45 @@ public class RobotContainer {
     private void configureOperatorBindings(OCXboxController controller) {
         //===== ELEVATOR COMMANDS
         controller.povDown().onTrue(elevator.setMinC());
-        controller.a().onTrue(elevator.setL1C());
-        controller.x().onTrue(elevator.setL2C());
-        controller.y().onTrue(elevator.setL3C());
-        controller.b().onTrue(elevator.setL4C());
+        controller.a().onTrue(elevator.setL1C()
+            .beforeStarting(waitUntil(manipulator.isCoralDetected().negate())));
+        controller.x().onTrue(elevator.setL2C()
+            .beforeStarting(waitUntil(manipulator.isCoralDetected().negate())));
+        controller.y().onTrue(elevator.setL3C()
+            .beforeStarting(waitUntil(manipulator.isCoralDetected().negate())));
+        controller.b().onTrue(elevator.setL4C()
+            .beforeStarting(waitUntil(manipulator.isCoralDetected().negate())));
 
         swerve.isAligning().and(controller.a()).onTrue(sequence(
             Commands.waitUntil(swerve.isAligned()),
-            elevator.setL1C()));
+            elevator.setL1C()
+                .beforeStarting(waitUntil(manipulator.isCoralDetected().negate()))));
         swerve.isAligning().and(controller.x()).onTrue(sequence(
             Commands.waitUntil(swerve.isAligned()),
-            elevator.setL2C()));
+            elevator.setL2C()
+                .beforeStarting(waitUntil(manipulator.isCoralDetected().negate()))));
         swerve.isAligning().and(controller.y()).onTrue(sequence(
             Commands.waitUntil(swerve.isAligned()),
-            elevator.setL3C()));
+            elevator.setL3C()
+                .beforeStarting(waitUntil(manipulator.isCoralDetected().negate()))));
         swerve.isAligning().and(controller.b()).onTrue(sequence(
             Commands.waitUntil(swerve.isAligned()),
-            elevator.setL4C()));
+            elevator.setL4C()
+                .beforeStarting(waitUntil(manipulator.isCoralDetected().negate()))));
         //=====
         
-        //===== CORAL MANIPULATOR (velocity)
-        manipulator.setDefaultCommand(manipulator.holdCoralVelocityC());
+        //===== CORAL MANIPULATOR
+        manipulator.setDefaultCommand(manipulator.holdPositionC());
         // Automatically feed coral to a consistent position when detected
         manipulator.isCoralDetected().and(()->manipulator.getCurrentCommand() == manipulator.getDefaultCommand())
-        .onTrue(manipulator.feedCoralVelocityC());
+            .onTrue(manipulator.feedCoralSequenceC());
 
-        controller.leftBumper().whileTrue(manipulator.algaeOffVelocity());
-        controller.rightBumper().whileTrue(manipulator.setVelocityScoreC());
+        controller.leftBumper().whileTrue(manipulator.scoreAlgaeC());
+        controller.rightBumper().whileTrue(manipulator.scoreCoralC());
         //=====
-
-        //===== COMPOSITION CCOMMANDS (velocity)
-        controller.back().whileTrue(superstructure.algeaShootVelocity());
-        //=====
-
-        // //===== CORAL MANIPULATOR
-        // manipulator.setDefaultCommand(manipulator.holdCoralC());
-        // // Automatically feed coral to a consistent position when detected
-        // manipulator.isCoralDetected().and(()->manipulator.getCurrentCommand() == manipulator.getDefaultCommand())
-        // .onTrue(manipulator.feedCoralC());
-
-        // controller.leftBumper().whileTrue(manipulator.algaeOff());
-        // controller.rightBumper().whileTrue(manipulator.setVoltageScoreC());
-        // //=====
 
         //===== COMPOSITION CCOMMANDS
-        // controller.back().whileTrue(superstructure.algeaShoot());
+        controller.back().whileTrue(superstructure.algaeShoot());
         //=====
     }
 

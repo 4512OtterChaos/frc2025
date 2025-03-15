@@ -23,10 +23,16 @@ public class ManipulatorConstants {
     public static int kMotorID = 31;
     public static int kSensorID = 0;
 
-    public static double kIntakeVoltage = 0.9;
-    public static double kFeedVoltage = 0.5;
-    public static double kScoreVoltage = 3.5;
-    public static double kAlgaeShootVoltage = -5;
+    public static DCMotor kMotor = DCMotor.getKrakenX60(1);
+
+    public static double kFeedFastVolts = 0.9;
+    public static double kFeedSlowVolts = 0.5;
+
+    public static double kScoreCoralVolts = 3.5;
+
+    // Hold at x amps torque. ~1.7 volts per Nm, ~50 amps per Nm at stall
+    public static double kHoldAlgaeVolts = kMotor.getVoltage(kMotor.getTorque(20), 0);
+    public static double kScoreAlgaeVolts = -5;
 
     public static double kRPMPerVolt = 20; //TODO: Tune to reflect reality, probably use math
 
@@ -35,7 +41,7 @@ public class ManipulatorConstants {
     public static Distance kAlgaeRollerDia = Inches.of(3);
 
     public static RangingMode kRangingMode = RangingMode.SHORT;
-    public static RegionOfInterest kRegionOfInterest = new RegionOfInterest(8, 8, 8, 8);
+    public static RegionOfInterest kRegionOfInterest = new RegionOfInterest(8, 8, 6, 6);
     public static TimingBudget kTimingBudget = TimingBudget.TIMING_BUDGET_20MS;
 
     public static final Distance kSensorMaxCoralDist = Inches.of(5);
@@ -62,17 +68,17 @@ public class ManipulatorConstants {
         current.StatorCurrentLimitEnable = true;
         current.StatorCurrentLimit = 40;
 
-        Slot0Configs control = kConfig.Slot0; //TODO: Update PID
-        control.kP = 0.005;
+        Slot0Configs control = kConfig.Slot0; // Position PID
+        control.kP = 0.1;
         control.kI = 0;
         control.kD = 0;
 
         control.kS = 0.25;
-        control.kV = 1.0 / Units.radiansToRotations(DCMotor.getKrakenX60(1).withReduction(kGearRatio).KvRadPerSecPerVolt);
+        control.kV = 1.0 / Units.radiansToRotations(kMotor.withReduction(kGearRatio).KvRadPerSecPerVolt);
     }
 
     public static final DCMotorSim model = new DCMotorSim(
-        LinearSystemId.createDCMotorSystem(1.3 * 1.0 / DCMotor.getKrakenX60(1).withReduction(kGearRatio).KvRadPerSecPerVolt, 0.002),
-        DCMotor.getKrakenX60(1)
+        LinearSystemId.createDCMotorSystem(1.3 * 1.0 / kMotor.withReduction(kGearRatio).KvRadPerSecPerVolt, 0.002),
+        kMotor
     );
 }

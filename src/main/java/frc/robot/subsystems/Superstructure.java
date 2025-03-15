@@ -221,21 +221,21 @@ public class Superstructure {
     //     return driveController.calculate(currentPose, targetPose, desiredSpeed, targetPose.getRotation()); 
     // }
 
-    public Command algeaShoot(){
+    public Command algaeShoot(){
         return sequence(
             elevator.setMinC(),
             elevator.setL4C().until(()->elevator.getHeight().in(Meters) >= ElevatorConstants.kL4Height.minus(Inches.of(12)).in(Meters)),
-            manipulator.algaeShoot()
+            manipulator.scoreAlgaeC().withTimeout(1)
         ).withName("AlgeaShoot");
     }
 
-    public Command algeaShootVelocity(){
-        return sequence(
-            elevator.setMinC(),
-            elevator.setL4C().until(()->elevator.getHeight().in(Meters) >= ElevatorConstants.kL4Height.minus(Inches.of(12)).in(Meters)),
-            manipulator.algaeShootVelocity()
-        ).withName("AlgeaShootVelocity");
-    }
+    // public Command algaeShootVelocity(){
+    //     return sequence(
+    //         elevator.setMinC(),
+    //         elevator.setL4C().until(()->elevator.getHeight().in(Meters) >= ElevatorConstants.kL4Height.minus(Inches.of(12)).in(Meters)),
+    //         manipulator.algaeShootVelocity()
+    //     ).withName("AlgeaShootVelocity");
+    // }
 
     public void adjustDriving() {
         double elevatorPercentTravel = elevator.getHeight().div(ElevatorConstants.kMaxTravel).magnitude();
