@@ -17,13 +17,18 @@ import static edu.wpi.first.wpilibj2.command.Commands.*;
 
 import static frc.robot.subsystems.drivetrain.DriveConstants.*;
 
+import java.util.function.Supplier;
+
+import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.wpilibj.AddressableLED;
 import edu.wpi.first.wpilibj.AddressableLEDBuffer;
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.LEDPattern;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
+import edu.wpi.first.wpilibj2.command.button.Trigger;
 import frc.robot.auto.AutoRoutines;
 import frc.robot.subsystems.Superstructure;
 import frc.robot.subsystems.drivetrain.CommandSwerveDrivetrain;
@@ -31,7 +36,9 @@ import frc.robot.subsystems.drivetrain.Telemetry;
 import frc.robot.subsystems.drivetrain.TunerConstants;
 import frc.robot.subsystems.elevator.Elevator;
 import frc.robot.subsystems.manipulator.Manipulator;
+import frc.robot.subsystems.manipulator.ManipulatorConstants;
 import frc.robot.subsystems.vision.Vision;
+import frc.robot.util.FieldUtil;
 import frc.robot.util.OCXboxController;
 import frc.robot.util.FieldUtil.ReefPosition;
 
@@ -50,6 +57,13 @@ public class RobotContainer {
     
     private final Vision vision = new Vision();
 
+    private final Trigger nearCoralStation = new Trigger(() -> {
+        var swervePose = swerve.getGlobalPoseEstimate();
+        boolean nearStation = FieldUtil.nearestCoralStation(swervePose).relativeTo(swervePose).getTranslation().getNorm() < 2.5;
+        boolean hasFMS = DriverStation.isFMSAttached();
+        return nearStation && (hasFMS || Robot.isSimulation());
+    });
+
     private AddressableLED led = new AddressableLED(9);
     private AddressableLEDBuffer ledBuffer = new AddressableLEDBuffer(15);
 
@@ -57,7 +71,6 @@ public class RobotContainer {
     private LEDPattern layer2Pattern = LEDPattern.kOff;
     private LEDPattern layer3Pattern = LEDPattern.kOff;
     private LEDPattern layer4Pattern = LEDPattern.kOff;
-    
     
     /* Path follower */
     private final AutoFactory autoFactory;
@@ -139,10 +152,26 @@ public class RobotContainer {
 
     private void configureDriverBindings(OCXboxController controller) {
         //DRIVE COMMAND
-        swerve.setDefaultCommand(swerve.drive(() -> controller.getSpeeds(
+        Supplier<ChassisSpeeds> driveSupplier = () -> controller.getSpeeds(
             swerve.driveSpeed.in(MetersPerSecond),
-            swerve.turnSpeed.in(RadiansPerSecond))
-        ).withName("D:Controller Drive"));
+            swerve.turnSpeed.in(RadiansPerSecond));
+        swerve.setDefaultCommand(swerve.drive(driveSupplier).withName("D:Controller Drive"));
+
+        Trigger driverSomeLeftInput = new Trigger(() -> {
+            return Math.hypot(controller.getLeftX(), controller.getLeftY()) > OCXboxController.kDeadband;
+        });
+        Trigger driverSomeRightInput = new Trigger(() -> {
+            return Math.hypot(controller.getRightX(), controller.getRightY()) > OCXboxController.kDeadband;
+        });
+        Trigger driverMaxLeftInput = new Trigger(() -> {
+            return Math.hypot(controller.getLeftX(), controller.getLeftY()) > 0.9;
+        });
+        // snap to coral station angle
+        nearCoralStation.and(driverSomeRightInput.negate().debounce(0.5)).whileTrue(swerve.driveFacingAngle(
+            driveSupplier,
+            () -> FieldUtil.nearestCoralStation(swerve.getGlobalPoseEstimate()).getRotation(),
+            true
+        ));
         
         // reset the robot heading to forward
         controller.start().onTrue(swerve.runOnce(() -> swerve.seedFieldCentric()));
@@ -191,6 +220,12 @@ public class RobotContainer {
         // Automatically feed coral to a consistent position when detected
         manipulator.isCoralDetected().and(()->manipulator.getCurrentCommand() == manipulator.getDefaultCommand())
             .onTrue(manipulator.feedCoralSequenceC());
+        // Automatically start intaking if close to station
+        nearCoralStation.onTrue(sequence(
+            manipulator.feedCoralFastC().withTimeout(0.3),
+            manipulator.feedCoralFastC().until(() -> manipulator.getCurrent() >= ManipulatorConstants.kStallCurrent),
+            manipulator.feedCoralSequenceC().asProxy()
+        ));
 
         controller.leftBumper().whileTrue(manipulator.scoreAlgaeC());
         controller.rightBumper().whileTrue(manipulator.scoreCoralC());

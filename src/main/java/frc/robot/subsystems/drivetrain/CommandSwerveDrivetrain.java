@@ -380,17 +380,24 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         });
     }
 
-    // public Command driveFacingAngle(Supplier<ChassisSpeeds> speedsSupplier, boolean limitAccel) {
-    //     return run(() -> {
-    //         var targetSpeeds = speedsSupplier.get();
-    //         if (limitAccel) {
-    //             targetSpeeds = limiter.calculate(targetSpeeds, lastTargetSpeeds, Robot.kDefaultPeriod);
-    //         }
-    //         lastTargetSpeeds = targetSpeeds;
-
-
-    //     });
-    // }
+    public Command driveFacingAngle(
+            Supplier<ChassisSpeeds> trlSpeedsSupplier,
+            Supplier<Rotation2d> targetAngleSupplier,
+            boolean limitAccel
+            ) {
+        return sequence(
+            runOnce(() -> {
+                pathThetaController.reset();
+            }),
+            drive(() -> {
+                var targetSpeeds = trlSpeedsSupplier.get();
+                targetSpeeds.omegaRadiansPerSecond = pathThetaController.calculate(
+                    getGlobalPoseEstimate().getRotation().getRadians(), targetAngleSupplier.get().getRadians()
+                );
+                return targetSpeeds;
+            })
+        ).withName("DriveFacingAngle");
+    }
 
     /**
      * Returns a command that applies the specified control request to this swerve drivetrain.

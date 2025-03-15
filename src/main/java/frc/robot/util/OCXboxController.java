@@ -11,7 +11,7 @@ import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
  */
 public class OCXboxController extends CommandXboxController {
 
-    private static final double kDeadband = 0.1;
+    public static final double kDeadband = 0.1;
 
     /**
      * Constructs XboxController on DS joystick port.

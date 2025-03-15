@@ -207,6 +207,14 @@ public class Manipulator extends SubsystemBase {
         ).withName("FeedCoral");
     }
 
+    public Command feedCoralFastSequenceC() {
+        return sequence(
+            feedCoralFastC().withTimeout(0.3),
+            feedCoralFastC().until(() -> getCurrent() >= kStallCurrent),
+            feedCoralSequenceC()
+        );
+    }
+
     /** Does not end */
     public Command setPositionC(Angle position) {
         return run(() -> setTargetPos(position)).withName("SetPosition");
