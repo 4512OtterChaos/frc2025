@@ -201,12 +201,16 @@ public class RobotContainer {
         controller.povDown().onTrue(elevator.setMinC());
         controller.a().onTrue(elevator.setL1C()
             .beforeStarting(waitUntil(manipulator.isCoralDetected().negate())));
-        controller.x().onTrue(elevator.setL2C()
+        controller.x().and(controller.rightBumper().negate()).onTrue(elevator.setL2C()
             .beforeStarting(waitUntil(manipulator.isCoralDetected().negate())));
         controller.y().onTrue(elevator.setL3C()
             .beforeStarting(waitUntil(manipulator.isCoralDetected().negate())));
         controller.b().onTrue(elevator.setL4C()
             .beforeStarting(waitUntil(manipulator.isCoralDetected().negate())));
+
+        controller.x().and(controller.rightBumper()).onTrue(elevator.setAlgaeL3C()
+            .beforeStarting(waitUntil(manipulator.isCoralDetected().negate())));
+        
 
         // swerve.isAligning().and(controller.a()).onTrue(sequence(
         //     Commands.waitUntil(swerve.isAligned()),

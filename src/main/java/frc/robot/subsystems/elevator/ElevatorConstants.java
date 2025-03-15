@@ -36,6 +36,9 @@ public class ElevatorConstants {
     public static final Distance kL3Height = Inches.of(32);
     public static final Distance kL4Height = Inches.of(58.6);
 
+    public static final Distance kAlgaeL3Height = Inches.of(26.15);
+
+
     public static final Distance kHeightTolerance = Inches.of(0.3);
 
     public static final Angle kTipAngleTolerance = Degrees.of(10);

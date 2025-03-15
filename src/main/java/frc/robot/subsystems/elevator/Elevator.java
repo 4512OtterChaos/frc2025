@@ -218,6 +218,11 @@ public class Elevator extends SubsystemBase {
         return setHeightC(() -> Inches.of(heightL4Inches.get())).withName("Go to L4");
     }
 
+    /** Sets the target elevator height to the L3 height and ends when it is within tolerance. */
+    public Command setAlgaeL3C(){
+        return setHeightC(() -> kAlgaeL3Height).withName("Go to algae L3");
+    }
+
     /** Runs the elevator into the base, detecting a current spike and resetting the elevator height. */
     public Command homingSequenceC(){
         if(RobotBase.isSimulation()){ return setMinC();}
