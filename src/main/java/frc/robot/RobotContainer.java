@@ -7,6 +7,7 @@ package frc.robot;
 import choreo.auto.AutoChooser;
 import choreo.auto.AutoFactory;
 
+import com.ctre.phoenix6.Utils;
 import com.ctre.phoenix6.hardware.ParentDevice;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.hardware.traits.CommonTalon;
@@ -19,6 +20,7 @@ import static frc.robot.subsystems.drivetrain.DriveConstants.*;
 import edu.wpi.first.wpilibj.AddressableLED;
 import edu.wpi.first.wpilibj.AddressableLEDBuffer;
 import edu.wpi.first.wpilibj.LEDPattern;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
@@ -98,12 +100,16 @@ public class RobotContainer {
 
     public void periodic() {
         superstructure.periodic();
+        vision.periodic();
 
-        vision.getEstimatedGlobalPose().ifPresent(estimate -> {
-            var pose = estimate.estimatedPose.toPose2d();
-            var stdDevs = vision.getEstimationStdDevs(pose);
-            swerve.addVisionMeasurement(pose, estimate.timestampSeconds, stdDevs);
-        });
+        double phoenixTimeOffset = Timer.getFPGATimestamp() - Utils.getCurrentTimeSeconds();
+        var swerveState = swerve.getState();
+        vision.getEstimatedGlobalPose(swerveState.Pose.getRotation(), swerveState.Timestamp + phoenixTimeOffset)
+            .ifPresent(estimate -> {
+                var pose = estimate.estimatedPose;
+                var stdDevs = vision.getEstimationStdDevs(pose);
+                swerve.addVisionMeasurement(pose.toPose2d(), estimate.timestampSeconds, stdDevs);
+            });
 
         // LED patterns
         if (!layer4Pattern.equals(LEDPattern.kOff)) {
@@ -196,7 +202,7 @@ public class RobotContainer {
     }
 
     private void simBindings(OCXboxController controller) {
-        controller.start().onTrue(runOnce(()->swerve.disturbSimPose()));
+        controller.povUp().onTrue(runOnce(()->swerve.disturbGlobalPoseEstimate()));
         
     }
 

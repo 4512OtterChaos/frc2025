@@ -15,6 +15,7 @@ import org.photonvision.targeting.PhotonPipelineResult;
 
 import edu.wpi.first.apriltag.AprilTagFieldLayout.OriginPosition;
 import edu.wpi.first.math.MatBuilder;
+import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.Matrix;
 import edu.wpi.first.math.Nat;
 import edu.wpi.first.math.VecBuilder;
@@ -28,6 +29,7 @@ import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import frc.robot.Robot;
+import frc.robot.util.TunableNumber;
 
 public class Vision {
     private final PhotonCamera camera;
@@ -35,6 +37,15 @@ public class Vision {
     private double lastEstTimestamp = 0;
 
     private final StructPublisher<Pose3d> pipelinePosePub = NetworkTableInstance.getDefault().getStructTopic("Vision/Pipeline Pose", Pose3d.struct).publish();
+
+    private final TunableNumber lowTrustTrlStdDevs = new TunableNumber("Vision/lowTrustTrlStdDevs", kLowTrustTrlStdDevs);
+    private final TunableNumber lowTrustRotStdDevs = new TunableNumber("Vision/lowTrustRotStdDevs", kLowTrustRotStdDevs);
+    private Matrix<N3, N1> lowTrustStdDevs = VecBuilder.fill(kLowTrustTrlStdDevs, kLowTrustTrlStdDevs, kLowTrustRotStdDevs);
+    private final TunableNumber highTrustTrlStdDevs = new TunableNumber("Vision/highTrustTrlStdDevs", kHighTrustTrlStdDevs);
+    private final TunableNumber highTrustRotStdDevs = new TunableNumber("Vision/highTrustRotStdDevs", kHighTrustRotStdDevs);
+    private Matrix<N3, N1> highTrustStdDevs = VecBuilder.fill(kHighTrustTrlStdDevs, kHighTrustTrlStdDevs, kHighTrustRotStdDevs);
+
+    private final TunableNumber constrainedHeadingTrust = new TunableNumber("Vision/constrainedHeadingTrust", kConstrainedHeadingTrust);
 
     // // Simulation
     private PhotonCameraSim cameraSim;
@@ -46,7 +57,7 @@ public class Vision {
         photonEstimator =
                 new PhotonPoseEstimator(
                         kTagLayout, PoseStrategy.MULTI_TAG_PNP_ON_COPROCESSOR, kRobotToCam);
-        photonEstimator.setMultiTagFallbackStrategy(PoseStrategy.LOWEST_AMBIGUITY);
+        photonEstimator.setMultiTagFallbackStrategy(PoseStrategy.PNP_DISTANCE_TRIG_SOLVE);
 
         // ----- Simulation
         if (Robot.isSimulation()) {
@@ -75,6 +86,10 @@ public class Vision {
         }
     }
 
+    public void periodic() {
+        changeTunable();
+    }
+
     public PhotonPipelineResult getLatestResult() {
         return camera.getLatestResult();
     }
@@ -86,7 +101,7 @@ public class Vision {
      * @return An {@link EstimatedRobotPose} with an estimated pose, estimate timestamp, and targets
      *     used for estimation.
      */
-    public Optional<EstimatedRobotPose> getEstimatedGlobalPose() {
+    public Optional<EstimatedRobotPose> getEstimatedGlobalPose(Rotation2d fieldRotation, double timestampRotation) {
         if (!DriverStation.isDisabled()) {
             DriverStation.getAlliance().ifPresent(allianceColor -> {
                 kTagLayout.setOrigin(
@@ -96,8 +111,16 @@ public class Vision {
                 );
             });
         }
-        var visionEst = photonEstimator.update(getLatestResult());
-        double latestTimestamp = camera.getLatestResult().getTimestampSeconds();
+
+        var latest = getLatestResult();
+        photonEstimator.addHeadingData(timestampRotation, fieldRotation);
+        var visionEst = photonEstimator.update(
+            latest,
+            camera.getCameraMatrix(),
+            camera.getDistCoeffs(),
+            Optional.of(new PhotonPoseEstimator.ConstrainedSolvepnpParams(false, constrainedHeadingTrust.get()))
+        );
+        double latestTimestamp = latest.getTimestampSeconds();
         boolean newResult = Math.abs(latestTimestamp - lastEstTimestamp) > 1e-5;
         if (Robot.isSimulation()) {
             visionEst.ifPresentOrElse(
@@ -125,9 +148,10 @@ public class Vision {
      *
      * @param estimatedPose The estimated pose to guess standard deviations for.
      */
-    public Matrix<N3, N1> getEstimationStdDevs(Pose2d estimatedPose) {
-        var estStdDevs = kSingleTagStdDevs;
-        var targets = getLatestResult().getTargets();
+    public Matrix<N3, N1> getEstimationStdDevs(Pose3d estimatedPose) {
+        var estStdDevs = lowTrustStdDevs;
+        var result = getLatestResult();
+        var targets = result.getTargets();
         int numTags = 0;
         double avgDist = 0;
         for (var tgt : targets) {
@@ -135,18 +159,34 @@ public class Vision {
             if (tagPose.isEmpty()) continue;
             numTags++;
             avgDist +=
-                    tagPose.get().toPose2d().getTranslation().getDistance(estimatedPose.getTranslation());
+                    tagPose.get().getTranslation().getDistance(estimatedPose.getTranslation());
         }
         if (numTags == 0) return estStdDevs;
         avgDist /= numTags;
         // Decrease std devs if multiple targets are visible
-        if (numTags > 1) estStdDevs = kMultiTagStdDevs;
+        if (numTags > 1) estStdDevs = highTrustStdDevs;
         // Increase std devs based on (average) distance
-        if (numTags == 1 && avgDist > 4)
+        if ((numTags == 1 && avgDist > 4) || !MathUtil.isNear(0, estimatedPose.getZ(), 0.5))
             estStdDevs = VecBuilder.fill(Double.MAX_VALUE, Double.MAX_VALUE, Double.MAX_VALUE);
         else estStdDevs = estStdDevs.times(1 + (avgDist * avgDist / 30));
 
         return estStdDevs;
+    }
+
+    public void changeTunable() {
+        lowTrustTrlStdDevs.poll();
+        lowTrustRotStdDevs.poll();
+        highTrustTrlStdDevs.poll();
+        highTrustRotStdDevs.poll();
+        constrainedHeadingTrust.poll();
+
+        int hash = hashCode();
+        if (lowTrustTrlStdDevs.hasChanged(hash) || lowTrustRotStdDevs.hasChanged(hash)) {
+            lowTrustStdDevs = VecBuilder.fill(lowTrustTrlStdDevs.get(), lowTrustTrlStdDevs.get(), lowTrustRotStdDevs.get());
+        }
+        if (highTrustTrlStdDevs.hasChanged(hash) || highTrustRotStdDevs.hasChanged(hash)) {
+            highTrustStdDevs = VecBuilder.fill(highTrustTrlStdDevs.get(), highTrustTrlStdDevs.get(), highTrustRotStdDevs.get());
+        }
     }
 
     // ----- Simulation

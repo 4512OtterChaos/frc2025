@@ -814,7 +814,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
 
     public void disturbGlobalPoseEstimate() {
         var disturbance =
-                    new Transform2d(new Translation2d(1.0, 1.0), new Rotation2d(0.17 * 2 * Math.PI));
+                    new Transform2d(new Translation2d(Math.random(), Math.random()), Rotation2d.kZero);
         visionEstimator.resetPose(getGlobalPoseEstimate().plus(disturbance));
     }
 
