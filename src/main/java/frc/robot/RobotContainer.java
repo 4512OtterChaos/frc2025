@@ -31,6 +31,7 @@ import frc.robot.subsystems.elevator.Elevator;
 import frc.robot.subsystems.manipulator.Manipulator;
 import frc.robot.subsystems.vision.Vision;
 import frc.robot.util.OCXboxController;
+import frc.robot.util.FieldUtil.ReefPosition;
 
 public class RobotContainer {
         
@@ -140,8 +141,8 @@ public class RobotContainer {
         // reset the robot heading to forward
         controller.start().onTrue(swerve.runOnce(() -> swerve.seedFieldCentric()));
 
-        controller.leftTrigger().whileTrue(superstructure.autoAlignLeft());
-        controller.rightTrigger().whileTrue(superstructure.autoAlignRight());
+        controller.leftTrigger().whileTrue(superstructure.autoAlignToReef(ReefPosition.LEFT, false, true));
+        controller.rightTrigger().whileTrue(superstructure.autoAlignToReef(ReefPosition.RIGHT, false, true));
         
         // controller.leftTrigger().whileTrue(swerve.drive(() -> new ChassisSpeeds(0, controller.getLeftTriggerAxis() * 0.3, 0), false, true).withName("Strafe Left"));
         // controller.rightTrigger().whileTrue(swerve.drive(() -> new ChassisSpeeds(0, controller.getRightTriggerAxis() * -0.3, 0), false, true).withName("Strafe Right"));       
@@ -161,22 +162,22 @@ public class RobotContainer {
         controller.b().onTrue(elevator.setL4C()
             .beforeStarting(waitUntil(manipulator.isCoralDetected().negate())));
 
-        swerve.isAligning().and(controller.a()).onTrue(sequence(
-            Commands.waitUntil(swerve.isAligned()),
-            elevator.setL1C()
-                .beforeStarting(waitUntil(manipulator.isCoralDetected().negate()))));
-        swerve.isAligning().and(controller.x()).onTrue(sequence(
-            Commands.waitUntil(swerve.isAligned()),
-            elevator.setL2C()
-                .beforeStarting(waitUntil(manipulator.isCoralDetected().negate()))));
-        swerve.isAligning().and(controller.y()).onTrue(sequence(
-            Commands.waitUntil(swerve.isAligned()),
-            elevator.setL3C()
-                .beforeStarting(waitUntil(manipulator.isCoralDetected().negate()))));
-        swerve.isAligning().and(controller.b()).onTrue(sequence(
-            Commands.waitUntil(swerve.isAligned()),
-            elevator.setL4C()
-                .beforeStarting(waitUntil(manipulator.isCoralDetected().negate()))));
+        // swerve.isAligning().and(controller.a()).onTrue(sequence(
+        //     Commands.waitUntil(swerve.isAligned()),
+        //     elevator.setL1C()
+        //         .beforeStarting(waitUntil(manipulator.isCoralDetected().negate()))));
+        // swerve.isAligning().and(controller.x()).onTrue(sequence(
+        //     Commands.waitUntil(swerve.isAligned()),
+        //     elevator.setL2C()
+        //         .beforeStarting(waitUntil(manipulator.isCoralDetected().negate()))));
+        // swerve.isAligning().and(controller.y()).onTrue(sequence(
+        //     Commands.waitUntil(swerve.isAligned()),
+        //     elevator.setL3C()
+        //         .beforeStarting(waitUntil(manipulator.isCoralDetected().negate()))));
+        // swerve.isAligning().and(controller.b()).onTrue(sequence(
+        //     Commands.waitUntil(swerve.isAligned()),
+        //     elevator.setL4C()
+        //         .beforeStarting(waitUntil(manipulator.isCoralDetected().negate()))));
         //=====
         
         //===== CORAL MANIPULATOR
@@ -195,7 +196,7 @@ public class RobotContainer {
     }
 
     private void simBindings(OCXboxController controller) {
-        controller.start().onTrue(runOnce(()->swerve.disturbeSimPose()));
+        controller.start().onTrue(runOnce(()->swerve.disturbSimPose()));
         
     }
 

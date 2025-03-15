@@ -152,7 +152,7 @@ public class Vision {
     // ----- Simulation
 
     public void simulationPeriodic(Pose2d robotSimPose) {
-        visionSim.update(robotSimPose);
+        visionSim.update(robotSimPose.relativeTo(kTagLayout.getOrigin().toPose2d()));
     }
 
     /** Reset pose history of the robot in the vision system simulation. */
