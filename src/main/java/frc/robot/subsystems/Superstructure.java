@@ -112,7 +112,8 @@ public class Superstructure {
         double xOffset = Math.max(xOffsetAngular, xOffsetTrlY);
         var adjGoal = goalPose.plus(new Transform2d(-xOffset, 0, Rotation2d.kZero));
         if (trlErrorMeters < 1) {
-            adjGoal = currentPose.interpolate(adjGoal, Math.max(0.1 / trlErrorMeters, trlErrorMeters / 2)); // idk
+            var lerpPose = currentPose.interpolate(adjGoal, Math.max(0.1 / trlErrorMeters, trlErrorMeters / 2)); // idk
+            adjGoal = new Pose2d(lerpPose.getTranslation(), adjGoal.getRotation());
         }
         return adjGoal;
     }

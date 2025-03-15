@@ -481,7 +481,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
                     targetSpeeds.vxMetersPerSecond = 0;
                     targetSpeeds.vyMetersPerSecond = 0;
                 }
-                if (relative.getRotation().getRadians() < kStopAlignRotDist) {
+                if (Math.abs(relative.getRotation().getRadians()) < kStopAlignRotDist) {
                     targetSpeeds.omegaRadiansPerSecond = 0;
                 }
                 return targetSpeeds;
@@ -682,7 +682,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
                     targetSpeeds.vxMetersPerSecond = 0;
                     targetSpeeds.vyMetersPerSecond = 0;
                 }
-                if (relative.getRotation().getRadians() < kStopAlignRotDist) {
+                if (Math.abs(relative.getRotation().getRadians()) < kStopAlignRotDist) {
                     targetSpeeds.omegaRadiansPerSecond = 0;
                 }
                 return targetSpeeds;
