@@ -50,8 +50,8 @@ public class Superstructure {
     private final TunableNumber turnAccelTippy = new TunableNumber("Driver/turnAccelTippy", kAngularAccelTippy);
     private final TunableNumber turnDecelTippy = new TunableNumber("Driver/turnDecelTippy", kAngularDecelTippy);
     
-    private final TunableNumber reefAlignXOffset = new TunableNumber("Align/reefAlignXOffset", 0);
-    private Transform2d reefAlignOffset = new Transform2d();
+    private final TunableNumber reefAlignXOffset = new TunableNumber("Align/reefAlignXOffset", Units.inchesToMeters(1));
+    private Transform2d reefAlignOffset = new Transform2d(reefAlignXOffset.get(), 0, Rotation2d.kZero);
 
     public void periodic() {
         changeTunable();
