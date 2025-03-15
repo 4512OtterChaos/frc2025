@@ -120,7 +120,7 @@ public class AutoRoutines {
             parallel(
                 sequence(
                     swerve.alignToPose(()->backupReef1, 0.5, 1, 1, 1, false, false),
-                    superstructure.autoAlign(()->coralStation.plus(new Transform2d(kRobotLength.div(2).in(Meters)+0.1, 0, Rotation2d.kZero)), false, true)
+                    superstructure.autoAlign(()->coralStation.plus(new Transform2d(kRobotLength.div(2).in(Meters), 0, Rotation2d.kZero)), false, true, 2.5)
                         .until(manipulator.isCoralDetected().or(simSkipCoral))
                 ),
                 sequence(
@@ -139,7 +139,7 @@ public class AutoRoutines {
             ),
             manipulator.scoreCoralC().asProxy().withTimeout(0.75),
             parallel(
-                superstructure.autoAlign(()->coralStation.plus(new Transform2d(kRobotLength.div(2).in(Meters)+0.1, 0, Rotation2d.kZero)), false, true)
+                superstructure.autoAlign(()->coralStation.plus(new Transform2d(kRobotLength.div(2).in(Meters), 0, Rotation2d.kZero)), false, true, 2.5)
                     .until(manipulator.isCoralDetected().or(simSkipCoral)),
                 sequence(
                     waitSeconds(0.25),

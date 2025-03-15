@@ -71,16 +71,16 @@ public class Superstructure {
             default -> possibleGoalPoses = kReefCenterPoses;
         }
 
-        return autoAlign(() -> swerve.getGlobalPoseEstimate().nearest(possibleGoalPoses).plus(reefAlignOffset), simpleAlign, forever)
+        return autoAlign(() -> swerve.getGlobalPoseEstimate().nearest(possibleGoalPoses).plus(reefAlignOffset), simpleAlign, forever, 1)
                 .withName((simpleAlign ? "Simple": "") + "AlignToReef" + pos.toString());
     }
 
-    public Command autoAlign(Supplier<Pose2d> goalSupplier, boolean simpleAlign, boolean forever) {
+    public Command autoAlign(Supplier<Pose2d> goalSupplier, boolean simpleAlign, boolean forever, double slowDistMeters) {
         Supplier<Pose2d> adjGoalSupplier = () -> {
             var curr = swerve.getGlobalPoseEstimate();
                 var goal = goalSupplier.get();
                 // return adjustAlignPose(goal, curr);
-                return adjustAlignPoseSlow(goal, curr);
+                return adjustAlignPoseSlow(goal, curr, slowDistMeters);
         };
         Command command;
         if (simpleAlign) {
@@ -99,7 +99,7 @@ public class Superstructure {
         return command.withName((simpleAlign ? "Simple": "") + "AlignTo"+adjGoalSupplier.get().toString());
     }
 
-    public Pose2d adjustAlignPoseSlow(Pose2d goalPose, Pose2d currentPose) {
+    public Pose2d adjustAlignPoseSlow(Pose2d goalPose, Pose2d currentPose, double slowDistMeters) {
         var currRelToGoal = currentPose.relativeTo(goalPose);
         double angularErrorRots = Math.abs(currRelToGoal.getRotation().getRotations());
         double trlErrorMeters = currRelToGoal.getTranslation().getNorm();
@@ -111,7 +111,7 @@ public class Superstructure {
 
         double xOffset = Math.max(xOffsetAngular, xOffsetTrlY);
         var adjGoal = goalPose.plus(new Transform2d(-xOffset, 0, Rotation2d.kZero));
-        if (trlErrorMeters < 1) {
+        if (trlErrorMeters < slowDistMeters) {
             var lerpPose = currentPose.interpolate(adjGoal, Math.max(0.1 / trlErrorMeters, trlErrorMeters / 2)); // idk
             adjGoal = new Pose2d(lerpPose.getTranslation(), adjGoal.getRotation());
         }
