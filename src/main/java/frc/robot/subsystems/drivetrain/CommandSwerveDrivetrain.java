@@ -112,6 +112,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     private boolean isAligning = false;
     private boolean isAligned = false;
     private Pose2d lastTargetPose = Pose2d.kZero;
+    private Pose2d goalPose = Pose2d.kZero;
     private ChassisSpeeds lastAlignSetpointSpeeds = new ChassisSpeeds();
 
     {
@@ -446,6 +447,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
                 isAligning = true;
                 var actual = getGlobalPoseEstimate();
                 var goal = goalSupplier.get();
+                goalPose = goal;
                 goalPosePub.set(goal);
 
                 // log error
@@ -481,14 +483,14 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
                 return targetSpeeds;
             }, true, false)
             .until(() -> { // finish when goal pose is reached
-                boolean atSetpointVel = MathUtil.isNear(0, pathXController.getErrorDerivative(), pathDriveVelTol.get());
-                atSetpointVel &= MathUtil.isNear(0, pathYController.getErrorDerivative(), pathDriveVelTol.get());
-                atSetpointVel &= MathUtil.isNear(0, pathThetaController.getErrorDerivative(), pathTurnVelTol.get());
+                boolean atSetpointVel = MathUtil.isNear(0, pathXController.getErrorDerivative(), velTolMeters);
+                atSetpointVel &= MathUtil.isNear(0, pathYController.getErrorDerivative(), velTolMeters);
+                atSetpointVel &= MathUtil.isNear(0, pathThetaController.getErrorDerivative(), velTolRadians);
 
                 var relative = goalSupplier.get().minus(getGlobalPoseEstimate());
-                boolean atGoal = MathUtil.isNear(0, relative.getX(), pathDrivePosTol.get());
-                atGoal &= MathUtil.isNear(0, relative.getY(), pathDrivePosTol.get());
-                atGoal &= MathUtil.isNear(0, relative.getRotation().getRadians(), pathTurnPosTol.get(), -Math.PI, Math.PI);
+                boolean atGoal = MathUtil.isNear(0, relative.getX(), posTolMeters);
+                atGoal &= MathUtil.isNear(0, relative.getY(), posTolMeters);
+                atGoal &= MathUtil.isNear(0, relative.getRotation().getRadians(), posTolRadians, -Math.PI, Math.PI);
 
                 SmartDashboard.putBoolean("Swerve/atSetpointVel", atSetpointVel);
                 SmartDashboard.putBoolean("Swerve/atGoal", atGoal);
@@ -508,6 +510,8 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
                 SmartDashboard.putBoolean("Swerve/atSetpointVel", false);
                 SmartDashboard.putBoolean("Swerve/atGoal", false);
                 SmartDashboard.putBoolean("Swerve/isAligning", false);
+                lastTargetSpeeds = new ChassisSpeeds();
+                setControl(new SwerveRequest.ApplyRobotSpeeds());
             }).withName("SimpleAlignToPose")
         );
     }
@@ -567,6 +571,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
                 isAligning = true;
                 var actual = getGlobalPoseEstimate();
                 var goal = goalSupplier.get();
+                goalPose = goal;
                 goalPosePub.set(goal);
 
                 // distance to goal
@@ -675,14 +680,14 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
                 return targetSpeeds;
             }, true, false)
             .until(() -> { // finish when goal pose is reached
-                boolean atSetpointVel = MathUtil.isNear(0, pathXController.getErrorDerivative(), pathDriveVelTol.get());
-                atSetpointVel &= MathUtil.isNear(0, pathYController.getErrorDerivative(), pathDriveVelTol.get());
-                atSetpointVel &= MathUtil.isNear(0, pathThetaController.getErrorDerivative(), pathTurnVelTol.get());
+                boolean atSetpointVel = MathUtil.isNear(0, pathXController.getErrorDerivative(), velTolMeters);
+                atSetpointVel &= MathUtil.isNear(0, pathYController.getErrorDerivative(), velTolMeters);
+                atSetpointVel &= MathUtil.isNear(0, pathThetaController.getErrorDerivative(), velTolRadians);
 
                 var relative = goalSupplier.get().minus(getGlobalPoseEstimate());
-                boolean atGoal = MathUtil.isNear(0, relative.getX(), pathDrivePosTol.get());
-                atGoal &= MathUtil.isNear(0, relative.getY(), pathDrivePosTol.get());
-                atGoal &= MathUtil.isNear(0, relative.getRotation().getRadians(), pathTurnPosTol.get(), -Math.PI, Math.PI);
+                boolean atGoal = MathUtil.isNear(0, relative.getX(), posTolMeters);
+                atGoal &= MathUtil.isNear(0, relative.getY(), posTolMeters);
+                atGoal &= MathUtil.isNear(0, relative.getRotation().getRadians(), posTolRadians, -Math.PI, Math.PI);
 
                 SmartDashboard.putBoolean("Swerve/atSetpointVel", atSetpointVel);
                 SmartDashboard.putBoolean("Swerve/atGoal", atGoal);
@@ -702,6 +707,8 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
                 SmartDashboard.putBoolean("Swerve/atSetpointVel", false);
                 SmartDashboard.putBoolean("Swerve/atGoal", false);
                 SmartDashboard.putBoolean("Swerve/isAligning", false);
+                lastTargetSpeeds = new ChassisSpeeds();
+                setControl(new SwerveRequest.ApplyRobotSpeeds());
             }).withName("AlignToPose")
         );
     }
@@ -797,6 +804,10 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
             updateSimState(deltaTime, RobotController.getBatteryVoltage());
         });
         m_simNotifier.startPeriodic(kSimLoopPeriod);
+    }
+
+    public Pose2d getGoalPose() {
+        return goalPose;
     }
 
     public Pose2d getGlobalPoseEstimate() {

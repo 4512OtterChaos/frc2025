@@ -79,11 +79,13 @@ public class RobotContainer {
     
     public RobotContainer() {
         autoFactory = swerve.createAutoFactory();
-        autoRoutines = new AutoRoutines(autoFactory, swerve, elevator, manipulator);
+        autoRoutines = new AutoRoutines(autoFactory, superstructure, swerve, elevator, manipulator);
         
         autoChooser.addCmd("TaxiAuto", autoRoutines::taxiAuto);
         autoChooser.addCmd("TaxiFarAuto", autoRoutines::taxiFar);
         autoChooser.addCmd("Middle1CoralL1", autoRoutines::middle1CoralL1);
+        autoChooser.addCmd("Wall3CoralL4 Left", () -> autoRoutines.Wall3CoralL4(false));
+        autoChooser.addCmd("Wall3CoralL4 Right", () -> autoRoutines.Wall3CoralL4(true));
         // autoChooser.addRoutine("SimplePath", autoRoutines::simplePathAuto);
         SmartDashboard.putData("Auto Chooser", autoChooser);
         
@@ -167,17 +169,22 @@ public class RobotContainer {
             return Math.hypot(controller.getLeftX(), controller.getLeftY()) > 0.9;
         });
         // snap to coral station angle
-        nearCoralStation.and(driverSomeRightInput.negate().debounce(0.5)).whileTrue(swerve.driveFacingAngle(
-            driveSupplier,
-            () -> FieldUtil.nearestCoralStation(swerve.getGlobalPoseEstimate()).getRotation(),
-            true
-        ));
+        nearCoralStation
+            .and(()->swerve.getCurrentCommand() != null && swerve.getCurrentCommand().equals(swerve.getDefaultCommand()))
+            .and(driverSomeRightInput.negate().debounce(0.5))
+            .onTrue(
+                swerve.driveFacingAngle(
+                    driveSupplier,
+                    () -> FieldUtil.nearestCoralStation(swerve.getGlobalPoseEstimate()).getRotation(),
+                    true
+                ).until(driverSomeRightInput)
+            );
         
         // reset the robot heading to forward
         controller.start().onTrue(swerve.runOnce(() -> swerve.seedFieldCentric()));
 
-        controller.leftTrigger().whileTrue(superstructure.autoAlignToReef(ReefPosition.LEFT, false, true));
-        controller.rightTrigger().whileTrue(superstructure.autoAlignToReef(ReefPosition.RIGHT, false, true));
+        controller.leftTrigger().whileTrue(superstructure.autoAlign(ReefPosition.LEFT, false, true));
+        controller.rightTrigger().whileTrue(superstructure.autoAlign(ReefPosition.RIGHT, false, true));
         
         // controller.leftTrigger().whileTrue(swerve.drive(() -> new ChassisSpeeds(0, controller.getLeftTriggerAxis() * 0.3, 0), false, true).withName("Strafe Left"));
         // controller.rightTrigger().whileTrue(swerve.drive(() -> new ChassisSpeeds(0, controller.getRightTriggerAxis() * -0.3, 0), false, true).withName("Strafe Right"));       
@@ -218,7 +225,7 @@ public class RobotContainer {
         //===== CORAL MANIPULATOR
         manipulator.setDefaultCommand(manipulator.holdPositionC());
         // Automatically feed coral to a consistent position when detected
-        manipulator.isCoralDetected().and(()->manipulator.getCurrentCommand() == manipulator.getDefaultCommand())
+        manipulator.isCoralDetected().and(()->manipulator.getCurrentCommand().equals(manipulator.getDefaultCommand()))
             .onTrue(manipulator.feedCoralSequenceC());
         // Automatically start intaking if close to station
         nearCoralStation.onTrue(sequence(

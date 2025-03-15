@@ -19,6 +19,7 @@ import frc.robot.subsystems.drivetrain.CommandSwerveDrivetrain;
 import frc.robot.subsystems.elevator.Elevator;
 import frc.robot.subsystems.elevator.ElevatorConstants;
 import frc.robot.subsystems.manipulator.Manipulator;
+import frc.robot.util.FieldUtil.ReefPosition;
 import frc.robot.util.TunableNumber;
 
 
@@ -62,34 +63,40 @@ public class Superstructure {
 
     //########## Alignnment Commands
 
-    public Command autoAlignToReef(ReefPosition pos, boolean simpleAlign, boolean forever) {
+    public Command autoAlign(ReefPosition pos, boolean simpleAlign, boolean forever) {
         List<Pose2d> possibleGoalPoses;
         switch (pos) {
             case LEFT -> possibleGoalPoses = kReefLeftCoralPoses;
             case RIGHT -> possibleGoalPoses = kReefRightCoralPoses;
             default -> possibleGoalPoses = kReefCenterPoses;
         }
-        Supplier<Pose2d> goalSupplier = () -> {
+
+        return autoAlign(() -> swerve.getGlobalPoseEstimate().nearest(possibleGoalPoses).plus(reefAlignOffset), simpleAlign, forever)
+                .withName((simpleAlign ? "Simple": "") + "AlignToReef" + pos.toString());
+    }
+
+    public Command autoAlign(Supplier<Pose2d> goalSupplier, boolean simpleAlign, boolean forever) {
+        Supplier<Pose2d> adjGoalSupplier = () -> {
             var curr = swerve.getGlobalPoseEstimate();
-                var goal = curr.nearest(possibleGoalPoses).plus(reefAlignOffset);
+                var goal = goalSupplier.get();
                 // return adjustAlignPose(goal, curr);
                 return adjustAlignPoseSlow(goal, curr);
         };
         Command command;
         if (simpleAlign) {
             command = swerve.simpleAlignToPose(
-                goalSupplier,
+                adjGoalSupplier,
                 forever
             );
         }
         else {
             command = swerve.alignToPose(
-                goalSupplier,
+                adjGoalSupplier,
                 false,
                 forever
             );
         }
-        return command.withName((simpleAlign ? "Simple": "") + "AlignToReef" + pos.toString());
+        return command.withName((simpleAlign ? "Simple": "") + "AlignTo"+adjGoalSupplier.get().toString());
     }
 
     public Pose2d adjustAlignPoseSlow(Pose2d goalPose, Pose2d currentPose) {

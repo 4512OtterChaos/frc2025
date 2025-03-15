@@ -27,6 +27,13 @@ public class FieldUtil {
     public static final Distance kReefWidth = Centimeters.of(166);
     public static final Distance kReefPoleDist = Centimeters.of(33);
     
+    public static Pose2d mirrorY(Pose2d pose) {
+        return new Pose2d(
+            pose.getX(),
+            kFieldWidth.minus(pose.getMeasureY()).in(Meters),
+            pose.getRotation().unaryMinus()
+        );
+    }
 
     //########## REEF ALIGNMENT
 
