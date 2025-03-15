@@ -20,7 +20,7 @@ public class VisionConstants {
     
     // The standard deviations of our vision estimated poses, which affect correction rate
     // (Fake values. Experiment and determine estimation noise on an actual robot.)
-    public static final double kLowTrustTrlStdDevs = 4;
+    public static final double kLowTrustTrlStdDevs = 2;
     public static final double kLowTrustRotStdDevs = Double.MAX_VALUE;
     public static final double kHighTrustTrlStdDevs = 0.5;
     public static final double kHighTrustRotStdDevs = Double.MAX_VALUE;

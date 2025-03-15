@@ -69,7 +69,7 @@ public class ManipulatorConstants {
         current.StatorCurrentLimit = 40;
 
         Slot0Configs control = kConfig.Slot0; // Position PID
-        control.kP = 0.1;
+        control.kP = 20;
         control.kI = 0;
         control.kD = 0;
 

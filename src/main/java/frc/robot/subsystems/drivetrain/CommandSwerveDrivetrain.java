@@ -477,8 +477,12 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
                 );
 
                 // if very close, avoid small outputs
-                if (relative.getTranslation().getNorm() < kStopAlignTrlDist && relative.getRotation().getRadians() < kStopAlignRotDist) {
-                    return new ChassisSpeeds();
+                if (relative.getTranslation().getNorm() < kStopAlignTrlDist) {
+                    targetSpeeds.vxMetersPerSecond = 0;
+                    targetSpeeds.vyMetersPerSecond = 0;
+                }
+                if (relative.getRotation().getRadians() < kStopAlignRotDist) {
+                    targetSpeeds.omegaRadiansPerSecond = 0;
                 }
                 return targetSpeeds;
             }, true, false)
@@ -674,8 +678,12 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
                 }
     
                 // if very close, avoid small outputs
-                if (relative.getTranslation().getNorm() < kStopAlignTrlDist && relative.getRotation().getRadians() < kStopAlignRotDist) {
-                    return new ChassisSpeeds();
+                if (relative.getTranslation().getNorm() < kStopAlignTrlDist) {
+                    targetSpeeds.vxMetersPerSecond = 0;
+                    targetSpeeds.vyMetersPerSecond = 0;
+                }
+                if (relative.getRotation().getRadians() < kStopAlignRotDist) {
+                    targetSpeeds.omegaRadiansPerSecond = 0;
                 }
                 return targetSpeeds;
             }, true, false)
@@ -821,8 +829,8 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     @Override
     public void resetPose(Pose2d pose) {
         super.resetPose(pose);
-        // visionEstimator.resetPose(pose);
-        visionEstimator.resetTranslation(pose.getTranslation());
+        visionEstimator.resetPose(pose);
+        // visionEstimator.resetTranslation(pose.getTranslation());
     }
 
     public void disturbSimPose() {

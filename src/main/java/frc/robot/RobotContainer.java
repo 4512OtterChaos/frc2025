@@ -19,6 +19,7 @@ import static frc.robot.subsystems.drivetrain.DriveConstants.*;
 
 import java.util.function.Supplier;
 
+import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.wpilibj.AddressableLED;
 import edu.wpi.first.wpilibj.AddressableLEDBuffer;
@@ -181,7 +182,7 @@ public class RobotContainer {
             );
         
         // reset the robot heading to forward
-        controller.start().onTrue(swerve.runOnce(() -> swerve.seedFieldCentric()));
+        controller.start().onTrue(swerve.runOnce(() -> swerve.resetRotation(Rotation2d.kZero)));
 
         controller.leftTrigger().whileTrue(superstructure.autoAlign(ReefPosition.LEFT, false, true));
         controller.rightTrigger().whileTrue(superstructure.autoAlign(ReefPosition.RIGHT, false, true));
