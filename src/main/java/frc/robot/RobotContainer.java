@@ -53,6 +53,7 @@ public class RobotContainer {
     private LEDPattern layer1Pattern = LEDConstants.kPatternBlueScroll;
     private LEDPattern layer2Pattern = LEDPattern.kOff;
     private LEDPattern layer3Pattern = LEDPattern.kOff;
+    private LEDPattern layer4Pattern = LEDPattern.kOff;
     
     
     /* Path follower */
@@ -104,7 +105,10 @@ public class RobotContainer {
         });
 
         // LED patterns
-        if (!layer3Pattern.equals(LEDPattern.kOff)) {
+        if (!layer4Pattern.equals(LEDPattern.kOff)) {
+            layer4Pattern.applyTo(ledBuffer);
+        }
+        else if (!layer3Pattern.equals(LEDPattern.kOff)) {
             layer3Pattern.applyTo(ledBuffer);
         }
         else if (!layer2Pattern.equals(LEDPattern.kOff)) {
@@ -196,20 +200,24 @@ public class RobotContainer {
     }
 
     private void bindLEDAnimations() {
-        manipulator.isCoralDetected().whileTrue(sequence(
-            run(()->layer2Pattern = LEDConstants.kPatternGreenBlink).withTimeout(0.5),
-            run(()->layer2Pattern = LEDConstants.kPatternGreenSolid)
-        ).finallyDo(()->layer2Pattern = LEDPattern.kOff));
+        manipulator.isCoralDetected().whileTrue(runEnd(
+            ()->layer2Pattern = LEDConstants.kPatternGreenSolid,
+            ()->layer2Pattern = LEDPattern.kOff
+        ));
 
-        swerve.isAligning().whileTrue(startEnd(
+        swerve.isAligning().whileTrue(runEnd(
             ()->layer3Pattern = LEDConstants.kPatternOrangeBlink,
             ()->layer3Pattern = LEDPattern.kOff
         ));
 
-        swerve.isAligned().onTrue(startEnd(
-            ()->layer3Pattern = LEDConstants.kPatternPurpleSolid,
-            ()->layer3Pattern = LEDPattern.kOff
-        ).withTimeout(1));
+        swerve.isAligned().onTrue(runEnd(
+            ()->layer4Pattern = LEDConstants.kPatternPurpleSolid,
+            ()->layer4Pattern = LEDPattern.kOff
+        ).withTimeout(0.75));
+        swerve.isAligned().and(swerve.isAligning()).whileTrue(runEnd(
+            ()->layer4Pattern = LEDConstants.kPatternPurpleSolid,
+            ()->layer4Pattern = LEDPattern.kOff
+        ));
     }
     
     // private void configureDriverBindings(OCXboxController controller) {
