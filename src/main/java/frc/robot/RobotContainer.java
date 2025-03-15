@@ -232,11 +232,7 @@ public class RobotContainer {
         manipulator.isCoralDetected().and(()->manipulator.getCurrentCommand() != null && manipulator.getCurrentCommand().equals(manipulator.getDefaultCommand()))
             .onTrue(manipulator.feedCoralSequenceC());
         // Automatically start intaking if close to station
-        nearCoralStation.onTrue(sequence(
-            manipulator.feedCoralFastC().withTimeout(0.3),
-            manipulator.feedCoralFastC().until(() -> manipulator.getCurrent() >= ManipulatorConstants.kStallCurrent),
-            manipulator.feedCoralSequenceC().asProxy()
-        ));
+        nearCoralStation.onTrue(manipulator.feedCoralFastSequenceC());
 
         controller.leftBumper().whileTrue(manipulator.scoreAlgaeC());
         controller.rightBumper().whileTrue(manipulator.scoreCoralC());
