@@ -821,7 +821,8 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     @Override
     public void resetPose(Pose2d pose) {
         super.resetPose(pose);
-        visionEstimator.resetPose(pose);
+        // visionEstimator.resetPose(pose);
+        visionEstimator.resetTranslation(pose.getTranslation());
     }
 
     public void disturbSimPose() {
