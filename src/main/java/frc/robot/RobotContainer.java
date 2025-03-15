@@ -225,7 +225,7 @@ public class RobotContainer {
         //===== CORAL MANIPULATOR
         manipulator.setDefaultCommand(manipulator.holdPositionC());
         // Automatically feed coral to a consistent position when detected
-        manipulator.isCoralDetected().and(()->manipulator.getCurrentCommand().equals(manipulator.getDefaultCommand()))
+        manipulator.isCoralDetected().and(()->manipulator.getCurrentCommand() != null && manipulator.getCurrentCommand().equals(manipulator.getDefaultCommand()))
             .onTrue(manipulator.feedCoralSequenceC());
         // Automatically start intaking if close to station
         nearCoralStation.onTrue(sequence(
