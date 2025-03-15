@@ -122,17 +122,19 @@ public class Vision {
         );
         double latestTimestamp = latest.getTimestampSeconds();
         boolean newResult = Math.abs(latestTimestamp - lastEstTimestamp) > 1e-5;
+        visionEst.ifPresentOrElse(
+            (est)->pipelinePosePub.set(est.estimatedPose),
+            ()->pipelinePosePub.set(null)
+        );
         if (Robot.isSimulation()) {
             visionEst.ifPresentOrElse(
                     est -> {
-                        pipelinePosePub.set(est.estimatedPose);
                         getSimDebugField()
                                 .getObject("VisionEstimation")
                                 .setPose(est.estimatedPose.toPose2d());
                     },
                     () -> {
                         if (newResult) {
-                            pipelinePosePub.set(null);
                             getSimDebugField().getObject("VisionEstimation").setPoses();
                         }
                     });
