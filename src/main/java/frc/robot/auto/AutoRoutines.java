@@ -102,7 +102,7 @@ public class AutoRoutines {
             Pose2d goalPose = swerve.getGoalPose();
             double dist = goalPose.getTranslation().getDistance(swervePose.getTranslation());
             return dist < 0.1 && Robot.isSimulation();
-        }).and(swerve.isAligning());
+        }).debounce(0.5).and(swerve.isAligning());
 
         return sequence(
             // Reset odom
@@ -115,7 +115,7 @@ public class AutoRoutines {
                     elevator.setL4C()
                 )
             ),
-            manipulator.scoreCoralC().asProxy().withTimeout(0.75),
+            manipulator.scoreCoralC().asProxy().withTimeout(0.4),
             // Drive to coral station and wait for coral
             parallel(
                 sequence(
@@ -137,7 +137,7 @@ public class AutoRoutines {
                     elevator.setL4C()
                 )
             ),
-            manipulator.scoreCoralC().asProxy().withTimeout(0.75),
+            manipulator.scoreCoralC().asProxy().withTimeout(0.4),
             parallel(
                 superstructure.autoAlign(()->coralStation.plus(new Transform2d(kRobotLength.div(2).in(Meters), 0, Rotation2d.kZero)), false, true, 2.5)
                     .until(manipulator.isCoralDetected().or(simSkipCoral)),
@@ -154,7 +154,7 @@ public class AutoRoutines {
                     elevator.setL4C()
                 )
             ),
-            manipulator.scoreCoralC().asProxy().withTimeout(0.75)
+            manipulator.scoreCoralC().asProxy().withTimeout(0.4)
         );
     }
 
