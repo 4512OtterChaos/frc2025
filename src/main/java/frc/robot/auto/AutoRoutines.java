@@ -71,6 +71,30 @@ public class AutoRoutines {
         );
     }
 
+    public Command Middle1CoralL4() {
+        Trigger closingInOnGoal = new Trigger(() -> {
+            Pose2d swervePose = swerve.getGlobalPoseEstimate();
+            Pose2d goalPose = swerve.getGoalPose();
+            double dist = goalPose.getTranslation().getDistance(swervePose.getTranslation());
+            return dist < 1;
+        }).and(swerve.isAligning());
+
+        return sequence(
+            // Reset odom
+            runOnce(()->swerve.resetPose(new Pose2d(7.5, 4.2, Rotation2d.k180deg)), swerve),
+            waitSeconds(1),
+            // Score on far left/right right branch
+            parallel(
+                superstructure.autoAlign(ReefPosition.RIGHT, false, false),
+                sequence(
+                    waitUntil(closingInOnGoal),
+                    elevator.setL4C()
+                )
+            ),
+            manipulator.scoreCoralC().asProxy().withTimeout(0.4)
+        );
+    }
+
     public Command Wall3CoralL4(boolean rightSide) {
         Pose2d startLeftPose = new Pose2d(7.5, FieldUtil.kFieldWidth.minus(kRobotWidth.div(2)).in(Meters), Rotation2d.k180deg);
         Pose2d startRightPose = FieldUtil.mirrorY(startLeftPose);

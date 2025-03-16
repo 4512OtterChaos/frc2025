@@ -88,6 +88,7 @@ public class RobotContainer {
         autoChooser.addCmd("Middle1CoralL1", autoRoutines::middle1CoralL1);
         autoChooser.addCmd("Wall3CoralL4 Left", () -> autoRoutines.Wall3CoralL4(false));
         autoChooser.addCmd("Wall3CoralL4 Right", () -> autoRoutines.Wall3CoralL4(true));
+        autoChooser.addCmd("Middle1CoralL4", () -> autoRoutines.Middle1CoralL4());
         // autoChooser.addRoutine("SimplePath", autoRoutines::simplePathAuto);
         SmartDashboard.putData("Auto Chooser", autoChooser);
         
