@@ -185,6 +185,12 @@ public class RobotContainer {
                 ).until(driverSomeRightInput)
             );
         
+        new Trigger(() -> {
+            double distReef = swerve.getGlobalPoseEstimate().getTranslation().getDistance(FieldUtil.kReefTrl);
+            return distReef > 1.8
+            ;
+        }).and(swerve.isAligning().negate()).and(()->DriverStation.isTeleop()).onTrue(elevator.setMinC());
+        
         // reset the robot heading to forward
         controller.start().onTrue(swerve.runOnce(() -> swerve.resetRotation(Rotation2d.kZero)));
 
