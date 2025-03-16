@@ -96,7 +96,7 @@ public class AutoRoutines {
     }
 
     public Command Wall3CoralL4(boolean rightSide) {
-        Pose2d startLeftPose = new Pose2d(7.5, FieldUtil.kFieldWidth.minus(kRobotWidth.div(2)).in(Meters), Rotation2d.k180deg);
+        Pose2d startLeftPose = new Pose2d(7.3, FieldUtil.kFieldWidth.minus(kRobotWidth.div(2)).in(Meters), Rotation2d.kCCW_90deg);
         Pose2d startRightPose = FieldUtil.mirrorY(startLeftPose);
         Pose2d startPose = rightSide ? startRightPose : startLeftPose;
 
@@ -143,12 +143,13 @@ public class AutoRoutines {
             // Drive to coral station and wait for coral
             parallel(
                 sequence(
-                    swerve.alignToPose(()->backupReef1, 0.5, 1, 1, 1, false, false),
+                    // swerve.alignToPose(()->backupReef1, 0.5, 1, 1, 1, false, false),
+                    swerve.drive(()->new ChassisSpeeds(0, rightSide ? -1 : 1, 0)).withTimeout(0.5),
                     superstructure.autoAlign(()->coralStation.plus(new Transform2d(kRobotLength.div(2).in(Meters), 0, Rotation2d.kZero)), false, true, 2.5)
                         .until(manipulator.isCoralDetected().or(simSkipCoral))
                 ),
                 sequence(
-                    waitSeconds(0.25),
+                    waitSeconds(0.1),
                     elevator.setMinC()
                 )
             ),
