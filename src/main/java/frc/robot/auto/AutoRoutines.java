@@ -96,7 +96,7 @@ public class AutoRoutines {
     }
 
     public Command Wall3CoralL4(boolean rightSide) {
-        Pose2d startLeftPose = new Pose2d(7.3, FieldUtil.kFieldWidth.minus(kRobotWidth.div(2)).in(Meters), Rotation2d.kCCW_90deg);
+        Pose2d startLeftPose = new Pose2d(7.3, FieldUtil.kFieldWidth.minus(kRobotWidth.div(2)).in(Meters), Rotation2d.kCW_90deg);
         Pose2d startRightPose = FieldUtil.mirrorY(startLeftPose);
         Pose2d startPose = rightSide ? startRightPose : startLeftPose;
 
