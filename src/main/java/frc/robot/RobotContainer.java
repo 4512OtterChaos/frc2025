@@ -205,7 +205,7 @@ public class RobotContainer {
     
     private void configureOperatorBindings(OCXboxController controller) {
         //===== ELEVATOR COMMANDS
-        controller.povDown().onTrue(elevator.setMinC());
+        controller.povUp().onTrue(elevator.setMinC());
         controller.a().onTrue(elevator.setL1C()
             .beforeStarting(waitUntil(manipulator.isCoralDetected().negate())));
         controller.x().and(controller.rightBumper().negate()).onTrue(elevator.setL2C()
