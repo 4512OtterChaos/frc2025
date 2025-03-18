@@ -53,6 +53,8 @@ public class Superstructure {
     private final TunableNumber reefAlignXOffset = new TunableNumber("Align/reefAlignXOffset", Units.inchesToMeters(1));
     private Transform2d reefAlignOffset = new Transform2d(reefAlignXOffset.get(), 0, Rotation2d.kZero);
 
+    private final TunableNumber netAlgaeReleaseHeight = new TunableNumber("Commands/algaeShotElevHeightOffsetInches", 12);
+
     public void periodic() {
         changeTunable();
 
@@ -147,7 +149,7 @@ public class Superstructure {
     public Command algaeShoot(){
         return sequence(
             elevator.setMinC(),
-            elevator.setL4C().until(()->elevator.getHeight().in(Meters) >= ElevatorConstants.kL4Height.minus(Inches.of(12)).in(Meters)),
+            elevator.setL4C().until(()->elevator.getHeight().in(Meters) >= ElevatorConstants.kL4Height.minus(Inches.of(netAlgaeReleaseHeight.get())).in(Meters)),
             manipulator.scoreAlgaeC().withTimeout(1)
         ).withName("AlgeaShoot");
     }
