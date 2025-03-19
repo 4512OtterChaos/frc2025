@@ -7,8 +7,6 @@ import static frc.robot.subsystems.drivetrain.DriveConstants.kRobotWidth;
 import static frc.robot.util.FieldUtil.kLeftCoralStation;
 import static frc.robot.util.FieldUtil.kRightCoralStation;
 
-import com.ctre.phoenix6.swerve.SwerveRequest;
-
 import choreo.auto.AutoFactory;
 import choreo.auto.AutoRoutine;
 import choreo.auto.AutoTrajectory;

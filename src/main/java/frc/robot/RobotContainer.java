@@ -29,7 +29,6 @@ import edu.wpi.first.wpilibj.LEDPattern;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import frc.robot.auto.AutoRoutines;
 import frc.robot.subsystems.Superstructure;
@@ -38,7 +37,6 @@ import frc.robot.subsystems.drivetrain.Telemetry;
 import frc.robot.subsystems.drivetrain.TunerConstants;
 import frc.robot.subsystems.elevator.Elevator;
 import frc.robot.subsystems.manipulator.Manipulator;
-import frc.robot.subsystems.manipulator.ManipulatorConstants;
 import frc.robot.subsystems.vision.Vision;
 import frc.robot.util.FieldUtil;
 import frc.robot.util.OCXboxController;
@@ -85,7 +83,6 @@ public class RobotContainer {
         
         autoChooser.addCmd("TaxiAuto", autoRoutines::taxiAuto);
         autoChooser.addCmd("TaxiFarAuto", autoRoutines::taxiFar);
-        autoChooser.addCmd("Middle1CoralL1", autoRoutines::middle1CoralL1);
         autoChooser.addCmd("Wall3CoralL4 Left", () -> autoRoutines.Wall3CoralL4(false));
         autoChooser.addCmd("Wall3CoralL4 Right", () -> autoRoutines.Wall3CoralL4(true));
         autoChooser.addCmd("Middle1CoralL4", () -> autoRoutines.Middle1CoralL4());
