@@ -226,43 +226,6 @@ public class Manipulator extends SubsystemBase {
         ).withName("HoldPosition");
     }
 
-    // public Command setVelocityC(double RPM){
-    //     return run(()->setVelocity(RPM));
-    // }
-
-    // public Command setVelocityInC(){
-    //     return run(()->setVelocity(intakeVoltage.get()*rpmPerVolt.get())).withName("Intake PID");
-    // }
-
-    // public Command setVelocityScoreC(){
-    //     return run(()->setVelocity(scoreVoltage.get()*rpmPerVolt.get())).withName("Score PID");
-    // }
-
-    // public Command setVelocityStop(){
-    //     return run(()->setVelocity(0)).withName("Hold Pose PID");
-    // }
-
-    // public Command algaeOffVelocity(){
-    //     return run(()->setVelocity(-2*rpmPerVolt.get())).withName("AlgaeOffVelocity");
-    // }
-
-    // public Command holdCoralVelocityC(){
-    //     return sequence(
-    //         setVelocityC(0).withTimeout(0.5),
-    //         setVelocityC(-0.5*rpmPerVolt.get()).withTimeout(0.5)
-    //         ).repeatedly().withName("D:HoldCoralVelocity");
-    // }
-
-    // public Command feedCoralVelocityC() {
-    //     return sequence(
-    //         setVelocityC(feedVoltage.get()*rpmPerVolt.get())
-    //     ).until(isCoralDetected().negate()).withName("FeedCoralVelocity");
-    // }
-
-    // public Command algaeShootVelocity() {
-    //     return run(()->setVelocity(algeaShootVoltage.get()*rpmPerVolt.get())).withName("ShootAlgaeVelocity");
-    // }
-
     private void changeTunable() {
         feedSlowVoltage.poll();
         feedFastVoltage.poll();

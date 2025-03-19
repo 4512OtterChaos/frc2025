@@ -60,17 +60,6 @@ public class AutoRoutines {
         );
     }
 
-    public Command middle1CoralL1() {
-        return sequence(
-            runOnce(()->swerve.resetPose(new Pose2d(7.5, 4.2, Rotation2d.k180deg)), swerve),
-            swerve.drive(()->new ChassisSpeeds(-1.5, 0, 0)).withTimeout(1),
-            swerve.drive(()->new ChassisSpeeds(-0.5, 0, 0)).withTimeout(1.5),
-            swerve.stop(),
-            elevator.setL1C().withTimeout(2),
-            manipulator.scoreCoralC().withTimeout(2)
-        );
-    }
-
     public Command Middle1CoralL4() {
         Trigger closingInOnGoal = new Trigger(() -> {
             Pose2d swervePose = swerve.getGlobalPoseEstimate();
@@ -99,10 +88,6 @@ public class AutoRoutines {
         Pose2d startLeftPose = new Pose2d(7.3, FieldUtil.kFieldWidth.minus(kRobotWidth.div(2)).in(Meters), Rotation2d.kCW_90deg);
         Pose2d startRightPose = FieldUtil.mirrorY(startLeftPose);
         Pose2d startPose = rightSide ? startRightPose : startLeftPose;
-
-        Pose2d backupReef1Left = new Pose2d(4.5, 7, Rotation2d.fromDegrees(-120));
-        Pose2d backupReef1Right = FieldUtil.mirrorY(backupReef1Left);
-        Pose2d backupReef1 = rightSide ? backupReef1Right : backupReef1Left;
 
         Pose2d coralStation = rightSide ? kRightCoralStation : kLeftCoralStation;
 
@@ -192,13 +177,5 @@ public class AutoRoutines {
     //             .andThen(simplePath.cmd())
     //     );
     //     return routine;p
-    // }
-
-    // public Command middle1Coral() {
-    //     return sequence(
-    //         runOnce(()->drivetrain.resetPose(new Pose2d(7.5, 4.2, Rotation2d.k180deg)), drivetrain)
-    //         // align to reef pose,
-    //         // score L1
-    //     );
     // }
 }

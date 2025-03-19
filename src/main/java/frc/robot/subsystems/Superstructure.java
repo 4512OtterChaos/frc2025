@@ -154,14 +154,6 @@ public class Superstructure {
         ).withName("AlgeaShoot");
     }
 
-    // public Command algaeShootVelocity(){
-    //     return sequence(
-    //         elevator.setMinC(),
-    //         elevator.setL4C().until(()->elevator.getHeight().in(Meters) >= ElevatorConstants.kL4Height.minus(Inches.of(12)).in(Meters)),
-    //         manipulator.algaeShootVelocity()
-    //     ).withName("AlgeaShootVelocity");
-    // }
-
     public void adjustDriving() {
         double elevatorPercentTravel = elevator.getHeight().div(ElevatorConstants.kMaxTravel).magnitude();
 
@@ -173,16 +165,6 @@ public class Superstructure {
         swerve.limiter.angularAcceleration = elevatorPercentTravel*(turnAccelTippy.get() - turnAccelNormal.get()) + turnAccelNormal.get();
         swerve.limiter.angularDeceleration = elevatorPercentTravel*(turnDecelTippy.get() - turnDecelNormal.get()) + turnDecelNormal.get();
     }
-
-    // public void tipProtection(){
-    //     double rollRadians = Math.abs(swerve.getRotation3d().getX());
-    //     double pitchRadians = Math.abs(swerve.getRotation3d().getY());
-    //     double angleTolerance = ElevatorConstants.kTipAngleTolerance.in(Radians);
-
-    //     if ((rollRadians >= angleTolerance) || (pitchRadians >= angleTolerance)){
-    //         elevator.setMinC(); // this should be on a Trigger
-    //     }
-    // }
 
     private void changeTunable() {
         driveSpeedNormal.poll();

@@ -34,8 +34,6 @@ public class ManipulatorConstants {
     public static double kHoldAlgaeVolts = kMotor.getVoltage(kMotor.getTorque(20), 0);
     public static double kScoreAlgaeVolts = -5;
 
-    public static double kRPMPerVolt = 20; //TODO: Tune to reflect reality, probably use math
-
     public static int kGearRatio = 3;
     public static Distance kCoralRollerDia = Inches.of(2);
     public static Distance kAlgaeRollerDia = Inches.of(3);
