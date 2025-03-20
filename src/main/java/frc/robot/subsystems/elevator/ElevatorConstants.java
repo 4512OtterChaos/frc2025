@@ -31,6 +31,13 @@ public class ElevatorConstants {
     
     public static final Distance kMaxTravel = Inches.of(58.95); // Travel of the CARRIAGE
 
+    public enum ElevatorHeight {
+        L1,
+        L2,
+        L3,
+        L4
+    }
+
     public static final Distance kL1Height = Inches.of(6.15);
     public static final Distance kL2Height = Inches.of(16);
     public static final Distance kL3Height = Inches.of(32);

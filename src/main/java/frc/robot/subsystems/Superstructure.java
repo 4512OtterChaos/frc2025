@@ -14,9 +14,11 @@ import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Transform2d;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.button.Trigger;
 import frc.robot.subsystems.drivetrain.CommandSwerveDrivetrain;
 import frc.robot.subsystems.elevator.Elevator;
 import frc.robot.subsystems.elevator.ElevatorConstants;
+import frc.robot.subsystems.elevator.ElevatorConstants.ElevatorHeight;
 import frc.robot.subsystems.manipulator.Manipulator;
 import frc.robot.util.FieldUtil.ReefPosition;
 import frc.robot.util.TunableNumber;
@@ -76,11 +78,43 @@ public class Superstructure {
                 .withName((simpleAlign ? "Simple": "") + "AlignToReef" + pos.toString());
     }
 
+    public Command autoScore(ReefPosition pos, ElevatorHeight scorePos, boolean simpleAlign, boolean forever) {
+        Trigger closingInOnGoal = new Trigger(() -> {
+            Pose2d swervePose = swerve.getGlobalPoseEstimate();
+            Pose2d goalPose = swerve.getGoalPose();
+            double dist = goalPose.getTranslation().getDistance(swervePose.getTranslation());
+            return dist < 1;
+        }).and(swerve.isAligning());
+
+        List<Pose2d> possibleGoalPoses;
+        Command elevatorCommand;
+        switch (pos) {
+            case LEFT -> possibleGoalPoses = kReefLeftCoralPoses;
+            case RIGHT -> possibleGoalPoses = kReefRightCoralPoses;
+            default -> possibleGoalPoses = kReefCenterPoses;
+        }
+
+        switch (scorePos) {
+            case L1 -> elevatorCommand = elevator.setL1C();
+            case L2 -> elevatorCommand = elevator.setL2C();
+            case L3 -> elevatorCommand = elevator.setL3C();
+            case L4 -> elevatorCommand = elevator.setL4C();
+            default -> elevatorCommand = elevator.setL4C();
+        }
+
+        return parallel(
+            autoAlign(() -> swerve.getGlobalPoseEstimate().nearest(possibleGoalPoses).plus(reefAlignOffset), simpleAlign, forever, 1),
+            sequence(
+                waitUntil(closingInOnGoal),
+                elevatorCommand
+            )
+        ).withName((simpleAlign ? "Simple": "") + "AlignToReef" + pos.toString() + "AndScore" + scorePos.toString());
+    }
+
     public Command autoAlign(Supplier<Pose2d> goalSupplier, boolean simpleAlign, boolean forever, double slowDistMeters) {
         Supplier<Pose2d> adjGoalSupplier = () -> {
-            var curr = swerve.getGlobalPoseEstimate();
+                var curr = swerve.getGlobalPoseEstimate();
                 var goal = goalSupplier.get();
-                // return adjustAlignPose(goal, curr);
                 return adjustAlignPoseSlow(goal, curr, slowDistMeters);
         };
         Command command;

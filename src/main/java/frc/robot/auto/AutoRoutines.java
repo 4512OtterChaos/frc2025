@@ -20,6 +20,7 @@ import frc.robot.Robot;
 import frc.robot.subsystems.Superstructure;
 import frc.robot.subsystems.drivetrain.CommandSwerveDrivetrain;
 import frc.robot.subsystems.elevator.Elevator;
+import frc.robot.subsystems.elevator.ElevatorConstants.ElevatorHeight;
 import frc.robot.subsystems.manipulator.Manipulator;
 import frc.robot.util.FieldUtil;
 import frc.robot.util.FieldUtil.ReefPosition;
@@ -43,7 +44,7 @@ public class AutoRoutines {
 
     public Command taxiAuto() {
         return sequence(
-            runOnce(()->swerve.resetRotation(Rotation2d.k180deg), swerve),
+            runOnce(()->swerve.resetPose(new Pose2d(FieldUtil.kFieldWidth, FieldUtil.kFieldWidth, Rotation2d.k180deg)), swerve),
             swerve.drive(()->new ChassisSpeeds(-1, 0, 0)).withTimeout(1.5),
             swerve.stop()
         );
@@ -59,25 +60,12 @@ public class AutoRoutines {
     }
 
     public Command Middle1CoralL4() {
-        Trigger closingInOnGoal = new Trigger(() -> {
-            Pose2d swervePose = swerve.getGlobalPoseEstimate();
-            Pose2d goalPose = swerve.getGoalPose();
-            double dist = goalPose.getTranslation().getDistance(swervePose.getTranslation());
-            return dist < 1;
-        }).and(swerve.isAligning());
-
         return sequence(
             // Reset odom
             runOnce(()->swerve.resetPose(new Pose2d(7.5, 4.2, Rotation2d.k180deg)), swerve),
             waitSeconds(1),
             // Score on far left/right right branch
-            parallel(
-                superstructure.autoAlign(ReefPosition.RIGHT, false, false),
-                sequence(
-                    waitUntil(closingInOnGoal),
-                    elevator.setL4C()
-                )
-            ),
+            superstructure.autoScore(ReefPosition.RIGHT, ElevatorHeight.L4, false, false),
             manipulator.scoreCoralC().asProxy().withTimeout(0.4)
         );
     }
@@ -97,13 +85,6 @@ public class AutoRoutines {
         ReefPosition reefPos2 = rightSide ? ReefPosition.RIGHT : ReefPosition.LEFT;
         ReefPosition reefPos3 = reefPos1;
 
-        Trigger closingInOnGoal = new Trigger(() -> {
-            Pose2d swervePose = swerve.getGlobalPoseEstimate();
-            Pose2d goalPose = swerve.getGoalPose();
-            double dist = goalPose.getTranslation().getDistance(swervePose.getTranslation());
-            return dist < 1;
-        }).and(swerve.isAligning());
-
         Trigger simSkipCoral = new Trigger(() -> {
             Pose2d swervePose = swerve.getGlobalPoseEstimate();
             Pose2d goalPose = swerve.getGoalPose();
@@ -115,13 +96,7 @@ public class AutoRoutines {
             // Reset odom
             runOnce(()->swerve.resetPose(startPose), swerve),
             // Score on far left/right right branch
-            parallel(
-                superstructure.autoAlign(reefPos1, false, false),
-                sequence(
-                    waitUntil(closingInOnGoal),
-                    elevator.setL4C()
-                )
-            ),
+            superstructure.autoScore(reefPos1, ElevatorHeight.L4, false, false),
             manipulator.scoreCoralC().asProxy().withTimeout(0.4),
             // Drive to coral station and wait for coral
             parallel(
@@ -138,13 +113,7 @@ public class AutoRoutines {
             ),
             // Score on close left/right
             swerve.alignToPose(()->preAlign1, 0.5, 1, 1, 1, false, false),
-            parallel(
-                superstructure.autoAlign(reefPos2, false, false),
-                sequence(
-                    waitUntil(closingInOnGoal),
-                    elevator.setL4C()
-                )
-            ),
+            superstructure.autoScore(reefPos2, ElevatorHeight.L4, false, false),
             manipulator.scoreCoralC().asProxy().withTimeout(0.4),
             parallel(
                 superstructure.autoAlign(()->coralStation.plus(new Transform2d(kRobotLength.div(2).in(Meters), 0, Rotation2d.kZero)), false, true, 1.75)
@@ -155,13 +124,7 @@ public class AutoRoutines {
                 )
             ),
             swerve.alignToPose(()->preAlign1, 0.5, 1, 1, 1, false, false),
-            parallel(
-                superstructure.autoAlign(reefPos3, false, false),
-                sequence(
-                    waitUntil(closingInOnGoal),
-                    elevator.setL4C()
-                )
-            ),
+            superstructure.autoScore(reefPos3, ElevatorHeight.L4, false, false),
             manipulator.scoreCoralC().asProxy().withTimeout(0.4)
         );
     }
