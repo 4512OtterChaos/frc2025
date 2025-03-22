@@ -140,7 +140,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     private final TunableNumber pathTurnPosTol = new TunableNumber("Swerve/pathTurnPosTol", kPathTurnPosTol);
     private final TunableNumber pathTurnVelTol = new TunableNumber("Swerve/pathTurnVelTol", kPathTurnVelTol);
 
-    private final TunableNumber finalAlignDist = new TunableNumber("Swerve/finalAlignDist", kFinalAlignDist);
+    private final TunableNumber finalAlignDist = new TunableNumber("Swerve/finalAlignDist", kFinalAlignLinearPosTol);
 
     private final SwerveDrivePoseEstimator visionEstimator = new SwerveDrivePoseEstimator(
         getKinematics(),
@@ -582,7 +582,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
                 LinearAcceleration alignAccelTrl = limiter.linearAcceleration;
                 AngularVelocity alignSpeedRot = turnSpeed;
                 AngularAcceleration alignAccelRot = limiter.angularAcceleration;
-                if (slowApproach && trlDiff.getNorm() < kFinalAlignDist) { // slow speeds on final alignment approach
+                if (slowApproach && trlDiff.getNorm() < kFinalAlignLinearPosTol) { // slow speeds on final alignment approach
                     alignSpeedTrl = MetersPerSecond.of(Math.min(alignSpeedTrl.in(MetersPerSecond), kDriveSpeedAlign));
                     alignAccelTrl = MetersPerSecondPerSecond.of(Math.min(alignAccelTrl.in(MetersPerSecondPerSecond), kLinearAccelAlign));
                     alignSpeedRot = RadiansPerSecond.of(Math.min(alignSpeedRot.in(RadiansPerSecond), kTurnSpeedAlign));
