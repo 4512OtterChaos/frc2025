@@ -82,12 +82,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     public AngularVelocity turnSpeed = RadiansPerSecond.of(kTurnSpeed);
 
     private ChassisSpeeds lastTargetSpeeds = new ChassisSpeeds();
-    public final SwerveDriveAccelLimiter limiter = new SwerveDriveAccelLimiter(
-        kLinearAccel,
-        kLinearDecel,
-        kAngularAccel,
-        kAngularDecel
-    );
+    public final SwerveDriveLimiter limiter = kStandardLimiter.copy();
 
     private final SwerveRequest.RobotCentric applyPathRobotSpeeds = new SwerveRequest.RobotCentric()
             .withDeadband(Units.inchesToMeters(0.5))
@@ -584,9 +579,9 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
 
                 // define velocity and acceleration limits
                 LinearVelocity alignSpeedTrl = driveSpeed;
-                LinearAcceleration alignAccelTrl = MetersPerSecondPerSecond.of(limiter.linearAcceleration);
+                LinearAcceleration alignAccelTrl = limiter.linearAcceleration;
                 AngularVelocity alignSpeedRot = turnSpeed;
-                AngularAcceleration alignAccelRot = RadiansPerSecondPerSecond.of(limiter.angularAcceleration);
+                AngularAcceleration alignAccelRot = limiter.angularAcceleration;
                 if (slowApproach && trlDiff.getNorm() < kFinalAlignDist) { // slow speeds on final alignment approach
                     alignSpeedTrl = MetersPerSecond.of(Math.min(alignSpeedTrl.in(MetersPerSecond), kDriveSpeedAlign));
                     alignAccelTrl = MetersPerSecondPerSecond.of(Math.min(alignAccelTrl.in(MetersPerSecondPerSecond), kLinearAccelAlign));

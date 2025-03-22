@@ -24,6 +24,15 @@ public class DriveConstants {
     public static final double kLinearDecel = FeetPerSecondPerSecond.of(40).in(MetersPerSecondPerSecond);
     public static final double kAngularAccel = RotationsPerSecondPerSecond.of(6).in(RadiansPerSecondPerSecond);
     public static final double kAngularDecel = RotationsPerSecondPerSecond.of(10).in(RadiansPerSecondPerSecond);
+
+    public static final SwerveDriveLimiter kStandardLimiter = new SwerveDriveLimiter(
+        MetersPerSecond.of(kDriveSpeed),
+        MetersPerSecondPerSecond.of(kLinearAccel),
+        MetersPerSecondPerSecond.of(kLinearDecel),
+        RadiansPerSecond.of(kTurnSpeed),
+        RadiansPerSecondPerSecond.of(kAngularAccel),
+        RadiansPerSecondPerSecond.of(kAngularDecel)
+    );
     
     // Driving speed when elevator fully extended
     public static final double kDriveSpeedTippy = 0.25 * kMaxLinearSpeed;
@@ -34,6 +43,15 @@ public class DriveConstants {
     public static final double kLinearDecelTippy = FeetPerSecondPerSecond.of(12).in(MetersPerSecondPerSecond);
     public static final double kAngularAccelTippy = RotationsPerSecondPerSecond.of(4).in(RadiansPerSecondPerSecond);
     public static final double kAngularDecelTippy = RotationsPerSecondPerSecond.of(4).in(RadiansPerSecondPerSecond);
+
+    public static final SwerveDriveLimiter kTippyLimiter = new SwerveDriveLimiter(
+        MetersPerSecond.of(kDriveSpeedTippy),
+        MetersPerSecondPerSecond.of(kLinearAccelTippy),
+        MetersPerSecondPerSecond.of(kLinearDecelTippy),
+        RadiansPerSecond.of(kTurnSpeedTippy),
+        RadiansPerSecondPerSecond.of(kAngularAccelTippy),
+        RadiansPerSecondPerSecond.of(kAngularDecelTippy)
+    );
 
     // Path following constants
     public static final double kPathDriveKP = 5;
@@ -47,15 +65,43 @@ public class DriveConstants {
     public static final double kPathTurnPosTol = Degrees.of(4).in(Radians);
     public static final double kPathTurnVelTol = Degrees.of(8).in(Radians);
 
+    // Driving speed for auto-alignment
+    public static final double kDriveSpeedAlign = 0.6 * kMaxLinearSpeed;
+    public static final double kTurnSpeedAlign = 0.5 * kMaxAngularRate;
+    // Driving acceleration for auto-alignment
+    public static final double kLinearAccelAlign = FeetPerSecondPerSecond.of(30).in(MetersPerSecondPerSecond); //m/s/s
+    public static final double kAngularAccelAlign = RotationsPerSecondPerSecond.of(6).in(RadiansPerSecondPerSecond);
+
+    public static final SwerveDriveLimiter kAlignLimiter = new SwerveDriveLimiter(
+        MetersPerSecond.of(kDriveSpeedAlign),
+        MetersPerSecondPerSecond.of(kLinearAccelAlign),
+        MetersPerSecondPerSecond.of(kLinearAccelAlign),
+        RadiansPerSecond.of(kTurnSpeedAlign),
+        RadiansPerSecondPerSecond.of(kAngularAccelAlign),
+        RadiansPerSecondPerSecond.of(kAngularAccelAlign)
+    );
+
     // Threshold to use final alignment speeds
     public static final double kFinalAlignDist = Feet.of(4).in(Meters);
+
     // Driving speed for final auto-alignment
-    public static final double kDriveSpeedAlign = 0.25 * kMaxLinearSpeed;
-    public static final double kTurnSpeedAlign = 0.2 * kMaxAngularRate;
+    public static final double kDriveSpeedAlignSlow = 0.25 * kMaxLinearSpeed;
+    public static final double kTurnSpeedAlignSlow = 0.2 * kMaxAngularRate;
     // Driving acceleration for final auto-alignment
-    public static final double kLinearAccelAlign = FeetPerSecondPerSecond.of(12).in(MetersPerSecondPerSecond); //m/s/s
-    public static final double kAngularAccelAlign = RotationsPerSecondPerSecond.of(4).in(RadiansPerSecondPerSecond);
+    public static final double kLinearAccelAlignSlow = FeetPerSecondPerSecond.of(12).in(MetersPerSecondPerSecond); //m/s/s
+    public static final double kAngularAccelAlignSlow = RotationsPerSecondPerSecond.of(4).in(RadiansPerSecondPerSecond);
+
+    public static final SwerveDriveLimiter kAlignSlowLimiter = new SwerveDriveLimiter(
+        MetersPerSecond.of(kDriveSpeedAlignSlow),
+        MetersPerSecondPerSecond.of(kLinearAccelAlignSlow),
+        MetersPerSecondPerSecond.of(kLinearAccelAlignSlow),
+        RadiansPerSecond.of(kTurnSpeedAlignSlow),
+        RadiansPerSecondPerSecond.of(kAngularAccelAlignSlow),
+        RadiansPerSecondPerSecond.of(kAngularAccelAlignSlow)
+    );
+
     // Threshold to output zero when close
     public static final double kStopAlignTrlDist = Inches.of(0.65).in(Meters);
     public static final double kStopAlignRotDist = Degrees.of(3).in(Radians);
+    
 }
