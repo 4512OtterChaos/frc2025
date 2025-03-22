@@ -3,6 +3,7 @@ package frc.robot.subsystems.vision;
 import static frc.robot.subsystems.vision.VisionConstants.*;
 
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.photonvision.EstimatedRobotPose;
 import org.photonvision.PhotonCamera;
@@ -22,21 +23,31 @@ import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Rotation3d;
+import edu.wpi.first.math.geometry.Transform3d;
+import edu.wpi.first.math.geometry.Translation2d;
+import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.numbers.*;
 import edu.wpi.first.networktables.NetworkTableInstance;
+import edu.wpi.first.networktables.StructArrayPublisher;
 import edu.wpi.first.networktables.StructPublisher;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.smartdashboard.Field2d;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj2.command.Commands;
 import frc.robot.Robot;
 import frc.robot.util.TunableNumber;
 
 public class Vision {
-    private final PhotonCamera camera;
+    private final PhotonCamera cameraLeft;
+    private final PhotonCamera cameraRight;
     private final PhotonPoseEstimator photonEstimator;
     private double lastEstTimestamp = 0;
 
+    private final StructArrayPublisher<Pose3d> visibleTagsPub = NetworkTableInstance.getDefault().getStructArrayTopic("Vision/Visible Tag Poses", Pose3d.struct).publish();
     private final StructPublisher<Pose3d> pipelinePosePub = NetworkTableInstance.getDefault().getStructTopic("Vision/Pipeline Pose", Pose3d.struct).publish();
+    private final StructPublisher<Pose3d> testPosePub = NetworkTableInstance.getDefault().getStructTopic("Vision/Test Pose", Pose3d.struct).publish();
 
     private final TunableNumber lowTrustTrlStdDevs = new TunableNumber("Vision/lowTrustTrlStdDevs", kLowTrustTrlStdDevs);
     private final TunableNumber lowTrustRotStdDevs = new TunableNumber("Vision/lowTrustRotStdDevs", kLowTrustRotStdDevs);
@@ -47,16 +58,20 @@ public class Vision {
 
     private final TunableNumber constrainedHeadingTrust = new TunableNumber("Vision/constrainedHeadingTrust", kConstrainedHeadingTrust);
 
+    private Transform3d testRobotToCam = kRobotToCamLeft;
+
     // // Simulation
-    private PhotonCameraSim cameraSim;
+    private PhotonCameraSim cameraSimLeft;
+    private PhotonCameraSim cameraSimRight;
     private VisionSystemSim visionSim;
 
     public Vision() {
-        camera = new PhotonCamera(kCameraName);
+        cameraLeft = new PhotonCamera(kCameraNameLeft);
+        cameraRight = new PhotonCamera(kCameraNameRight);
 
         photonEstimator =
                 new PhotonPoseEstimator(
-                        kTagLayout, PoseStrategy.MULTI_TAG_PNP_ON_COPROCESSOR, kRobotToCam);
+                        kTagLayout, PoseStrategy.MULTI_TAG_PNP_ON_COPROCESSOR, kRobotToCamLeft);
         photonEstimator.setMultiTagFallbackStrategy(PoseStrategy.PNP_DISTANCE_TRIG_SOLVE);
 
         // ----- Simulation
@@ -78,12 +93,22 @@ public class Vision {
             cameraProp.setLatencyStdDevMs(8);
             // Create a PhotonCameraSim which will update the linked PhotonCamera's values with visible
             // targets.
-            cameraSim = new PhotonCameraSim(camera, cameraProp);
+            cameraSimLeft = new PhotonCameraSim(cameraLeft, cameraProp);
+            cameraSimLeft.setMinTargetAreaPixels(400);
+            cameraSimRight = new PhotonCameraSim(cameraRight, cameraProp);
             // Add the simulated camera to view the targets on this simulated field.
-            visionSim.addCamera(cameraSim, kRobotToCam);
+            visionSim.addCamera(cameraSimLeft, kRobotToCamLeft);
+            visionSim.addCamera(cameraSimRight, kRobotToCamRight);
 
-            cameraSim.enableDrawWireframe(false);
         }
+
+        SmartDashboard.putData("Vision/testRtCrandom", Commands.runOnce(()->{
+            testRobotToCam = kRobotToCamLeft.plus(new Transform3d(
+                0, 0, Math.random()*0.05,
+                Rotation3d.kZero
+            ));
+            photonEstimator.setRobotToCameraTransform(testRobotToCam);
+        }));
     }
 
     public void periodic() {
@@ -91,7 +116,7 @@ public class Vision {
     }
 
     public PhotonPipelineResult getLatestResult() {
-        return camera.getLatestResult();
+        return cameraLeft.getLatestResult();
     }
 
     /**
@@ -101,7 +126,7 @@ public class Vision {
      * @return An {@link EstimatedRobotPose} with an estimated pose, estimate timestamp, and targets
      *     used for estimation.
      */
-    public Optional<EstimatedRobotPose> getEstimatedGlobalPose(Rotation2d fieldRotation, double timestampRotation) {
+    public Optional<EstimatedRobotPose> getEstimatedGlobalPose(Pose2d robotPose, double timestampRotation) {
         if (!DriverStation.isDisabled()) {
             DriverStation.getAlliance().ifPresent(allianceColor -> {
                 kTagLayout.setOrigin(
@@ -112,12 +137,20 @@ public class Vision {
             });
         }
 
+        var results = cameraLeft.getAllUnreadResults();
+        if (results.isEmpty()) testPosePub.set(null);
+        else {
+            visibleTagsPub.set(results.get(0).targets.stream()
+                    .map(tag -> new Pose3d(robotPose).plus(testRobotToCam).plus(tag.bestCameraToTarget)).collect(Collectors.toList()).toArray(Pose3d[]::new));
+            testPose(results.get(0), robotPose.getRotation(), testRobotToCam);
+        }
+
         var latest = getLatestResult();
-        photonEstimator.addHeadingData(timestampRotation, fieldRotation);
+        photonEstimator.addHeadingData(timestampRotation, robotPose.getRotation());
         var visionEst = photonEstimator.update(
             latest,
-            camera.getCameraMatrix(),
-            camera.getDistCoeffs(),
+            cameraLeft.getCameraMatrix(),
+            cameraLeft.getDistCoeffs(),
             Optional.of(new PhotonPoseEstimator.ConstrainedSolvepnpParams(false, constrainedHeadingTrust.get()))
         );
         double latestTimestamp = latest.getTimestampSeconds();
@@ -141,6 +174,31 @@ public class Vision {
         }
         if (newResult) lastEstTimestamp = latestTimestamp;
         return visionEst;
+    }
+
+    public void testPose(PhotonPipelineResult result, Rotation2d fieldToRobotRot, Transform3d robotToCam) {
+        var bestTarget = result.getBestTarget();
+        if (bestTarget == null) return;
+        var camToTargetTrl = bestTarget.getBestCameraToTarget().getTranslation();
+
+        var tagPoseMaybe = kTagLayout.getTagPose(bestTarget.fiducialId);
+        if (tagPoseMaybe.isEmpty()) return;
+        var tagPose = tagPoseMaybe.get();
+        Rotation3d tagRot = tagPose.getRotation();
+        var fieldToCamRot = robotToCam.getRotation().rotateBy(new Rotation3d(fieldToRobotRot));
+        var targetToCamTrl = camToTargetTrl.unaryMinus().rotateBy(
+                fieldToCamRot.minus(tagRot));
+
+        var targetToCam = new Transform3d(
+            tagPose,
+            new Pose3d(
+                tagPose.getTranslation().plus(targetToCamTrl.rotateBy(tagPose.getRotation())),
+                fieldToCamRot
+            )
+        );
+        var estRobotPose = tagPose.plus(targetToCam).plus(robotToCam.inverse());
+
+        testPosePub.set(estRobotPose);
     }
 
     /**

@@ -121,7 +121,7 @@ public class RobotContainer {
 
         double phoenixTimeOffset = Timer.getFPGATimestamp() - Utils.getCurrentTimeSeconds();
         var swerveState = swerve.getState();
-        vision.getEstimatedGlobalPose(swerveState.Pose.getRotation(), swerveState.Timestamp + phoenixTimeOffset)
+        vision.getEstimatedGlobalPose(swerveState.Pose, swerveState.Timestamp + phoenixTimeOffset)
             .ifPresent(estimate -> {
                 var pose = estimate.estimatedPose;
                 var stdDevs = vision.getEstimationStdDevs(pose);
