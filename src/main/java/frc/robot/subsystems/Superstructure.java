@@ -215,6 +215,8 @@ public class Superstructure {
         turnDecelTippy.poll();
 
         reefAlignXOffset.poll();
+
+        netAlgaeReleaseHeight.poll();
         
         int hash = hashCode();
         if (reefAlignXOffset.hasChanged(hash)) {
