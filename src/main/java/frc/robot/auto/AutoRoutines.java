@@ -2,7 +2,6 @@ package frc.robot.auto;
 
 import static edu.wpi.first.units.Units.Meters;
 import static edu.wpi.first.wpilibj2.command.Commands.*;
-import static frc.robot.subsystems.drivetrain.DriveConstants.kRobotLength;
 import static frc.robot.subsystems.drivetrain.DriveConstants.kRobotWidth;
 import static frc.robot.util.FieldUtil.kLeftCoralStation;
 import static frc.robot.util.FieldUtil.kRightCoralStation;
@@ -12,11 +11,8 @@ import choreo.auto.AutoRoutine;
 import choreo.auto.AutoTrajectory;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.geometry.Transform2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.button.Trigger;
-import frc.robot.Robot;
 import frc.robot.subsystems.Superstructure;
 import frc.robot.subsystems.drivetrain.CommandSwerveDrivetrain;
 import frc.robot.subsystems.elevator.Elevator;
@@ -85,13 +81,6 @@ public class AutoRoutines {
         ReefPosition reefPos2 = rightSide ? ReefPosition.RIGHT : ReefPosition.LEFT;
         ReefPosition reefPos3 = reefPos1;
 
-        Trigger simSkipCoral = new Trigger(() -> {
-            Pose2d swervePose = swerve.getGlobalPoseEstimate();
-            Pose2d goalPose = swerve.getGoalPose();
-            double dist = goalPose.getTranslation().getDistance(swervePose.getTranslation());
-            return dist < 0.1 && Robot.isSimulation();
-        }).debounce(0.5).and(swerve.isAligning());
-
         return sequence(
             // Reset odom
             runOnce(()->swerve.resetPose(startPose), swerve),
@@ -102,8 +91,7 @@ public class AutoRoutines {
             parallel(
                 sequence(
                     swerve.drive(()->new ChassisSpeeds(0, rightSide ? -1 : 1, 0)).withTimeout(0.5),
-                    superstructure.autoAlign(()->coralStation.plus(new Transform2d(kRobotLength.div(2).in(Meters), 0, Rotation2d.kZero)), false, true, 1.5)
-                        .until(manipulator.isCoralDetected().or(simSkipCoral))
+                    superstructure.autoCoralStation(coralStation)
                 ),
                 sequence(
                     waitSeconds(0.1),
@@ -115,10 +103,9 @@ public class AutoRoutines {
             superstructure.autoScore(reefPos2, ElevatorHeight.L4, false, false),
             manipulator.scoreCoralC().asProxy().withTimeout(0.4),
             parallel(
-                superstructure.autoAlign(()->coralStation.plus(new Transform2d(kRobotLength.div(2).in(Meters), 0, Rotation2d.kZero)), false, true, 1.5)
-                    .until(manipulator.isCoralDetected().or(simSkipCoral)),
+                superstructure.autoCoralStation(coralStation),
                 sequence(
-                    waitSeconds(0.25),
+                    waitSeconds(0.1),
                     elevator.setMinC()
                 )
             ),

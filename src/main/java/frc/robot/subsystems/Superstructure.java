@@ -15,6 +15,7 @@ import edu.wpi.first.math.geometry.Transform2d;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
+import frc.robot.Robot;
 import frc.robot.subsystems.drivetrain.CommandSwerveDrivetrain;
 import frc.robot.subsystems.elevator.Elevator;
 import frc.robot.subsystems.elevator.ElevatorConstants;
@@ -206,6 +207,20 @@ public class Superstructure {
                 manipulator.feedCoralFastSequenceC()
             )
         );
+    }
+
+    //########## Auto commands
+
+    public Command autoCoralStation(Pose2d coralStation){
+        Trigger simSkipCoral = new Trigger(() -> {
+            Pose2d swervePose = swerve.getGlobalPoseEstimate();
+            Pose2d goalPose = swerve.getGoalPose();
+            double dist = goalPose.getTranslation().getDistance(swervePose.getTranslation());
+            return dist < 0.1 && Robot.isSimulation();
+        }).debounce(0.5).and(swerve.isAligning());
+
+        return autoAlign(()->coralStation.plus(new Transform2d(kRobotLength.div(2).in(Meters), 0, Rotation2d.kZero)), false, true, 1.5)
+        .until(manipulator.isCoralDetected().or(simSkipCoral));
     }
 
     public void adjustDriving() {
