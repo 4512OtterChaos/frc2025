@@ -11,7 +11,6 @@ import com.ctre.phoenix6.signals.NeutralModeValue;
 import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.math.system.plant.LinearSystemId;
 import edu.wpi.first.math.util.Units;
-import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Distance;
 import static edu.wpi.first.units.Units.*;
 import edu.wpi.first.wpilibj.simulation.DCMotorSim;
@@ -22,7 +21,7 @@ public class FunnelConstants {
     public static DCMotor kMotor = DCMotor.getKrakenX60(1);
 
     public static double kFeedFastVolts = 0.9;
-    public static double kFeedSlowVolts = 0.5;
+    public static double kFeedSlowVolts = 0.3;
 
     public static int kGearRatio = 3; //TODO: Update
     public static Distance kFunnelRollerDia = Inches.of(3); //TODO: Update
@@ -34,7 +33,9 @@ public class FunnelConstants {
     public static double kStallCurrent = 20;
     public static double kStallTime = 0.3;
 
-    public static double kCoralSensePercentDrop = .25; //TODO: Config and test for accuracy
+    public static int kNumVelocitesStored = 100;
+    public static double kCoralSensePercentDrop = .25; //TODO: test for accuracy
+    public static double kCoralDelayedSenseTime = .25; //TODO: test for accuracy
 
 
     public static final TalonFXConfiguration kConfig = new TalonFXConfiguration();
