@@ -17,11 +17,8 @@ import static edu.wpi.first.wpilibj2.command.Commands.*;
 
 import static frc.robot.subsystems.drivetrain.DriveConstants.*;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.function.Supplier;
 
-import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.wpilibj.AddressableLED;
@@ -39,6 +36,7 @@ import frc.robot.subsystems.drivetrain.CommandSwerveDrivetrain;
 import frc.robot.subsystems.drivetrain.Telemetry;
 import frc.robot.subsystems.drivetrain.TunerConstants;
 import frc.robot.subsystems.elevator.Elevator;
+import frc.robot.subsystems.funnel.Funnel;
 import frc.robot.subsystems.manipulator.Manipulator;
 import frc.robot.subsystems.vision.Vision;
 import frc.robot.util.FieldUtil;
@@ -51,12 +49,13 @@ public class RobotContainer {
     
     public final CommandSwerveDrivetrain swerve = TunerConstants.createDrivetrain();
     public final Manipulator manipulator = new Manipulator();
+    public final Funnel funnel = new Funnel();
     public final Elevator elevator = new Elevator();
     
     private OCXboxController driver = new OCXboxController(0);
     private OCXboxController operator = new OCXboxController(1);
 
-    public final Superstructure superstructure = new Superstructure(swerve, manipulator, elevator);
+    public final Superstructure superstructure = new Superstructure(swerve, manipulator, funnel, elevator);
     
     private final Vision vision = new Vision();
 
@@ -161,11 +160,12 @@ public class RobotContainer {
 
     public void configureDefaultBindings() {
         manipulator.setDefaultCommand(manipulator.holdPositionC());
+        funnel.setDefaultCommand(funnel.slowFeedCoralC());
         // Automatically feed coral to a consistent position when detected
         manipulator.isCoralDetected().and(()->manipulator.getCurrentCommand() != null && manipulator.getCurrentCommand().equals(manipulator.getDefaultCommand()))
-            .onTrue(manipulator.feedCoralSequenceC());
+            .onTrue(superstructure.feedCoralSequenceC());
         // Automatically start intaking if close to station
-        nearCoralStation.onTrue(manipulator.feedCoralFastSequenceC());
+        nearCoralStation.onTrue(superstructure.feedCoralFastSequenceC());
     }
 
     private void configureDriverBindings(OCXboxController controller) {
@@ -196,7 +196,7 @@ public class RobotContainer {
                 ).until(driverSomeRightInput.or(nearCoralStation.negate()))
             );
         
-        // snap to coral station angle
+        // snap to reef angle
         nearCoralStation.negate()
             .and(()->swerve.getCurrentCommand() != null && swerve.getCurrentCommand().equals(swerve.getDefaultCommand()))
             .and(driverSomeRightInput.negate().debounce(0.5))

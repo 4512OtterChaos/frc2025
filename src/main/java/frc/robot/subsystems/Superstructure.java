@@ -19,6 +19,7 @@ import frc.robot.subsystems.drivetrain.CommandSwerveDrivetrain;
 import frc.robot.subsystems.elevator.Elevator;
 import frc.robot.subsystems.elevator.ElevatorConstants;
 import frc.robot.subsystems.elevator.ElevatorConstants.ElevatorHeight;
+import frc.robot.subsystems.funnel.Funnel;
 import frc.robot.subsystems.manipulator.Manipulator;
 import frc.robot.util.FieldUtil.ReefPosition;
 import frc.robot.util.TunableNumber;
@@ -27,13 +28,15 @@ import frc.robot.util.TunableNumber;
 public class Superstructure {
     private CommandSwerveDrivetrain swerve;
     private Manipulator manipulator;
+    private Funnel funnel;
     private Elevator elevator;
 
     private SuperstructureViz viz = new SuperstructureViz();
 
-    public Superstructure(CommandSwerveDrivetrain drive, Manipulator manipulator, Elevator elevator) {
-        this.swerve = drive;
+    public Superstructure(CommandSwerveDrivetrain swerve, Manipulator manipulator, Funnel funnel, Elevator elevator) {
+        this.swerve = swerve;
         this.manipulator = manipulator;
+        this.funnel = funnel;
         this.elevator = elevator;
     }
 
@@ -185,6 +188,24 @@ public class Superstructure {
             elevator.setL4C().until(()->elevator.getHeight().in(Meters) >= ElevatorConstants.kL4Height.minus(Inches.of(netAlgaeReleaseHeight.get())).in(Meters)),
             manipulator.scoreAlgaeC().withTimeout(1)
         ).withName("AlgeaShoot");
+    }
+
+    public Command feedCoralSequenceC(){
+        return sequence(
+            parallel(
+                funnel.feedCoralC(),
+                manipulator.feedCoralSequenceC()
+            )
+        );
+    }
+
+    public Command feedCoralFastSequenceC(){
+        return sequence(
+            parallel(
+                funnel.feedCoralC(),
+                manipulator.feedCoralFastSequenceC()
+            )
+        );
     }
 
     public void adjustDriving() {
