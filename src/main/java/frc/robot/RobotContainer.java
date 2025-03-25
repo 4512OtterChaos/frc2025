@@ -17,8 +17,11 @@ import static edu.wpi.first.wpilibj2.command.Commands.*;
 
 import static frc.robot.subsystems.drivetrain.DriveConstants.*;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Supplier;
 
+import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.wpilibj.AddressableLED;
@@ -60,7 +63,7 @@ public class RobotContainer {
     private final Trigger nearCoralStation = new Trigger(() -> {
         var swervePose = swerve.getGlobalPoseEstimate();
         boolean nearStation = FieldUtil.nearestCoralStation(swervePose).relativeTo(swervePose).getTranslation().getNorm() < 1.6;
-        boolean hasFMS = DriverStation.isFMSAttached() || true;
+        boolean hasFMS = DriverStation.isFMSAttached() || true; //TODO: remove || true
         return nearStation && (hasFMS || Robot.isSimulation());
     });
 
@@ -200,7 +203,7 @@ public class RobotContainer {
             .onTrue(
                 swerve.driveFacingAngle(
                     driveSupplier,
-                    () -> FieldUtil.kReefTrl.minus(swerve.getGlobalPoseEstimate().getTranslation()).getAngle(),
+                    () -> swerve.getGlobalPoseEstimate().nearest(FieldUtil.kReefCenterPoses).getRotation(),
                     true
                 ).until(driverSomeRightInput.or(nearCoralStation))
             );
