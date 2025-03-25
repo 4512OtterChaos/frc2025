@@ -8,12 +8,10 @@ import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 
-import au.grapplerobotics.interfaces.LaserCanInterface.RangingMode;
-import au.grapplerobotics.interfaces.LaserCanInterface.RegionOfInterest;
-import au.grapplerobotics.interfaces.LaserCanInterface.TimingBudget;
 import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.math.system.plant.LinearSystemId;
 import edu.wpi.first.math.util.Units;
+import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Distance;
 import static edu.wpi.first.units.Units.*;
 import edu.wpi.first.wpilibj.simulation.DCMotorSim;
@@ -26,8 +24,8 @@ public class FunnelConstants {
     public static double kFeedFastVolts = 0.9;
     public static double kFeedSlowVolts = 0.5;
 
-    public static int kGearRatio = 3;
-    public static Distance kCoralRollerDia = Inches.of(2);
+    public static int kGearRatio = 3; //TODO: Update
+    public static Distance kFunnelRollerDia = Inches.of(3); //TODO: Update
 
     public static final int kMotorStallLimit = 40;
 
@@ -35,6 +33,8 @@ public class FunnelConstants {
     
     public static double kStallCurrent = 20;
     public static double kStallTime = 0.3;
+
+    public static double kCoralSensePercentDrop = .25; //TODO: Config and test for accuracy
 
 
     public static final TalonFXConfiguration kConfig = new TalonFXConfiguration();
