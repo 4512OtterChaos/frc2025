@@ -214,7 +214,7 @@ public class Superstructure {
         ).withName( "AlignToReef" + pos.toString() + "AndScore" + scorePos.toString());
     }
 
-    public Command autoCoralStation(Pose2d coralStation){
+    public Command autoCoralStation(CoralStation coralStation){
         Trigger simSkipCoral = new Trigger(() -> {
             Pose2d swervePose = swerve.getGlobalPoseEstimate();
             Pose2d goalPose = swerve.getGoalPose();
@@ -222,7 +222,7 @@ public class Superstructure {
             return dist < 0.1 && Robot.isSimulation();
         }).debounce(0.5).and(swerve.isAligning());
 
-        return autoAlign(()->coralStation.plus(new Transform2d(kRobotLength.div(2).in(Meters), 0, Rotation2d.kZero)), false, true, 1.5)
+        return autoAlign(()->coralStation.getPose().plus(new Transform2d(kRobotLength.div(2).in(Meters), 0, Rotation2d.kZero)), false, true, 1.5)
         .until(manipulator.isCoralDetected().or(simSkipCoral));
     }
 

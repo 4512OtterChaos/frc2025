@@ -94,17 +94,31 @@ public class FieldUtil {
 
     //########## CORAL STATION
 
-    public static final Pose2d kRightCoralStation =
-        new Pose2d(
-            Units.inchesToMeters(33.526),
-            Units.inchesToMeters(25.824),
-            Rotation2d.fromDegrees(144.011 - 90));
-    public static final Pose2d kLeftCoralStation =
-        new Pose2d(
-            kRightCoralStation.getX(),
-            kFieldWidth.in(Meters) - kRightCoralStation.getY(),
-            Rotation2d.fromRadians(-kRightCoralStation.getRotation().getRadians()));
-    public static final List<Pose2d> kCoralStationPoses = List.of(kRightCoralStation, kLeftCoralStation);
+    public enum CoralStation {
+        RIGHT(
+            new Pose2d(
+                Units.inchesToMeters(33.526),
+                Units.inchesToMeters(25.824),
+                Rotation2d.fromDegrees(144.011 - 90))
+        ),
+        LEFT(
+            new Pose2d(
+                RIGHT.getPose().getX(),
+                kFieldWidth.in(Meters) - RIGHT.getPose().getY(),
+                Rotation2d.fromRadians(-RIGHT.getPose().getRotation().getRadians()))
+        );
+
+        Pose2d pose;
+
+        private CoralStation(Pose2d pose){
+            this.pose = pose;
+        }
+
+        public Pose2d getPose(){
+            return this.pose;
+        }
+    }
+    public static final List<Pose2d> kCoralStationPoses = List.of(CoralStation.RIGHT.getPose(), CoralStation.LEFT.getPose());
 
     public static Pose2d nearestCoralStation(Pose2d robotPose) {
         return robotPose.nearest(kCoralStationPoses);

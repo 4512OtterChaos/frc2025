@@ -3,8 +3,6 @@ package frc.robot.auto;
 import static edu.wpi.first.units.Units.Meters;
 import static edu.wpi.first.wpilibj2.command.Commands.*;
 import static frc.robot.subsystems.drivetrain.DriveConstants.kRobotWidth;
-import static frc.robot.util.FieldUtil.kLeftCoralStation;
-import static frc.robot.util.FieldUtil.kRightCoralStation;
 
 import choreo.auto.AutoFactory;
 import choreo.auto.AutoRoutine;
@@ -19,6 +17,7 @@ import frc.robot.subsystems.elevator.Elevator;
 import frc.robot.subsystems.elevator.ElevatorConstants.ElevatorHeight;
 import frc.robot.subsystems.manipulator.Manipulator;
 import frc.robot.util.FieldUtil;
+import frc.robot.util.FieldUtil.CoralStation;
 import frc.robot.util.FieldUtil.ReefPosition;
 
 public class AutoRoutines {
@@ -70,7 +69,7 @@ public class AutoRoutines {
         Pose2d startRightPose = FieldUtil.mirrorY(startLeftPose);
         Pose2d startPose = rightSide ? startRightPose : startLeftPose;
 
-        Pose2d coralStation = rightSide ? kRightCoralStation : kLeftCoralStation;
+        CoralStation coralStation = rightSide ? CoralStation.RIGHT : CoralStation.LEFT;
 
         Pose2d preAlign1Left = new Pose2d(3, 6.5, Rotation2d.fromDegrees(-60));
         Pose2d preAlign1Right = FieldUtil.mirrorY(preAlign1Left);
