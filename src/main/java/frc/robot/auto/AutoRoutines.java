@@ -61,8 +61,7 @@ public class AutoRoutines {
             runOnce(()->swerve.resetPose(new Pose2d(7.5, 4.2, Rotation2d.k180deg)), swerve),
             waitSeconds(1),
             // Score on far left/right right branch
-            superstructure.autoScore(ReefPosition.RIGHT, ElevatorHeight.L4, false, false),
-            manipulator.scoreCoralC().asProxy().withTimeout(0.4)
+            superstructure.autoScore(ReefPosition.RIGHT, ElevatorHeight.L4)
         );
     }
 
@@ -85,8 +84,7 @@ public class AutoRoutines {
             // Reset odom
             runOnce(()->swerve.resetPose(startPose), swerve),
             // Score on far left/right right branch
-            superstructure.autoScore(reefPos1, ElevatorHeight.L4, false, false),
-            manipulator.scoreCoralC().asProxy().withTimeout(0.4),
+            superstructure.autoScore(reefPos1, ElevatorHeight.L4),
             // Drive to coral station and wait for coral
             parallel(
                 sequence(
@@ -100,8 +98,7 @@ public class AutoRoutines {
             ),
             // Score on close left/right
             swerve.alignToPose(()->preAlign1, 0.5, 1, 1, 1, false, false),
-            superstructure.autoScore(reefPos2, ElevatorHeight.L4, false, false),
-            manipulator.scoreCoralC().asProxy().withTimeout(0.4),
+            superstructure.autoScore(reefPos2, ElevatorHeight.L4),
             parallel(
                 superstructure.autoCoralStation(coralStation),
                 sequence(
@@ -110,8 +107,7 @@ public class AutoRoutines {
                 )
             ),
             swerve.alignToPose(()->preAlign1, 0.5, 1, 1, 1, false, false),
-            superstructure.autoScore(reefPos3, ElevatorHeight.L4, false, false),
-            manipulator.scoreCoralC().asProxy().withTimeout(0.4)
+            superstructure.autoScore(reefPos3, ElevatorHeight.L4)
         );
     }
 

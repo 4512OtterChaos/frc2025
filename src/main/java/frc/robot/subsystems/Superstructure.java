@@ -82,39 +82,6 @@ public class Superstructure {
                 .withName((simpleAlign ? "Simple": "") + "AlignToReef" + pos.toString());
     }
 
-    public Command autoScore(ReefPosition pos, ElevatorHeight scorePos, boolean simpleAlign, boolean forever) {
-        Trigger closingInOnGoal = new Trigger(() -> {
-            Pose2d swervePose = swerve.getGlobalPoseEstimate();
-            Pose2d goalPose = swerve.getGoalPose();
-            double dist = goalPose.getTranslation().getDistance(swervePose.getTranslation());
-            return dist < 1;
-        }).and(swerve.isAligning());
-
-        List<Pose2d> possibleGoalPoses;
-        Command elevatorCommand;
-        switch (pos) {
-            case LEFT -> possibleGoalPoses = kReefLeftCoralPoses;
-            case RIGHT -> possibleGoalPoses = kReefRightCoralPoses;
-            default -> possibleGoalPoses = kReefCenterPoses;
-        }
-
-        switch (scorePos) {
-            case L1 -> elevatorCommand = elevator.setL1C();
-            case L2 -> elevatorCommand = elevator.setL2C();
-            case L3 -> elevatorCommand = elevator.setL3C();
-            case L4 -> elevatorCommand = elevator.setL4C();
-            default -> elevatorCommand = elevator.setL4C();
-        }
-
-        return parallel(
-            autoAlign(() -> swerve.getGlobalPoseEstimate().nearest(possibleGoalPoses).plus(reefAlignOffset), simpleAlign, forever, 1),
-            sequence(
-                waitUntil(closingInOnGoal),
-                elevatorCommand
-            )
-        ).withName((simpleAlign ? "Simple": "") + "AlignToReef" + pos.toString() + "AndScore" + scorePos.toString());
-    }
-
     public Command autoAlign(Supplier<Pose2d> goalSupplier, boolean simpleAlign, boolean forever, double slowDistMeters) {
         Supplier<Pose2d> adjGoalSupplier = () -> {
                 var curr = swerve.getGlobalPoseEstimate();
@@ -210,6 +177,42 @@ public class Superstructure {
     }
 
     //########## Auto commands
+
+    public Command autoScore(ReefPosition pos, ElevatorHeight scorePos) {
+        Trigger closingInOnGoal = new Trigger(() -> {
+            Pose2d swervePose = swerve.getGlobalPoseEstimate();
+            Pose2d goalPose = swerve.getGoalPose();
+            double dist = goalPose.getTranslation().getDistance(swervePose.getTranslation());
+            return dist < 1;
+        }).and(swerve.isAligning());
+
+        List<Pose2d> possibleGoalPoses;
+        Command elevatorCommand;
+        switch (pos) {
+            case LEFT -> possibleGoalPoses = kReefLeftCoralPoses;
+            case RIGHT -> possibleGoalPoses = kReefRightCoralPoses;
+            default -> possibleGoalPoses = kReefCenterPoses;
+        }
+
+        switch (scorePos) {
+            case L1 -> elevatorCommand = elevator.setL1C();
+            case L2 -> elevatorCommand = elevator.setL2C();
+            case L3 -> elevatorCommand = elevator.setL3C();
+            case L4 -> elevatorCommand = elevator.setL4C();
+            default -> elevatorCommand = elevator.setL4C();
+        }
+
+        return sequence(
+            parallel(
+                autoAlign(() -> swerve.getGlobalPoseEstimate().nearest(possibleGoalPoses).plus(reefAlignOffset), false, false, 1),
+                sequence(
+                    waitUntil(closingInOnGoal),
+                    elevatorCommand
+                )
+            ),
+            manipulator.scoreCoralC().asProxy().withTimeout(0.4)
+        ).withName( "AlignToReef" + pos.toString() + "AndScore" + scorePos.toString());
+    }
 
     public Command autoCoralStation(Pose2d coralStation){
         Trigger simSkipCoral = new Trigger(() -> {
