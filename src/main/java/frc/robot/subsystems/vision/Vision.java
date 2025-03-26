@@ -2,6 +2,7 @@ package frc.robot.subsystems.vision;
 
 import static frc.robot.subsystems.vision.VisionConstants.*;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -20,6 +21,7 @@ import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.Matrix;
 import edu.wpi.first.math.Nat;
 import edu.wpi.first.math.VecBuilder;
+import edu.wpi.first.math.estimator.SwerveDrivePoseEstimator;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -47,7 +49,7 @@ public class Vision {
 
     private final StructArrayPublisher<Pose3d> visibleTagsPub = NetworkTableInstance.getDefault().getStructArrayTopic("Vision/Visible Tag Poses", Pose3d.struct).publish();
     private final StructPublisher<Pose3d> pipelinePosePub = NetworkTableInstance.getDefault().getStructTopic("Vision/Pipeline Pose", Pose3d.struct).publish();
-    private final StructPublisher<Pose3d> testPosePub = NetworkTableInstance.getDefault().getStructTopic("Vision/Test Pose", Pose3d.struct).publish();
+    private final StructPublisher<Pose3d> estimatedPosePub = NetworkTableInstance.getDefault().getStructTopic("Vision/Estimated Pose", Pose3d.struct).publish();
 
     private final TunableNumber lowTrustTrlStdDevs = new TunableNumber("Vision/lowTrustTrlStdDevs", kLowTrustTrlStdDevs);
     private final TunableNumber lowTrustRotStdDevs = new TunableNumber("Vision/lowTrustRotStdDevs", kLowTrustRotStdDevs);
@@ -56,22 +58,22 @@ public class Vision {
     private final TunableNumber highTrustRotStdDevs = new TunableNumber("Vision/highTrustRotStdDevs", kHighTrustRotStdDevs);
     private Matrix<N3, N1> highTrustStdDevs = VecBuilder.fill(kHighTrustTrlStdDevs, kHighTrustTrlStdDevs, kHighTrustRotStdDevs);
 
-    private final TunableNumber constrainedHeadingTrust = new TunableNumber("Vision/constrainedHeadingTrust", kConstrainedHeadingTrust);
+    // private final TunableNumber constrainedHeadingTrust = new TunableNumber("Vision/constrainedHeadingTrust", kConstrainedHeadingTrust);
 
-    private Transform3d testRobotToCam = kRobotToCamLeft;
+    private Transform3d testRobotToCam = kRobotToCamFacingLeft;
 
     // // Simulation
-    private PhotonCameraSim cameraSimLeft;
-    private PhotonCameraSim cameraSimRight;
+    private PhotonCameraSim cameraSimFacingLeft;
+    private PhotonCameraSim cameraSimFacingRight;
     private VisionSystemSim visionSim;
 
     public Vision() {
-        cameraLeft = new PhotonCamera(kCameraNameLeft);
-        cameraRight = new PhotonCamera(kCameraNameRight);
+        cameraLeft = new PhotonCamera(kCameraNameFacingLeft);
+        cameraRight = new PhotonCamera(kCameraNameFacingRight);
 
         photonEstimator =
                 new PhotonPoseEstimator(
-                        kTagLayout, PoseStrategy.MULTI_TAG_PNP_ON_COPROCESSOR, kRobotToCamLeft);
+                        kTagLayout, PoseStrategy.MULTI_TAG_PNP_ON_COPROCESSOR, kRobotToCamFacingLeft);
         photonEstimator.setMultiTagFallbackStrategy(PoseStrategy.PNP_DISTANCE_TRIG_SOLVE);
 
         // ----- Simulation
@@ -87,23 +89,24 @@ public class Vision {
                 MatBuilder.fill(Nat.N3(), Nat.N3(), 912.709493756531,0.0,604.8806144623338,0.0,912.1834423662752,417.52151705840043,0.0,0.0,1.0),
                 VecBuilder.fill(0.04876898702521537,-0.07988383118417577,5.014752423658081E-4,-8.445052005705895E-4,0.014724717037463421,-0.001568504911944983,0.0025829433227567843,-0.0013020935054274872)
             );
-            cameraProp.setCalibError(0.35, 0.10);
-            cameraProp.setFPS(45);
-            cameraProp.setAvgLatencyMs(25);
+            cameraProp.setCalibError(0.45, 0.10);
+            cameraProp.setFPS(40);
+            cameraProp.setAvgLatencyMs(30);
             cameraProp.setLatencyStdDevMs(8);
             // Create a PhotonCameraSim which will update the linked PhotonCamera's values with visible
             // targets.
-            cameraSimLeft = new PhotonCameraSim(cameraLeft, cameraProp);
-            cameraSimLeft.setMinTargetAreaPixels(400);
-            cameraSimRight = new PhotonCameraSim(cameraRight, cameraProp);
+            cameraSimFacingLeft = new PhotonCameraSim(cameraLeft, cameraProp);
+            cameraSimFacingLeft.setMinTargetAreaPixels(400);
+            cameraSimFacingRight = new PhotonCameraSim(cameraRight, cameraProp);
+            cameraSimFacingRight.setMinTargetAreaPixels(400);
             // Add the simulated camera to view the targets on this simulated field.
-            visionSim.addCamera(cameraSimLeft, kRobotToCamLeft);
-            visionSim.addCamera(cameraSimRight, kRobotToCamRight);
+            visionSim.addCamera(cameraSimFacingLeft, kRobotToCamFacingLeft);
+            visionSim.addCamera(cameraSimFacingRight, kRobotToCamFacingRight);
 
         }
 
         SmartDashboard.putData("Vision/testRtCrandom", Commands.runOnce(()->{
-            testRobotToCam = kRobotToCamLeft.plus(new Transform3d(
+            testRobotToCam = kRobotToCamFacingLeft.plus(new Transform3d(
                 0, 0, Math.random()*0.05,
                 Rotation3d.kZero
             ));
@@ -113,6 +116,34 @@ public class Vision {
 
     public void periodic() {
         changeTunable();
+
+        // Make tag's alliance relative
+        if (!DriverStation.isDisabled()) {
+            DriverStation.getAlliance().ifPresent(allianceColor -> {
+                kTagLayout.setOrigin(
+                    allianceColor == Alliance.Red
+                        ? OriginPosition.kRedAllianceWallRightSide
+                        : OriginPosition.kBlueAllianceWallRightSide
+                );
+            });
+        }
+    }
+
+    public void update(SwerveDrivePoseEstimator estimator, Rotation2d fieldToRobotRot) {
+        var leftResults = cameraLeft.getAllUnreadResults();
+        for (var result : leftResults) {
+            estimatePoseGivenRot(result, fieldToRobotRot, kRobotToCamFacingLeft).ifPresent(estimate -> {
+                var stdDevs = getEstimationStdDevs(estimate.estimatedPose);
+                estimator.addVisionMeasurement(estimate.estimatedPose.toPose2d(), estimate.timestampSeconds, stdDevs);
+            });
+        }
+
+        if (leftResults.isEmpty()) estimatedPosePub.set(null);
+        else {
+            visibleTagsPub.set(leftResults.get(0).targets.stream()
+                    .map(tag -> new Pose3d(robotPose).plus(testRobotToCam).plus(tag.bestCameraToTarget)).collect(Collectors.toList()).toArray(Pose3d[]::new));
+            estimatePoseGivenRot(leftResults.get(0), robotPose.getRotation(), testRobotToCam);
+        }
     }
 
     public PhotonPipelineResult getLatestResult() {
@@ -127,22 +158,14 @@ public class Vision {
      *     used for estimation.
      */
     public Optional<EstimatedRobotPose> getEstimatedGlobalPose(Pose2d robotPose, double timestampRotation) {
-        if (!DriverStation.isDisabled()) {
-            DriverStation.getAlliance().ifPresent(allianceColor -> {
-                kTagLayout.setOrigin(
-                    allianceColor == Alliance.Red
-                        ? OriginPosition.kRedAllianceWallRightSide
-                        : OriginPosition.kBlueAllianceWallRightSide
-                );
-            });
-        }
+        
 
         var results = cameraLeft.getAllUnreadResults();
-        if (results.isEmpty()) testPosePub.set(null);
+        if (results.isEmpty()) estimatedPosePub.set(null);
         else {
             visibleTagsPub.set(results.get(0).targets.stream()
                     .map(tag -> new Pose3d(robotPose).plus(testRobotToCam).plus(tag.bestCameraToTarget)).collect(Collectors.toList()).toArray(Pose3d[]::new));
-            testPose(results.get(0), robotPose.getRotation(), testRobotToCam);
+            estimatePoseGivenRot(results.get(0), robotPose.getRotation(), testRobotToCam);
         }
 
         var latest = getLatestResult();
@@ -150,8 +173,7 @@ public class Vision {
         var visionEst = photonEstimator.update(
             latest,
             cameraLeft.getCameraMatrix(),
-            cameraLeft.getDistCoeffs(),
-            Optional.of(new PhotonPoseEstimator.ConstrainedSolvepnpParams(false, constrainedHeadingTrust.get()))
+            cameraLeft.getDistCoeffs()
         );
         double latestTimestamp = latest.getTimestampSeconds();
         boolean newResult = Math.abs(latestTimestamp - lastEstTimestamp) > 1e-5;
@@ -176,13 +198,13 @@ public class Vision {
         return visionEst;
     }
 
-    public void testPose(PhotonPipelineResult result, Rotation2d fieldToRobotRot, Transform3d robotToCam) {
+    public Optional<EstimatedRobotPose> estimatePoseGivenRot(PhotonPipelineResult result, Rotation2d fieldToRobotRot, Transform3d robotToCam) {
         var bestTarget = result.getBestTarget();
-        if (bestTarget == null) return;
+        if (bestTarget == null) return Optional.empty();
         var camToTargetTrl = bestTarget.getBestCameraToTarget().getTranslation();
 
         var tagPoseMaybe = kTagLayout.getTagPose(bestTarget.fiducialId);
-        if (tagPoseMaybe.isEmpty()) return;
+        if (tagPoseMaybe.isEmpty()) return Optional.empty();
         var tagPose = tagPoseMaybe.get();
         Rotation3d tagRot = tagPose.getRotation();
         var fieldToCamRot = robotToCam.getRotation().rotateBy(new Rotation3d(fieldToRobotRot));
@@ -196,9 +218,14 @@ public class Vision {
                 fieldToCamRot
             )
         );
-        var estRobotPose = tagPose.plus(targetToCam).plus(robotToCam.inverse());
 
-        testPosePub.set(estRobotPose);
+        var estimate = new EstimatedRobotPose(
+            tagPose.plus(targetToCam).plus(robotToCam.inverse()),
+            result.getTimestampSeconds(),
+            List.of(bestTarget),
+            null
+        );
+        return Optional.of(estimate);
     }
 
     /**
@@ -238,7 +265,7 @@ public class Vision {
         lowTrustRotStdDevs.poll();
         highTrustTrlStdDevs.poll();
         highTrustRotStdDevs.poll();
-        constrainedHeadingTrust.poll();
+        // constrainedHeadingTrust.poll();
 
         int hash = hashCode();
         if (lowTrustTrlStdDevs.hasChanged(hash) || lowTrustRotStdDevs.hasChanged(hash)) {
