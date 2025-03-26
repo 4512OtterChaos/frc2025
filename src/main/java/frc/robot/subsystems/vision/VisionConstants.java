@@ -1,5 +1,9 @@
 package frc.robot.subsystems.vision;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import edu.wpi.first.apriltag.AprilTag;
 import edu.wpi.first.apriltag.AprilTagFieldLayout;
 import edu.wpi.first.apriltag.AprilTagFields;
 import edu.wpi.first.math.geometry.Rotation3d;
@@ -16,7 +20,16 @@ public class VisionConstants {
     );
     
     // The layout of the AprilTags on the field
-    public static final AprilTagFieldLayout kTagLayout = AprilTagFieldLayout.loadField(AprilTagFields.k2025ReefscapeWelded);
+    private static final AprilTagFieldLayout kOrigionalTagLayout = AprilTagFieldLayout.loadField(AprilTagFields.k2025ReefscapeWelded);
+    private static List<AprilTag> tags = new ArrayList<AprilTag>() {{
+        addAll(kOrigionalTagLayout.getTags());
+        for (AprilTag tag : kOrigionalTagLayout.getTags()){
+            if (tag.ID <= 5 || (tag.ID >= 12 && tag.ID <= 16)) {
+                remove(tag);
+            }
+        }
+    }};
+    public static final AprilTagFieldLayout kTagLayout = new AprilTagFieldLayout(tags, kOrigionalTagLayout.getFieldLength(), kOrigionalTagLayout.getFieldWidth());
     
     // The standard deviations of our vision estimated poses, which affect correction rate
     // (Fake values. Experiment and determine estimation noise on an actual robot.)
