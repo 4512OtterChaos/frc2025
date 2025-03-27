@@ -25,19 +25,15 @@ public class VisionConstants {
     );
     
     // The layout of the AprilTags on the field
-    private static final AprilTagFieldLayout kOrigionalTagLayout = AprilTagFieldLayout.loadField(AprilTagFields.k2025ReefscapeWelded);
-    private static List<AprilTag> tags = new ArrayList<AprilTag>() {{
-        addAll(kOrigionalTagLayout.getTags());
-        for (AprilTag tag : kOrigionalTagLayout.getTags()){
-            if (tag.ID <= 5 || (tag.ID >= 12 && tag.ID <= 16)) {
-                remove(tag);
-            }
-        }
-    }};
-    public static final AprilTagFieldLayout kTagLayout = new AprilTagFieldLayout(tags, kOrigionalTagLayout.getFieldLength(), kOrigionalTagLayout.getFieldWidth());
+    public static final AprilTagFieldLayout kTagLayout;
+    static {
+        var originalLayout = AprilTagFieldLayout.loadField(AprilTagFields.k2025ReefscapeWelded);
+        List<AprilTag> tags = new ArrayList<>(originalLayout.getTags());
+        tags.removeIf(tag -> tag.ID <= 5 || (tag.ID >= 12 && tag.ID <= 16));
+        kTagLayout = new AprilTagFieldLayout(tags, originalLayout.getFieldLength(), originalLayout.getFieldWidth());
+    }
     
     // The standard deviations of our vision estimated poses, which affect correction rate
-    // (Fake values. Experiment and determine estimation noise on an actual robot.)
     public static final double kLowTrustTrlStdDevs = 2;
     public static final double kLowTrustRotStdDevs = Double.MAX_VALUE;
     public static final double kHighTrustTrlStdDevs = 0.5;

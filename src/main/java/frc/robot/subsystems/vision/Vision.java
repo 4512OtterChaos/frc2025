@@ -37,8 +37,8 @@ import frc.robot.Robot;
 import frc.robot.util.TunableNumber;
 
 public class Vision {
-    private final PhotonCamera cameraLeft;
-    private final PhotonCamera cameraRight;
+    private final PhotonCamera cameraLeft = new PhotonCamera(kCameraNameFacingLeft);
+    private final PhotonCamera cameraRight = new PhotonCamera(kCameraNameFacingRight);
     private final TimeInterpolatableBuffer<Rotation2d> headingBuffer =
             TimeInterpolatableBuffer.createBuffer(1.0);
 
@@ -57,18 +57,11 @@ public class Vision {
     private final TunableNumber highTrustRotStdDevs = new TunableNumber("Vision/highTrustRotStdDevs", kHighTrustRotStdDevs);
     private Matrix<N3, N1> highTrustStdDevs = VecBuilder.fill(kHighTrustTrlStdDevs, kHighTrustTrlStdDevs, kHighTrustRotStdDevs);
 
-    // private final TunableNumber constrainedHeadingTrust = new TunableNumber("Vision/constrainedHeadingTrust", kConstrainedHeadingTrust);
-
-    // // Simulation
+    //----- Simulation
     private PhotonCameraSim cameraSimFacingLeft;
     private PhotonCameraSim cameraSimFacingRight;
     private VisionSystemSim visionSim;
-
-    public Vision() {
-        cameraLeft = new PhotonCamera(kCameraNameFacingLeft);
-        cameraRight = new PhotonCamera(kCameraNameFacingRight);
-
-        // ----- Simulation
+    {
         if (Robot.isSimulation()) {
             // Create the vision system simulation which handles cameras and targets on the field.
             visionSim = new VisionSystemSim("main");
@@ -102,7 +95,6 @@ public class Vision {
             // Add the simulated camera to view the targets on this simulated field.
             visionSim.addCamera(cameraSimFacingLeft, kRobotToCamFacingLeft);
             visionSim.addCamera(cameraSimFacingRight, kRobotToCamFacingRight);
-
         }
     }
 
@@ -279,7 +271,6 @@ public class Vision {
         lowTrustRotStdDevs.poll();
         highTrustTrlStdDevs.poll();
         highTrustRotStdDevs.poll();
-        // constrainedHeadingTrust.poll();
 
         int hash = hashCode();
         if (lowTrustTrlStdDevs.hasChanged(hash) || lowTrustRotStdDevs.hasChanged(hash)) {
