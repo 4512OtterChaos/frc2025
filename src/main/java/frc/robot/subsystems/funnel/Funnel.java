@@ -137,7 +137,7 @@ public class Funnel extends SubsystemBase{
         double firstStoredVel = 0;
         if (currentVel > 0.15) {
             velocitiesRotations.add(currentVel);
-            if (velocitiesRotations.size() > 100 ){ //TODO: Config numVelocitesStored
+            if (velocitiesRotations.size() > 100 ){ //TODO: Config numVelocitesStored?
                 firstStoredVel = velocitiesRotations.get(0);
                 velocitiesRotations.remove(0);
             }

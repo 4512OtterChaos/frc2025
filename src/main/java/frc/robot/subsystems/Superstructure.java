@@ -65,7 +65,7 @@ public class Superstructure {
 
         adjustDriving();
 
-        viz.update(elevator.getHeight(), manipulator.getPosition());
+        viz.update(elevator.getHeight(), manipulator.getPosition(), funnel.getPosition());
     }
 
     //########## Alignnment Commands

@@ -46,6 +46,9 @@ public class SuperstructureViz {
 
     private MechanismRoot2d algaeRollerRoot = mech.getRoot("algaeRoot", 0, 0);
     private MechanismCircle2d algaeRoller = new MechanismCircle2d(algaeRollerRoot, 8, ManipulatorConstants.kAlgaeRollerDia, "algae");
+    
+    private MechanismRoot2d funnelRollerRoot = mech.getRoot("funnelRoot", mechWidth/2.0 - 0.177800, 0.813107); //TODO: Place root in the right position
+    private MechanismCircle2d funnelRoller = new MechanismCircle2d(funnelRollerRoot, 8, ManipulatorConstants.kAlgaeRollerDia, "funnel");
 
     public SuperstructureViz() {
         coralRoller.setFullBackgroundColor(Color.kGreen);
@@ -53,12 +56,15 @@ public class SuperstructureViz {
 
         algaeRoller.setFullBackgroundColor(Color.kOrange);
         algaeRoller.createStripe();
+        
+        funnelRoller.setFullBackgroundColor(Color.kRosyBrown);
+        funnelRoller.createStripe();
 
         // coralRoller.setStripedBackground(Color.kGreen, Color.kWhite);
         // algaeRoller.setStripedBackground(Color.kOrange, Color.kWhite);
     }
     
-    public void update(Distance elevHeight, Angle manipRollerAngle) {
+    public void update(Distance elevHeight, Angle manipRollerAngle, Angle funnelRollerAngle) {
         var carriageCoralHeight = elevHeight.plus(kCoralZ.minus(kElevOffsetZ));
         mechElev.setLength(carriageCoralHeight.in(Meters));
 
@@ -71,6 +77,10 @@ public class SuperstructureViz {
         Rotation2d algaeRot = coralRot.unaryMinus();
         algaeRoller.setBackgroundAngle(algaeRot);
         algaeRoller.setStripeAngle(algaeRot);
+
+        Rotation2d funnelRot = new Rotation2d(funnelRollerAngle);
+        funnelRoller.setBackgroundAngle(funnelRot);
+        funnelRoller.setStripeAngle(funnelRot);
 
         SmartDashboard.putData("Mech2d", mech);
     }
