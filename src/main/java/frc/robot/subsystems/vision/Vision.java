@@ -1,5 +1,6 @@
 package frc.robot.subsystems.vision;
 
+import static edu.wpi.first.units.Units.RadiansPerSecond;
 import static frc.robot.subsystems.vision.VisionConstants.*;
 
 import java.util.List;
@@ -30,6 +31,7 @@ import edu.wpi.first.math.numbers.*;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.networktables.StructArrayPublisher;
 import edu.wpi.first.networktables.StructPublisher;
+import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.smartdashboard.Field2d;
@@ -50,13 +52,14 @@ public class Vision {
     private final StructArrayPublisher<Pose3d> rightVisibleTagsPub = NetworkTableInstance.getDefault().getStructArrayTopic("Vision/Right Cam/Visible Tag Poses", Pose3d.struct).publish();
     private final StructPublisher<Pose3d> rightEstimatePosePub = NetworkTableInstance.getDefault().getStructTopic("Vision/Right Cam/Estimated Pose", Pose3d.struct).publish();
     
-    private final TunableNumber lowTrustTrlStdDevs = new TunableNumber("Vision/lowTrustTrlStdDevs", kLowTrustTrlStdDevs);
-    private final TunableNumber lowTrustRotStdDevs = new TunableNumber("Vision/lowTrustRotStdDevs", kLowTrustRotStdDevs);
-    private Matrix<N3, N1> lowTrustStdDevs = VecBuilder.fill(kLowTrustTrlStdDevs, kLowTrustTrlStdDevs, kLowTrustRotStdDevs);
-    private final TunableNumber highTrustTrlStdDevs = new TunableNumber("Vision/highTrustTrlStdDevs", kHighTrustTrlStdDevs);
-    private final TunableNumber highTrustRotStdDevs = new TunableNumber("Vision/highTrustRotStdDevs", kHighTrustRotStdDevs);
-    private Matrix<N3, N1> highTrustStdDevs = VecBuilder.fill(kHighTrustTrlStdDevs, kHighTrustTrlStdDevs, kHighTrustRotStdDevs);
-
+    private final TunableNumber singletagBaseTrustTrlStdDevs = new TunableNumber("Vision/singletagBaseTrustTrlStdDevs", kSingletagBaseTrustTrlStdDevs);
+    private final TunableNumber singletagBaseTrustRotStdDevs = new TunableNumber("Vision/singletagBaseTrustRotStdDevs", kSingletagBaseTrustRotStdDevs);
+    private Matrix<N3, N1> singletagBaseTrustStdDevs = VecBuilder.fill(kSingletagBaseTrustTrlStdDevs, kSingletagBaseTrustTrlStdDevs, kSingletagBaseTrustRotStdDevs);
+    private final TunableNumber multitagBaseTrustTrlStdDevs = new TunableNumber("Vision/multitagBaseTrustTrlStdDevs", kMultitagBaseTrustTrlStdDevs);
+    private final TunableNumber multitagBaseTrustRotStdDevs = new TunableNumber("Vision/multitagBaseTrustRotStdDevs", kMultitagBaseTrustRotStdDevs);
+    private Matrix<N3, N1> multitagBaseTrustStdDevs = VecBuilder.fill(kMultitagBaseTrustTrlStdDevs, kMultitagBaseTrustTrlStdDevs, kMultitagBaseTrustRotStdDevs);
+    private final TunableNumber distanceTrustScale = new TunableNumber("Vision/distanceTrustScale", kDistanceTrustScale);
+    private final TunableNumber rotSpeedTrustScale = new TunableNumber("Vision/rotSpeedTrustScale", kRotSpeedTrustScale);
     //----- Simulation
     private PhotonCameraSim cameraSimFacingLeft;
     private PhotonCameraSim cameraSimFacingRight;
@@ -119,18 +122,20 @@ public class Vision {
      * @param fieldToRobotRot Heading of the robot on the field
      * @param rotationTimestamp Timestamp the heading of the robot was captured at
      */
-    public void update(SwerveDrivePoseEstimator estimator, Rotation2d fieldToRobotRot, double rotationTimestamp) {
+    public void update(
+            SwerveDrivePoseEstimator estimator, Rotation2d fieldToRobotRot, AngularVelocity rotSpeed, double rotationTimestamp
+        ) {
         headingBuffer.addSample(rotationTimestamp, fieldToRobotRot);
 
         // Update estimator for new left-facing camera results
         var leftResults = cameraLeft.getAllUnreadResults();
-        processResults(leftResults, estimator, kRobotToCamFacingLeft).ifPresent(latestEstimate -> {
+        processResults(leftResults, estimator, kRobotToCamFacingLeft, rotSpeed).ifPresent(latestEstimate -> {
             leftEstimatePosePub.set(latestEstimate);
         });
 
         // Update estimator for new right-facing camera results
         var rightResults = cameraRight.getAllUnreadResults();
-        processResults(rightResults, estimator, kRobotToCamFacingRight).ifPresent(latestEstimate -> {
+        processResults(rightResults, estimator, kRobotToCamFacingRight, rotSpeed).ifPresent(latestEstimate -> {
             rightEstimatePosePub.set(latestEstimate);
         });
 
@@ -168,7 +173,9 @@ public class Vision {
      * @param robotToCam
      * @return The estimated robot pose for the last given result, or empty if none.
      */
-    private Optional<Pose3d> processResults(List<PhotonPipelineResult> results, SwerveDrivePoseEstimator estimator, Transform3d robotToCam) {
+    private Optional<Pose3d> processResults(
+            List<PhotonPipelineResult> results, SwerveDrivePoseEstimator estimator, Transform3d robotToCam, AngularVelocity rotSpeed
+        ) {
         Optional<Pose3d> latestCamEstimate = Optional.empty();
 
         if (results.size() > 1) { // ensure new results are last
@@ -180,7 +187,7 @@ public class Vision {
             if (opt.isEmpty()) continue;
             EstimatedRobotPose estimate = opt.get();
             latestCamEstimate = Optional.of(estimate.estimatedPose);
-            var stdDevs = getEstimationStdDevs(result, estimate.estimatedPose);
+            var stdDevs = getEstimationStdDevs(result, rotSpeed, true);
             estimator.addVisionMeasurement(estimate.estimatedPose.toPose2d(), estimate.timestampSeconds, stdDevs);
         }
 
@@ -236,14 +243,11 @@ public class Vision {
     }
 
     /**
-     * The standard deviations of the estimated pose from {@link #getEstimatedGlobalPose()}, for use
-     * with {@link edu.wpi.first.math.estimator.SwerveDrivePoseEstimator SwerveDrivePoseEstimator}.
-     * This should only be used when there are targets visible.
-     *
-     * @param estimatedPose The estimated pose to guess standard deviations for.
+     * Estimate the standard deviations for the pose estimate of a given camera result.
      */
-    public Matrix<N3, N1> getEstimationStdDevs(PhotonPipelineResult result, Pose3d estimatedPose) {
-        var estStdDevs = lowTrustStdDevs;
+    public Matrix<N3, N1> getEstimationStdDevs(PhotonPipelineResult result, AngularVelocity rotSpeed, boolean discardRotation) {
+        var estStdDevs = singletagBaseTrustStdDevs;
+
         var targets = result.getTargets();
         int numTags = 0;
         double avgDist = 0;
@@ -251,33 +255,43 @@ public class Vision {
             var tagPose = kTagLayout.getTagPose(tgt.getFiducialId());
             if (tagPose.isEmpty()) continue;
             numTags++;
-            avgDist +=
-                    tagPose.get().getTranslation().getDistance(estimatedPose.getTranslation());
+            avgDist += tgt.getBestCameraToTarget().getTranslation().getNorm();
         }
         if (numTags == 0) return estStdDevs;
         avgDist /= numTags;
-        // Decrease std devs if multiple targets are visible
-        if (numTags > 1) estStdDevs = highTrustStdDevs;
-        // Increase std devs based on (average) distance
-        if ((numTags == 1 && avgDist > 4) || !MathUtil.isNear(0, estimatedPose.getZ(), 0.5))
-            estStdDevs = VecBuilder.fill(Double.MAX_VALUE, Double.MAX_VALUE, Double.MAX_VALUE);
-        else estStdDevs = estStdDevs.times(1 + (avgDist * avgDist / 30));
 
+        // Decrease std devs if multiple targets are visible
+        if (numTags > 1) estStdDevs = multitagBaseTrustStdDevs;
+        // Increase std devs based on (average) distance
+        if ((numTags == 1 && avgDist > 5))
+            estStdDevs = VecBuilder.fill(Double.MAX_VALUE, Double.MAX_VALUE, Double.MAX_VALUE);
+        else estStdDevs = estStdDevs.times(1 + (avgDist * avgDist / distanceTrustScale.get()));
+
+        estStdDevs = estStdDevs.times(1 + rotSpeed.in(RadiansPerSecond) / rotSpeedTrustScale.get());
+
+        if (discardRotation) {
+            estStdDevs.set(2, 0, Double.MAX_VALUE);
+        }
         return estStdDevs;
     }
 
     public void changeTunable() {
-        lowTrustTrlStdDevs.poll();
-        lowTrustRotStdDevs.poll();
-        highTrustTrlStdDevs.poll();
-        highTrustRotStdDevs.poll();
+        singletagBaseTrustTrlStdDevs.poll();
+        singletagBaseTrustRotStdDevs.poll();
+        multitagBaseTrustTrlStdDevs.poll();
+        multitagBaseTrustRotStdDevs.poll();
+        distanceTrustScale.poll();
+        rotSpeedTrustScale.poll();
+
 
         int hash = hashCode();
-        if (lowTrustTrlStdDevs.hasChanged(hash) || lowTrustRotStdDevs.hasChanged(hash)) {
-            lowTrustStdDevs = VecBuilder.fill(lowTrustTrlStdDevs.get(), lowTrustTrlStdDevs.get(), lowTrustRotStdDevs.get());
+        if (singletagBaseTrustTrlStdDevs.hasChanged(hash) || singletagBaseTrustRotStdDevs.hasChanged(hash)) {
+            singletagBaseTrustStdDevs = VecBuilder.fill(
+                    singletagBaseTrustTrlStdDevs.get(), singletagBaseTrustTrlStdDevs.get(), singletagBaseTrustRotStdDevs.get());
         }
-        if (highTrustTrlStdDevs.hasChanged(hash) || highTrustRotStdDevs.hasChanged(hash)) {
-            highTrustStdDevs = VecBuilder.fill(highTrustTrlStdDevs.get(), highTrustTrlStdDevs.get(), highTrustRotStdDevs.get());
+        if (multitagBaseTrustTrlStdDevs.hasChanged(hash) || multitagBaseTrustRotStdDevs.hasChanged(hash)) {
+            multitagBaseTrustStdDevs = VecBuilder.fill(
+                    multitagBaseTrustTrlStdDevs.get(), multitagBaseTrustTrlStdDevs.get(), multitagBaseTrustRotStdDevs.get());
         }
     }
 

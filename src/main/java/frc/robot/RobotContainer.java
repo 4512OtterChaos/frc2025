@@ -126,7 +126,12 @@ public class RobotContainer {
         // update pose estimator with vision measurements
         double phoenixTimeOffset = Timer.getFPGATimestamp() - Utils.getCurrentTimeSeconds();
         var swerveState = swerve.getState();
-        vision.update(swerve.visionEstimator, swerveState.Pose.getRotation(), swerveState.Timestamp + phoenixTimeOffset);
+        vision.update(
+            swerve.visionEstimator,
+            swerveState.Pose.getRotation(),
+            RadiansPerSecond.of(swerveState.Speeds.omegaRadiansPerSecond),
+            swerveState.Timestamp + phoenixTimeOffset
+        );
 
         // LED patterns
         if (!layer4Pattern.equals(LEDPattern.kOff)) {
