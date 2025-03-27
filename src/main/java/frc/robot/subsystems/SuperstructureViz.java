@@ -50,7 +50,7 @@ public class SuperstructureViz {
     private MechanismRoot2d algaeRollerRoot = mech.getRoot("algaeRoot", 0, 0);
     private MechanismCircle2d algaeRoller = new MechanismCircle2d(algaeRollerRoot, 8, ManipulatorConstants.kAlgaeRollerDia, "algae");
     
-    private MechanismRoot2d funnelRollerRoot = mech.getRoot("funnelRoot", mechWidth/2.0 + kFunnOffsetX.in(Meters), kFunnOffsetZ.in(Meters)); //TODO: Place root in the right position
+    private MechanismRoot2d funnelRollerRoot = mech.getRoot("funnelRoot", mechWidth/2.0 + kFunnOffsetX.in(Meters), kFunnOffsetZ.in(Meters));
     private MechanismCircle2d funnelRoller = new MechanismCircle2d(funnelRollerRoot, 8, ManipulatorConstants.kAlgaeRollerDia, "funnel");
 
     public SuperstructureViz() {

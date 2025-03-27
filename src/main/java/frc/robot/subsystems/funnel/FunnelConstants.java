@@ -34,7 +34,7 @@ public class FunnelConstants {
     public static double kStallTime = 0.3;
 
     public static int kNumVelocitesStored = 100;
-    public static double kCoralSensePercentDrop = .25; //TODO: test for accuracy
+    public static double kCoralSensePercentDrop = .10; //TODO: test for accuracy
     public static double kCoralDelayedSenseTime = .2; //TODO: test for accuracy
 
 

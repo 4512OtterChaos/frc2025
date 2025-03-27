@@ -1,12 +1,6 @@
 package frc.robot.subsystems.funnel;
 
-import static edu.wpi.first.wpilibj2.command.Commands.run;
-import static edu.wpi.first.wpilibj2.command.Commands.sequence;
-import static edu.wpi.first.wpilibj2.command.Commands.startEnd;
-
 import static frc.robot.subsystems.funnel.FunnelConstants.*;
-
-import java.util.ArrayList;
 
 import com.ctre.phoenix6.BaseStatusSignal;
 import com.ctre.phoenix6.StatusSignal;
@@ -46,9 +40,7 @@ public class Funnel extends SubsystemBase{
     double lastFreeTime = Timer.getFPGATimestamp();
     double lastSetTime = Timer.getFPGATimestamp();
 
-    ArrayList<Double> velocitiesRotations = new ArrayList<Double>();
-    double sumVelocities = 0;
-    double avgVelRotations = 0;
+    AngularVelocity lastVel = RotationsPerSecond.of(0);
 
     private final StatusSignal<Voltage> voltageStatus = motor.getMotorVoltage();
     private final StatusSignal<Angle> positionStatus = motor.getPosition();
@@ -95,7 +87,7 @@ public class Funnel extends SubsystemBase{
             lastFreeTime = Timer.getFPGATimestamp();
         }
 
-        updateAverageVelocity();
+        lastVel = getVelocity();
 
         changeTunable();
 
@@ -132,28 +124,14 @@ public class Funnel extends SubsystemBase{
         return statorStatus.getValueAsDouble();
     }
 
-    public void updateAverageVelocity(){
-        double currentVel = getVelocity().in(RotationsPerSecond);
-        double firstStoredVel = 0;
-        if (currentVel > 0.15) {
-            velocitiesRotations.add(currentVel);
-            if (velocitiesRotations.size() > 100 ){ //TODO: Config numVelocitesStored?
-                firstStoredVel = velocitiesRotations.get(0);
-                velocitiesRotations.remove(0);
-            }
-            sumVelocities += (currentVel - firstStoredVel);
-            avgVelRotations = sumVelocities / velocitiesRotations.size();
-        }
-    }
-
     public Trigger isStalled(){
         return new Trigger(() -> Timer.getFPGATimestamp() >= (lastFreeTime + kStallTime));
     }
 
-    public Trigger isCoralDetected(){ //TODO: Use velocity detection
+    public Trigger isCoralDetected(){
         return new Trigger(() -> {
-            double deltaVel = avgVelRotations - getVelocity().in(RotationsPerSecond);
-            boolean velChanging = deltaVel/avgVelRotations > coralSensePercentDrop.get();
+            double deltaVel = lastVel.minus(getVelocity()).in(RotationsPerSecond);
+            boolean velChanging = deltaVel/lastVel.in(RotationsPerSecond) > coralSensePercentDrop.get(); //TODO: Make absolute?
             boolean velSet = Timer.getFPGATimestamp() - lastSetTime > coralDelayedSenseTime.get();
             return velChanging && velSet;
         });
@@ -213,7 +191,6 @@ public class Funnel extends SubsystemBase{
         SmartDashboard.putNumber("Funnel/Motor Current", getCurrent());
         SmartDashboard.putNumber("Funnel/Rotations", getPosition().in(Rotations));
         SmartDashboard.putNumber("Funnel/Rotations per second", getVelocity().in(RotationsPerSecond));
-        SmartDashboard.putNumber("Funnel/Average Rotations per second", avgVelRotations);
         SmartDashboard.putBoolean("Funnel/isStalled", isStalled().getAsBoolean());
         SmartDashboard.putBoolean("Funnel/Coral Detected", isCoralDetected().getAsBoolean());
 
