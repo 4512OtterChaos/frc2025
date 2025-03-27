@@ -47,10 +47,11 @@ public class Vision {
     private final PhotonPoseEstimator photonEstimator;
     private double lastEstTimestamp = 0;
 
-    private final StructArrayPublisher<Pose3d> visibleTagsPub = NetworkTableInstance.getDefault().getStructArrayTopic("Vision/Visible Tag Poses", Pose3d.struct).publish();
-    private final StructPublisher<Pose3d> pipelinePosePub = NetworkTableInstance.getDefault().getStructTopic("Vision/Pipeline Pose", Pose3d.struct).publish();
-    private final StructPublisher<Pose3d> estimatedPosePub = NetworkTableInstance.getDefault().getStructTopic("Vision/Estimated Pose", Pose3d.struct).publish();
-
+    private final StructArrayPublisher<Pose3d> leftVisibleTagsPub = NetworkTableInstance.getDefault().getStructArrayTopic("Vision/Left Cam/Visible Tag Poses", Pose3d.struct).publish();
+    private final StructPublisher<Pose3d> leftEstimatePosePub = NetworkTableInstance.getDefault().getStructTopic("Vision/Left Cam/Estimated Pose", Pose3d.struct).publish();
+    private final StructArrayPublisher<Pose3d> rightVisibleTagsPub = NetworkTableInstance.getDefault().getStructArrayTopic("Vision/Right Cam/Visible Tag Poses", Pose3d.struct).publish();
+    private final StructPublisher<Pose3d> rightEstimatePosePub = NetworkTableInstance.getDefault().getStructTopic("Vision/Right Cam/Estimated Pose", Pose3d.struct).publish();
+    
     private final TunableNumber lowTrustTrlStdDevs = new TunableNumber("Vision/lowTrustTrlStdDevs", kLowTrustTrlStdDevs);
     private final TunableNumber lowTrustRotStdDevs = new TunableNumber("Vision/lowTrustRotStdDevs", kLowTrustRotStdDevs);
     private Matrix<N3, N1> lowTrustStdDevs = VecBuilder.fill(kLowTrustTrlStdDevs, kLowTrustTrlStdDevs, kLowTrustRotStdDevs);
@@ -59,8 +60,6 @@ public class Vision {
     private Matrix<N3, N1> highTrustStdDevs = VecBuilder.fill(kHighTrustTrlStdDevs, kHighTrustTrlStdDevs, kHighTrustRotStdDevs);
 
     // private final TunableNumber constrainedHeadingTrust = new TunableNumber("Vision/constrainedHeadingTrust", kConstrainedHeadingTrust);
-
-    private Transform3d testRobotToCam = kRobotToCamFacingLeft;
 
     // // Simulation
     private PhotonCameraSim cameraSimFacingLeft;
@@ -104,20 +103,12 @@ public class Vision {
             visionSim.addCamera(cameraSimFacingRight, kRobotToCamFacingRight);
 
         }
-
-        SmartDashboard.putData("Vision/testRtCrandom", Commands.runOnce(()->{
-            testRobotToCam = kRobotToCamFacingLeft.plus(new Transform3d(
-                0, 0, Math.random()*0.05,
-                Rotation3d.kZero
-            ));
-            photonEstimator.setRobotToCameraTransform(testRobotToCam);
-        }));
     }
 
     public void periodic() {
         changeTunable();
 
-        // Make tag's alliance relative
+        // Make tags alliance relative
         if (!DriverStation.isDisabled()) {
             DriverStation.getAlliance().ifPresent(allianceColor -> {
                 kTagLayout.setOrigin(
@@ -129,8 +120,12 @@ public class Vision {
         }
     }
 
-    public void update(SwerveDrivePoseEstimator estimator, Rotation2d fieldToRobotRot) {
+    public void update(SwerveDrivePoseEstimator estimator, Rotation2d fieldToRobotRot, double rotationTimestamp) {
+        // Update estimator for new left-facing camera results
         var leftResults = cameraLeft.getAllUnreadResults();
+        if (leftResults.size() > 1) { // ensure new results are last
+            leftResults.sort((r1, r2) -> Double.compare(r1.getTimestampSeconds(), r2.getTimestampSeconds()));
+        }
         for (var result : leftResults) {
             estimatePoseGivenRot(result, fieldToRobotRot, kRobotToCamFacingLeft).ifPresent(estimate -> {
                 var stdDevs = getEstimationStdDevs(estimate.estimatedPose);
@@ -138,64 +133,47 @@ public class Vision {
             });
         }
 
-        if (leftResults.isEmpty()) estimatedPosePub.set(null);
+        // Update estimator for new right-facing camera results
+        var rightResults = cameraRight.getAllUnreadResults();
+        if (rightResults.size() > 1) { // ensure new results are last
+            rightResults.sort((r1, r2) -> Double.compare(r1.getTimestampSeconds(), r2.getTimestampSeconds()));
+        }
+        for (var result : rightResults) {
+            estimatePoseGivenRot(result, fieldToRobotRot, kRobotToCamFacingRight).ifPresent(estimate -> {
+                var stdDevs = getEstimationStdDevs(estimate.estimatedPose);
+                estimator.addVisionMeasurement(estimate.estimatedPose.toPose2d(), estimate.timestampSeconds, stdDevs);
+            });
+        }
+
+        // Grab updated pose for logging
+        var updatedRobotPose = estimator.getEstimatedPosition();
+        var updatedRobotPose3d = new Pose3d(updatedRobotPose);
+
+        // Log last left-facing camera estimate and visible tags
+        if (leftResults.isEmpty()) {
+            leftEstimatePosePub.set(null);
+            leftVisibleTagsPub.set(null);
+        }
         else {
-            visibleTagsPub.set(leftResults.get(0).targets.stream()
-                    .map(tag -> new Pose3d(robotPose).plus(testRobotToCam).plus(tag.bestCameraToTarget)).collect(Collectors.toList()).toArray(Pose3d[]::new));
-            estimatePoseGivenRot(leftResults.get(0), robotPose.getRotation(), testRobotToCam);
+            leftVisibleTagsPub.set(leftResults.get(leftResults.size() - 1).targets.stream()
+                    .map(tag -> updatedRobotPose3d.plus(kRobotToCamFacingLeft).plus(tag.bestCameraToTarget))
+                    .collect(Collectors.toList()).toArray(Pose3d[]::new));
+        }
+
+        // Log last right-facing camera estimate and visible tags
+        if (rightResults.isEmpty()) {
+            rightEstimatePosePub.set(null);
+            rightVisibleTagsPub.set(null);
+        }
+        else {
+            rightVisibleTagsPub.set(rightResults.get(rightResults.size() - 1).targets.stream()
+                    .map(tag -> updatedRobotPose3d.plus(kRobotToCamFacingRight).plus(tag.bestCameraToTarget))
+                    .collect(Collectors.toList()).toArray(Pose3d[]::new));
         }
     }
 
     public PhotonPipelineResult getLatestResult() {
         return cameraLeft.getLatestResult();
-    }
-
-    /**
-     * The latest estimated robot pose on the field from vision data. This may be empty. This should
-     * only be called once per loop.
-     *
-     * @return An {@link EstimatedRobotPose} with an estimated pose, estimate timestamp, and targets
-     *     used for estimation.
-     */
-    public Optional<EstimatedRobotPose> getEstimatedGlobalPose(Pose2d robotPose, double timestampRotation) {
-        
-
-        var results = cameraLeft.getAllUnreadResults();
-        if (results.isEmpty()) estimatedPosePub.set(null);
-        else {
-            visibleTagsPub.set(results.get(0).targets.stream()
-                    .map(tag -> new Pose3d(robotPose).plus(testRobotToCam).plus(tag.bestCameraToTarget)).collect(Collectors.toList()).toArray(Pose3d[]::new));
-            estimatePoseGivenRot(results.get(0), robotPose.getRotation(), testRobotToCam);
-        }
-
-        var latest = getLatestResult();
-        photonEstimator.addHeadingData(timestampRotation, robotPose.getRotation());
-        var visionEst = photonEstimator.update(
-            latest,
-            cameraLeft.getCameraMatrix(),
-            cameraLeft.getDistCoeffs()
-        );
-        double latestTimestamp = latest.getTimestampSeconds();
-        boolean newResult = Math.abs(latestTimestamp - lastEstTimestamp) > 1e-5;
-        visionEst.ifPresentOrElse(
-            (est)->pipelinePosePub.set(est.estimatedPose),
-            ()->pipelinePosePub.set(null)
-        );
-        if (Robot.isSimulation()) {
-            visionEst.ifPresentOrElse(
-                    est -> {
-                        getSimDebugField()
-                                .getObject("VisionEstimation")
-                                .setPose(est.estimatedPose.toPose2d());
-                    },
-                    () -> {
-                        if (newResult) {
-                            getSimDebugField().getObject("VisionEstimation").setPoses();
-                        }
-                    });
-        }
-        if (newResult) lastEstTimestamp = latestTimestamp;
-        return visionEst;
     }
 
     public Optional<EstimatedRobotPose> estimatePoseGivenRot(PhotonPipelineResult result, Rotation2d fieldToRobotRot, Transform3d robotToCam) {

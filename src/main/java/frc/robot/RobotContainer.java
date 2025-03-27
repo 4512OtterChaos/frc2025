@@ -128,6 +128,7 @@ public class RobotContainer {
                 swerve.addVisionMeasurement(pose.toPose2d(), estimate.timestampSeconds, stdDevs);
             });
 
+        vision.update(swerve.visionEstimator, swerveState.Pose.getRotation());
         // LED patterns
         if (!layer4Pattern.equals(LEDPattern.kOff)) {
             layer4Pattern.applyTo(ledBuffer);

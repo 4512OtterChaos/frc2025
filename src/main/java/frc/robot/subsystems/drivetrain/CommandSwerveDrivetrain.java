@@ -147,7 +147,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
 
     private final TunableNumber finalAlignDist = new TunableNumber("Swerve/finalAlignDist", kFinalAlignDist);
 
-    private final SwerveDrivePoseEstimator visionEstimator = new SwerveDrivePoseEstimator(
+    public final SwerveDrivePoseEstimator visionEstimator = new SwerveDrivePoseEstimator(
         getKinematics(),
         getState().Pose.getRotation(),
         getState().ModulePositions,
