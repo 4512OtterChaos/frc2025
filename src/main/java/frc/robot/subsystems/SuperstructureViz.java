@@ -19,6 +19,9 @@ public class SuperstructureViz {
     private static final Distance kElevOffsetX = Inches.of(3.5);
     private static final Distance kElevOffsetZ = Inches.of(2.75);
 
+    private static final Distance kFunnOffsetX = Inches.of(-7);
+    private static final Distance kFunnOffsetZ = Inches.of(32.012100);
+
     private static final Distance kCoralZ = Inches.of(24.25);
     private static final Distance kCoralLength = Inches.of(13.75);
     private static final Angle kCoralAngle = Degrees.of(-123);
@@ -47,7 +50,7 @@ public class SuperstructureViz {
     private MechanismRoot2d algaeRollerRoot = mech.getRoot("algaeRoot", 0, 0);
     private MechanismCircle2d algaeRoller = new MechanismCircle2d(algaeRollerRoot, 8, ManipulatorConstants.kAlgaeRollerDia, "algae");
     
-    private MechanismRoot2d funnelRollerRoot = mech.getRoot("funnelRoot", mechWidth/2.0 - 0.177800, 0.813107); //TODO: Place root in the right position
+    private MechanismRoot2d funnelRollerRoot = mech.getRoot("funnelRoot", mechWidth/2.0 + kFunnOffsetX.in(Meters), kFunnOffsetZ.in(Meters)); //TODO: Place root in the right position
     private MechanismCircle2d funnelRoller = new MechanismCircle2d(funnelRollerRoot, 8, ManipulatorConstants.kAlgaeRollerDia, "funnel");
 
     public SuperstructureViz() {
