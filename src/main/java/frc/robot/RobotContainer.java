@@ -123,14 +123,10 @@ public class RobotContainer {
         superstructure.periodic();
         vision.periodic();
 
+        // update pose estimator with vision measurements
         double phoenixTimeOffset = Timer.getFPGATimestamp() - Utils.getCurrentTimeSeconds();
         var swerveState = swerve.getState();
-        vision.getEstimatedGlobalPose(swerveState.Pose.getRotation(), swerveState.Timestamp + phoenixTimeOffset)
-            .ifPresent(estimate -> {
-                var pose = estimate.estimatedPose;
-                var stdDevs = vision.getEstimationStdDevs(pose);
-                swerve.addVisionMeasurement(pose.toPose2d(), estimate.timestampSeconds, stdDevs);
-            });
+        vision.update(swerve.visionEstimator, swerveState.Pose.getRotation(), swerveState.Timestamp + phoenixTimeOffset);
 
         // LED patterns
         if (!layer4Pattern.equals(LEDPattern.kOff)) {
