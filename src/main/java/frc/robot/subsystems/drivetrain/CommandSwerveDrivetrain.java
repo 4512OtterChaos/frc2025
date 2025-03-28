@@ -334,18 +334,27 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     }
 
     public Command drive(Supplier<ChassisSpeeds> speedsSupplier) {
-        return drive(speedsSupplier, true, true);
+        return drive(speedsSupplier, true, true, true);
     }
 
-    public Command drive(Supplier<ChassisSpeeds> speedsSupplier, boolean fieldCentric, boolean limitAccel) {
+    public Command drive(Supplier<ChassisSpeeds> speedsSupplier, boolean limitTrlAccel, boolean limitRotAccel) {
+        return drive(speedsSupplier, true, limitTrlAccel, limitRotAccel);
+    }
+
+    public Command drive(Supplier<ChassisSpeeds> speedsSupplier, boolean fieldCentric, boolean limitTrlAccel, boolean limitRotAccel) {
         return run(() -> {
             var targetSpeeds = speedsSupplier.get();
             if (!fieldCentric) {
                 targetSpeeds = ChassisSpeeds.fromRobotRelativeSpeeds(targetSpeeds, getGlobalPoseEstimate().getRotation());
             }
 
-            if (limitAccel) {
-                targetSpeeds = limiter.calculate(targetSpeeds, lastTargetSpeeds, Robot.kDefaultPeriod);
+            if (limitTrlAccel) {
+                targetSpeeds.vxMetersPerSecond = limiter.calculate(targetSpeeds, lastTargetSpeeds, Robot.kDefaultPeriod).vxMetersPerSecond;
+                targetSpeeds.vyMetersPerSecond = limiter.calculate(targetSpeeds, lastTargetSpeeds, Robot.kDefaultPeriod).vyMetersPerSecond;
+            }
+
+            if (limitRotAccel) {
+                targetSpeeds.omegaRadiansPerSecond = limiter.calculate(targetSpeeds, lastTargetSpeeds, Robot.kDefaultPeriod).omegaRadiansPerSecond;
             }
             lastTargetSpeeds = targetSpeeds;
 
@@ -357,7 +366,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
                 .withVelocityX(robotSpeeds.vxMetersPerSecond)
                 .withVelocityY(robotSpeeds.vyMetersPerSecond)
                 .withRotationalRate(robotSpeeds.omegaRadiansPerSecond);
-            if (limitAccel) {
+            if (limitTrlAccel) {
                 request.DriveRequestType = DriveRequestType.OpenLoopVoltage;
             }
             else {
@@ -378,7 +387,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     public Command driveFacingAngle(
             Supplier<ChassisSpeeds> trlSpeedsSupplier,
             Supplier<Rotation2d> targetAngleSupplier,
-            boolean limitAccel
+            boolean limitTrlAccel, boolean limitRotAccel
             ) {
         return sequence(
             runOnce(() -> {
@@ -390,7 +399,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
                     getGlobalPoseEstimate().getRotation().getRadians(), targetAngleSupplier.get().getRadians()
                 );
                 return targetSpeeds;
-            })
+            }, limitTrlAccel, limitRotAccel)
         ).withName("DriveFacingAngle");
     }
 
@@ -479,7 +488,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
                     targetSpeeds.omegaRadiansPerSecond = 0;
                 }
                 return targetSpeeds;
-            }, true, false)
+            }, true, false, false)
             .until(() -> { // finish when goal pose is reached
                 boolean atSetpointVel = MathUtil.isNear(0, pathXController.getErrorDerivative(), velTolMeters);
                 atSetpointVel &= MathUtil.isNear(0, pathYController.getErrorDerivative(), velTolMeters);
@@ -680,7 +689,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
                     targetSpeeds.omegaRadiansPerSecond = 0;
                 }
                 return targetSpeeds;
-            }, true, false)
+            }, true, false, false)
             .until(() -> { // finish when goal pose is reached
                 boolean atSetpointVel = MathUtil.isNear(0, pathXController.getErrorDerivative(), velTolMeters);
                 atSetpointVel &= MathUtil.isNear(0, pathYController.getErrorDerivative(), velTolMeters);

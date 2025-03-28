@@ -193,7 +193,7 @@ public class RobotContainer {
                 swerve.driveFacingAngle(
                     driveSupplier,
                     () -> FieldUtil.nearestCoralStation(swerve.getGlobalPoseEstimate()).getRotation(),
-                    true
+                    true, false
                 ).until(driverSomeRightInput.or(nearCoralStation.negate()))
             );
         
@@ -205,7 +205,7 @@ public class RobotContainer {
                 swerve.driveFacingAngle(
                     driveSupplier,
                     () -> swerve.getGlobalPoseEstimate().nearest(FieldUtil.kReefCenterPoses).getRotation(),
-                    true
+                    true, false
                 ).until(driverSomeRightInput.or(nearCoralStation))
             );
         
