@@ -106,9 +106,9 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
 
     {
         pathThetaController.enableContinuousInput(-Math.PI, Math.PI);
-        pathXController.setTolerance(kPathDrivePosTol, kPathDriveVelTol);
-        pathYController.setTolerance(kPathDrivePosTol, kPathDriveVelTol);
-        pathThetaController.setTolerance(kPathTurnPosTol, kPathTurnVelTol);
+        pathXController.setTolerance(kAlignDrivePosTol, kAlignDriveVelTol);
+        pathYController.setTolerance(kAlignDrivePosTol, kAlignDriveVelTol);
+        pathThetaController.setTolerance(kAlignTurnPosTol, kAlignTurnVelTol);
 
         // isAligned().onTrue(Commands.runOnce(()->isAligned = false));
     }
@@ -132,15 +132,15 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
 
     private final TunableNumber pathDriveKP = new TunableNumber("Swerve/pathDriveKP", kPathDriveKP);
     private final TunableNumber pathDriveKD = new TunableNumber("Swerve/pathDriveKD", kPathDriveKD);
-    private final TunableNumber pathDrivePosTol = new TunableNumber("Swerve/pathDrivePosTol", kPathDrivePosTol);
-    private final TunableNumber pathDriveVelTol = new TunableNumber("Swerve/pathDriveVelTol", kPathDriveVelTol);
+    private final TunableNumber pathDrivePosTol = new TunableNumber("Swerve/pathDrivePosTol", kAlignDrivePosTol);
+    private final TunableNumber pathDriveVelTol = new TunableNumber("Swerve/pathDriveVelTol", kAlignDriveVelTol);
     
     private final TunableNumber pathTurnKP = new TunableNumber("Swerve/pathTurnKP", kPathTurnKP);
     private final TunableNumber pathTurnKD = new TunableNumber("Swerve/pathTurnKD", kPathTurnKD);
-    private final TunableNumber pathTurnPosTol = new TunableNumber("Swerve/pathTurnPosTol", kPathTurnPosTol);
-    private final TunableNumber pathTurnVelTol = new TunableNumber("Swerve/pathTurnVelTol", kPathTurnVelTol);
+    private final TunableNumber pathTurnPosTol = new TunableNumber("Swerve/pathTurnPosTol", kAlignTurnPosTol);
+    private final TunableNumber pathTurnVelTol = new TunableNumber("Swerve/pathTurnVelTol", kAlignTurnVelTol);
 
-    private final TunableNumber finalAlignDist = new TunableNumber("Swerve/finalAlignDist", kFinalAlignLinearPosTol);
+    private final TunableNumber finalAlignDist = new TunableNumber("Swerve/finalAlignDist", kFinalAlignDist);
 
     public final SwerveDrivePoseEstimator visionEstimator = new SwerveDrivePoseEstimator(
         getKinematics(),
@@ -343,14 +343,15 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
                 targetSpeeds = ChassisSpeeds.fromRobotRelativeSpeeds(targetSpeeds, getGlobalPoseEstimate().getRotation());
             }
 
+            var limitedSpeeds = limiter.calculate(targetSpeeds, lastTargetSpeeds, Robot.kDefaultPeriod);
             if (limitTrlAccel) {
-                targetSpeeds.vxMetersPerSecond = limiter.calculate(targetSpeeds, lastTargetSpeeds, Robot.kDefaultPeriod).vxMetersPerSecond;
-                targetSpeeds.vyMetersPerSecond = limiter.calculate(targetSpeeds, lastTargetSpeeds, Robot.kDefaultPeriod).vyMetersPerSecond;
+                targetSpeeds.vxMetersPerSecond = limitedSpeeds.vxMetersPerSecond;
+                targetSpeeds.vyMetersPerSecond = limitedSpeeds.vyMetersPerSecond;
+            }
+            if (limitRotAccel) {
+                targetSpeeds.omegaRadiansPerSecond = limitedSpeeds.omegaRadiansPerSecond;
             }
 
-            if (limitRotAccel) {
-                targetSpeeds.omegaRadiansPerSecond = limiter.calculate(targetSpeeds, lastTargetSpeeds, Robot.kDefaultPeriod).omegaRadiansPerSecond;
-            }
             lastTargetSpeeds = targetSpeeds;
 
             var robotSpeeds = ChassisSpeeds.fromFieldRelativeSpeeds(
@@ -591,7 +592,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
                 LinearAcceleration alignAccelTrl = limiter.linearAcceleration;
                 AngularVelocity alignSpeedRot = turnSpeed;
                 AngularAcceleration alignAccelRot = limiter.angularAcceleration;
-                if (slowApproach && trlDiff.getNorm() < kFinalAlignLinearPosTol) { // slow speeds on final alignment approach
+                if (slowApproach && trlDiff.getNorm() < finalAlignDist.get()) { // slow speeds on final alignment approach
                     alignSpeedTrl = MetersPerSecond.of(Math.min(alignSpeedTrl.in(MetersPerSecond), kDriveSpeedAlign));
                     alignAccelTrl = MetersPerSecondPerSecond.of(Math.min(alignAccelTrl.in(MetersPerSecondPerSecond), kLinearAccelAlign));
                     alignSpeedRot = RadiansPerSecond.of(Math.min(alignSpeedRot.in(RadiansPerSecond), kTurnSpeedAlign));
@@ -641,7 +642,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
                 );
                 var targetTrl = goal.getTranslation();
                 // avoid profiling target pose if very close to goal
-                if (trlDiff.getNorm() > kPathDrivePosTol) {
+                if (trlDiff.getNorm() > kAlignDrivePosTol) {
                     double t = pathDriveLastState.position / driveDist;
                     targetTrl = lastTargetPose.getTranslation().plus(trlDiff.times(t));
                 }
