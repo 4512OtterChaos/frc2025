@@ -16,7 +16,7 @@ public class DriveConstants {
     public static final double kMaxAngularRate = RotationsPerSecond.of(2).in(RadiansPerSecond); // 1.5 rotations per second max angular velocity
 
     // Normal driving speed at 100% controller input
-    public static final double kDriveSpeed = 0.65 * kMaxLinearSpeed;
+    public static final double kDriveSpeed = 0.75 * kMaxLinearSpeed;
     public static final double kTurnSpeed = 0.35 * kMaxAngularRate;
 
     // Normal driving acceleration limits

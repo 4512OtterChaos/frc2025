@@ -36,6 +36,7 @@ import frc.robot.subsystems.drivetrain.CommandSwerveDrivetrain;
 import frc.robot.subsystems.drivetrain.Telemetry;
 import frc.robot.subsystems.drivetrain.TunerConstants;
 import frc.robot.subsystems.elevator.Elevator;
+import frc.robot.subsystems.funnel.Funnel;
 import frc.robot.subsystems.manipulator.Manipulator;
 import frc.robot.subsystems.vision.Vision;
 import frc.robot.util.FieldUtil;
@@ -48,19 +49,20 @@ public class RobotContainer {
     
     public final CommandSwerveDrivetrain swerve = TunerConstants.createDrivetrain();
     public final Manipulator manipulator = new Manipulator();
+    public final Funnel funnel = new Funnel();
     public final Elevator elevator = new Elevator();
     
     private OCXboxController driver = new OCXboxController(0);
-    // private OCXboxController operator = new OCXboxController(1);
+    private OCXboxController operator = new OCXboxController(1);
 
-    public final Superstructure superstructure = new Superstructure(swerve, manipulator, elevator);
+    public final Superstructure superstructure = new Superstructure(swerve, manipulator, funnel, elevator);
     
     private final Vision vision = new Vision();
 
     private final Trigger nearCoralStation = new Trigger(() -> {
         var swervePose = swerve.getGlobalPoseEstimate();
-        boolean nearStation = FieldUtil.nearestCoralStation(swervePose).relativeTo(swervePose).getTranslation().getNorm() < 2.5;
-        boolean hasFMS = DriverStation.isFMSAttached();
+        boolean nearStation = FieldUtil.nearestCoralStation(swervePose).relativeTo(swervePose).getTranslation().getNorm() < 1.6;
+        boolean hasFMS = DriverStation.isFMSAttached() || true; //TODO: remove || true
         return nearStation && (hasFMS || Robot.isSimulation());
     });
 
@@ -89,9 +91,11 @@ public class RobotContainer {
         // autoChooser.addRoutine("SimplePath", autoRoutines::simplePathAuto);
         SmartDashboard.putData("Auto Chooser", autoChooser);
         
+        configureDefaultBindings();
         configureDriverBindings(driver);
-        configureOperatorBindings(driver);
-        if (Robot.isSimulation()){
+        // configureOperatorBindings(driver);
+        configureOperatorBindings(operator);
+        if (Robot.isSimulation() || true){
             simBindings(driver);
         }
         // configureOperatorBindings(operator);
@@ -119,14 +123,15 @@ public class RobotContainer {
         superstructure.periodic();
         vision.periodic();
 
+        // update pose estimator with vision measurements
         double phoenixTimeOffset = Timer.getFPGATimestamp() - Utils.getCurrentTimeSeconds();
         var swerveState = swerve.getState();
-        vision.getEstimatedGlobalPose(swerveState.Pose.getRotation(), swerveState.Timestamp + phoenixTimeOffset)
-            .ifPresent(estimate -> {
-                var pose = estimate.estimatedPose;
-                var stdDevs = vision.getEstimationStdDevs(pose);
-                swerve.addVisionMeasurement(pose.toPose2d(), estimate.timestampSeconds, stdDevs);
-            });
+        vision.update(
+            swerve.visionEstimator,
+            swerveState.Pose.getRotation(),
+            RadiansPerSecond.of(swerveState.Speeds.omegaRadiansPerSecond),
+            swerveState.Timestamp + phoenixTimeOffset
+        );
 
         // LED patterns
         if (!layer4Pattern.equals(LEDPattern.kOff)) {
@@ -154,6 +159,16 @@ public class RobotContainer {
         }
     }
 
+    public void configureDefaultBindings() {
+        manipulator.setDefaultCommand(manipulator.holdPositionC());
+        funnel.setDefaultCommand(funnel.slowFeedCoralC());
+        // Automatically feed coral to a consistent position when detected
+        manipulator.isCoralDetected().and(()->manipulator.getCurrentCommand() != null && manipulator.getCurrentCommand().equals(manipulator.getDefaultCommand()))
+            .onTrue(superstructure.feedCoralSequenceC());
+        // Automatically start intaking if close to station
+        nearCoralStation.onTrue(superstructure.feedCoralFastSequenceC());
+    }
+
     private void configureDriverBindings(OCXboxController controller) {
         //DRIVE COMMAND
         Supplier<ChassisSpeeds> driveSupplier = () -> controller.getSpeeds(
@@ -178,21 +193,34 @@ public class RobotContainer {
                 swerve.driveFacingAngle(
                     driveSupplier,
                     () -> FieldUtil.nearestCoralStation(swerve.getGlobalPoseEstimate()).getRotation(),
-                    true
-                ).until(driverSomeRightInput)
+                    true, false
+                ).until(driverSomeRightInput.or(nearCoralStation.negate()))
+            );
+        
+        // snap to reef angle
+        nearCoralStation.negate()
+            .and(()->swerve.getCurrentCommand() != null && swerve.getCurrentCommand().equals(swerve.getDefaultCommand()))
+            .and(driverSomeRightInput.negate().debounce(0.5))
+            .onTrue(
+                swerve.driveFacingAngle(
+                    driveSupplier,
+                    () -> swerve.getGlobalPoseEstimate().nearest(FieldUtil.kReefCenterPoses).getRotation(),
+                    true, false
+                ).until(driverSomeRightInput.or(nearCoralStation))
             );
         
         new Trigger(() -> {
-            double distReef = swerve.getGlobalPoseEstimate().getTranslation().getDistance(FieldUtil.kReefTrl);
-            return distReef > 1.8
-            ;
-        }).and(swerve.isAligning().negate()).and(()->DriverStation.isTeleop()).onTrue(elevator.setMinC());
+            return Math.hypot(controller.getLeftX(), controller.getLeftY()) > 0.9;
+        }).debounce(0.3).and(swerve.isAligning().negate()).and(()->DriverStation.isTeleop()).onTrue(elevator.setMinC());
         
         // reset the robot heading to forward
         controller.start().onTrue(swerve.runOnce(() -> swerve.resetRotation(Rotation2d.kZero)));
 
         controller.leftTrigger().whileTrue(superstructure.autoAlign(ReefPosition.LEFT, false, true));
         controller.rightTrigger().whileTrue(superstructure.autoAlign(ReefPosition.RIGHT, false, true));
+
+        controller.leftBumper().whileTrue(manipulator.scoreAlgaeC());
+        controller.rightBumper().whileTrue(manipulator.scoreCoralC());
         
         // controller.leftTrigger().whileTrue(swerve.drive(() -> new ChassisSpeeds(0, controller.getLeftTriggerAxis() * 0.3, 0), false, true).withName("Strafe Left"));
         // controller.rightTrigger().whileTrue(swerve.drive(() -> new ChassisSpeeds(0, controller.getRightTriggerAxis() * -0.3, 0), false, true).withName("Strafe Right"));       
@@ -217,15 +245,9 @@ public class RobotContainer {
         //=====
         
         //===== CORAL MANIPULATOR
-        manipulator.setDefaultCommand(manipulator.holdPositionC());
-        // Automatically feed coral to a consistent position when detected
-        manipulator.isCoralDetected().and(()->manipulator.getCurrentCommand() != null && manipulator.getCurrentCommand().equals(manipulator.getDefaultCommand()))
-            .onTrue(manipulator.feedCoralSequenceC());
-        // Automatically start intaking if close to station
-        nearCoralStation.onTrue(manipulator.feedCoralFastSequenceC());
+        
 
-        controller.leftBumper().whileTrue(manipulator.scoreAlgaeC());
-        controller.rightBumper().whileTrue(manipulator.scoreCoralC());
+        
         //=====
 
         //===== COMPOSITION CCOMMANDS
@@ -234,7 +256,7 @@ public class RobotContainer {
     }
 
     private void simBindings(OCXboxController controller) {
-        controller.povUp().onTrue(runOnce(()->swerve.disturbGlobalPoseEstimate()));
+        controller.povLeft().onTrue(runOnce(()->swerve.disturbGlobalPoseEstimate()));
         
     }
 
