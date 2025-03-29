@@ -545,179 +545,23 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
             boolean slowApproach,
             boolean runForever
             ) {
-        return sequence(
-            // Reset profiles on init
-            runOnce(() -> {
-                var actual = getGlobalPoseEstimate();
-                var goal = goalSupplier.get();
-                var speeds = getState().Speeds;
-
-                // Find current velocity towards goal
-                var relative = goal.relativeTo(actual);
-                var relTrlVec = relative.getTranslation().toVector();
-                double velTowardsGoal = 0;
-                if (relTrlVec.norm() > 1e-5) {
-                    velTowardsGoal = VecBuilder.fill(speeds.vxMetersPerSecond, speeds.vyMetersPerSecond).dot(relTrlVec) / relTrlVec.norm();
-                }
-                pathDriveLastState = new TrapezoidProfile.State(0, velTowardsGoal);
-
-                pathTurnLastState = new TrapezoidProfile.State(actual.getRotation().getRadians(), speeds.omegaRadiansPerSecond);
-
-                lastTargetPose = actual;
-                lastAlignSetpointSpeeds = lastTargetSpeeds.plus(new ChassisSpeeds());
-                pathXController.reset();
-                pathYController.reset();
-                pathThetaController.reset();
-            }),
-            // ..then drive to the pose
-            drive(() -> {
-                isAligning = true;
-                var actual = getGlobalPoseEstimate();
-                var goal = goalSupplier.get();
-                goalPose = goal;
-                goalPosePub.set(goal);
-
-                // distance to goal
-                var trlDiff = goal.getTranslation().minus(lastTargetPose.getTranslation());
-
-                // log error
-                var relative = actual.relativeTo(goal);
-                alignErrorTrlPub.set(Units.metersToInches(relative.getTranslation().getNorm()));
-                alignErrorXPub.set(Units.metersToInches(relative.getX()));
-                alignErrorYPub.set(Units.metersToInches(relative.getY()));
-                alignErrorRotPub.set(relative.getRotation().getDegrees());
-
-                // define velocity and acceleration limits
-                LinearVelocity alignSpeedTrl = driveSpeed;
-                LinearAcceleration alignAccelTrl = limiter.linearAcceleration;
-                AngularVelocity alignSpeedRot = turnSpeed;
-                AngularAcceleration alignAccelRot = limiter.angularAcceleration;
-                if (slowApproach && trlDiff.getNorm() < finalAlignDist.get()) { // slow speeds on final alignment approach
-                    alignSpeedTrl = MetersPerSecond.of(Math.min(alignSpeedTrl.in(MetersPerSecond), kDriveSpeedAlign));
-                    alignAccelTrl = MetersPerSecondPerSecond.of(Math.min(alignAccelTrl.in(MetersPerSecondPerSecond), kLinearAccelAlign));
-                    alignSpeedRot = RadiansPerSecond.of(Math.min(alignSpeedRot.in(RadiansPerSecond), kTurnSpeedAlign));
-                    alignAccelRot = RadiansPerSecondPerSecond.of(Math.min(alignAccelRot.in(RadiansPerSecondPerSecond), kAngularAccelAlign));
-                }
-    
-                // PID control on the PREVIOUS setpoint ("compensate for error from feedforward control in the previous timestep")
-                var targetSpeeds = new ChassisSpeeds();
-                double pidX = pathXController.calculate(
-                    actual.getX(), lastTargetPose.getX()
+        var command = new AutoAlign(
+            "Reef",
+            this::getGlobalPoseEstimate,
+            goalSupplier,
+            () -> ChassisSpeeds.fromRobotRelativeSpeeds(getState().Speeds, getGlobalPoseEstimate().getRotation()),
+            targetSpeeds -> {
+                var robotSpeeds = ChassisSpeeds.fromFieldRelativeSpeeds(targetSpeeds, getGlobalPoseEstimate().getRotation());
+                setControl(applyPathRobotSpeeds
+                    .withVelocityX(robotSpeeds.vxMetersPerSecond)
+                    .withVelocityY(robotSpeeds.vyMetersPerSecond)
+                    .withRotationalRate(robotSpeeds.omegaRadiansPerSecond)
+                    .withDriveRequestType(DriveRequestType.Velocity)
                 );
-                double pidY = pathYController.calculate(
-                    actual.getY(), lastTargetPose.getY()
-                );
-                double pidHypot = Math.hypot(pidX, pidY);
-                double pidScale = 1;
-                if (pidHypot > 1e-5) {
-                    pidScale = Math.min(alignSpeedTrl.in(MetersPerSecond), pidHypot) / pidHypot; // Clamp pid output to drivespeed
-                }
-                targetSpeeds.vxMetersPerSecond = pidX * pidScale;
-                targetSpeeds.vyMetersPerSecond = pidY * pidScale;
-                targetSpeeds.omegaRadiansPerSecond = pathThetaController.calculate(
-                    actual.getRotation().getRadians(), lastTargetPose.getRotation().getRadians()
-                );
-    
-                // Profile translational movement towards the goal pose
-                pathDriveConstraints = new TrapezoidProfile.Constraints(
-                    alignSpeedTrl.in(MetersPerSecond),
-                    alignAccelTrl.in(MetersPerSecondPerSecond)
-                );
-                var driveProfile = new TrapezoidProfile(pathDriveConstraints);
-
-                // readjust last setpoint to acount for moving goals
-                var trlDiffVec = trlDiff.toVector();
-                var lastSpeedsVec = VecBuilder.fill(lastAlignSetpointSpeeds.vxMetersPerSecond, lastAlignSetpointSpeeds.vyMetersPerSecond);
-                double velTowardsGoal = 0;
-                if (trlDiff.getNorm() > 1e-5) {
-                    velTowardsGoal = lastSpeedsVec.dot(trlDiffVec) / trlDiffVec.norm();
-                }
-                
-                // find the next setpoint from the last setpoint to the (possibly new) goal
-                double driveDist = trlDiff.getNorm();
-                pathDriveLastState = driveProfile.calculate(
-                    0.02,
-                    new TrapezoidProfile.State(0, velTowardsGoal),
-                    new TrapezoidProfile.State(driveDist, 0)
-                );
-                var targetTrl = goal.getTranslation();
-                // avoid profiling target pose if very close to goal
-                if (trlDiff.getNorm() > kAlignDrivePosTol) {
-                    double t = pathDriveLastState.position / driveDist;
-                    targetTrl = lastTargetPose.getTranslation().plus(trlDiff.times(t));
-                }
-
-                // Profile rotational movement towards the goal pose
-                pathTurnConstraints = new TrapezoidProfile.Constraints(alignSpeedRot.in(RadiansPerSecond), alignAccelRot.in(RadiansPerSecondPerSecond));
-                var turnProfile = new TrapezoidProfile(pathTurnConstraints);
-                // Handle continuous angle wrapping
-                double goalRadians = goal.getRotation().getRadians();
-                double actualRadians = actual.getRotation().getRadians();
-                double errorBound = Math.PI;
-                double goalMinDistance =
-                    MathUtil.inputModulus(goalRadians - actualRadians, -errorBound, errorBound);
-                double setpointMinDistance =
-                    MathUtil.inputModulus(pathTurnLastState.position - actualRadians, -errorBound, errorBound);
-
-                goalRadians = goalMinDistance + actualRadians;
-                pathTurnLastState.position = setpointMinDistance + actualRadians;
-                pathTurnLastState = turnProfile.calculate(0.02, pathTurnLastState, new TrapezoidProfile.State(goalRadians, 0));
-    
-                // Profiled target pose
-                lastTargetPose = new Pose2d(targetTrl.getX(), targetTrl.getY(), Rotation2d.fromRadians(pathTurnLastState.position));
-                targetPosePub.set(lastTargetPose);
-                
-                // Use profile setpoint velocities as feedforward targets
-                if (trlDiff.getNorm() > 1e-5) {
-                    var targetDriveSpeedsTrl = new Translation2d(pathDriveLastState.velocity, 0).rotateBy(trlDiff.getAngle()); // field-relative
-                    lastAlignSetpointSpeeds.vxMetersPerSecond = targetDriveSpeedsTrl.getX();
-                    lastAlignSetpointSpeeds.vyMetersPerSecond = targetDriveSpeedsTrl.getY();
-                    lastAlignSetpointSpeeds.omegaRadiansPerSecond = pathTurnLastState.velocity;
-                    targetSpeeds = targetSpeeds.plus(lastAlignSetpointSpeeds);
-                }
-    
-                // if very close, avoid small outputs
-                if (relative.getTranslation().getNorm() < kStopAlignTrlDist) {
-                    targetSpeeds.vxMetersPerSecond = 0;
-                    targetSpeeds.vyMetersPerSecond = 0;
-                }
-                if (Math.abs(relative.getRotation().getRadians()) < kStopAlignRotDist) {
-                    targetSpeeds.omegaRadiansPerSecond = 0;
-                }
-                return targetSpeeds;
-            }, true, false, false)
-            .until(() -> { // finish when goal pose is reached
-                boolean atSetpointVel = MathUtil.isNear(0, pathXController.getErrorDerivative(), velTolMeters);
-                atSetpointVel &= MathUtil.isNear(0, pathYController.getErrorDerivative(), velTolMeters);
-                atSetpointVel &= MathUtil.isNear(0, pathThetaController.getErrorDerivative(), velTolRadians);
-
-                var relative = goalSupplier.get().minus(getGlobalPoseEstimate());
-                boolean atGoal = MathUtil.isNear(0, relative.getX(), posTolMeters);
-                atGoal &= MathUtil.isNear(0, relative.getY(), posTolMeters);
-                atGoal &= MathUtil.isNear(0, relative.getRotation().getRadians(), posTolRadians, -Math.PI, Math.PI);
-
-                SmartDashboard.putBoolean("Swerve/atSetpointVel", atSetpointVel);
-                SmartDashboard.putBoolean("Swerve/atGoal", atGoal);
-                SmartDashboard.putBoolean("Swerve/isAligning", isAligning);
-                boolean finished = atGoal && atSetpointVel && isAligning;
-                isAligned = finished;
-                return finished && !runForever;
-            })
-            .finallyDo((interrupted)->{
-                isAligning = false;
-                goalPosePub.set(null);
-                targetPosePub.set(null);
-                alignErrorTrlPub.set(0);
-                alignErrorXPub.set(0);
-                alignErrorYPub.set(0);
-                alignErrorRotPub.set(0);
-                SmartDashboard.putBoolean("Swerve/atSetpointVel", false);
-                SmartDashboard.putBoolean("Swerve/atGoal", false);
-                SmartDashboard.putBoolean("Swerve/isAligning", false);
-                lastTargetSpeeds = new ChassisSpeeds();
-                setControl(new SwerveRequest.ApplyRobotSpeeds());
-            }).withName("AlignToPose")
-        );
+            }
+        ).withName("AlignToPose");
+        command.addRequirements(this);
+        return command;
     }
 
     /**

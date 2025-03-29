@@ -86,7 +86,8 @@ public class Superstructure {
         Supplier<Pose2d> adjGoalSupplier = () -> {
                 var curr = swerve.getGlobalPoseEstimate();
                 var goal = goalSupplier.get();
-                return adjustAlignPoseSlow(goal, curr, slowDistMeters);
+                return goal;
+                // return adjustAlignPoseSlow(goal, curr, slowDistMeters);
         };
         Command command;
         if (simpleAlign) {
