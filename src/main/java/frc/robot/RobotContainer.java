@@ -161,12 +161,19 @@ public class RobotContainer {
 
     public void configureDefaultBindings() {
         manipulator.setDefaultCommand(manipulator.holdPositionC());
-        funnel.setDefaultCommand(funnel.slowFeedCoralC());
+        funnel.setDefaultCommand(funnel.setVoltageC(0));
         // Automatically feed coral to a consistent position when detected
         manipulator.isCoralDetected().and(()->manipulator.getCurrentCommand() != null && manipulator.getCurrentCommand().equals(manipulator.getDefaultCommand()))
             .onTrue(superstructure.feedCoralSequenceC());
         // Automatically start intaking if close to station
-        nearCoralStation.onTrue(superstructure.feedCoralFastSequenceC());
+        nearCoralStation.whileTrue(
+            sequence(
+                superstructure.feedCoralFastSequenceC().deadlineFor(
+                    funnel.feedCoralC()
+                ).until(manipulator.isCoralDetected()),
+                superstructure.feedCoralSequenceC().asProxy()
+            )
+        );
     }
 
     private void configureDriverBindings(OCXboxController controller) {

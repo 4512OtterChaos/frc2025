@@ -153,27 +153,22 @@ public class Superstructure {
     public Command algaeShoot(){
         return sequence(
             elevator.setMinC(),
-            elevator.setL4C().until(()->elevator.getHeight().in(Meters) >= ElevatorConstants.kL4Height.minus(Inches.of(netAlgaeReleaseHeight.get())).in(Meters)),
-            manipulator.scoreAlgaeC().withTimeout(1)
-        ).withName("AlgeaShoot");
+            parallel(
+                elevator.setL4C(),
+                sequence(
+                    waitUntil(()->elevator.getHeight().in(Meters) >= ElevatorConstants.kL4Height.minus(Inches.of(netAlgaeReleaseHeight.get())).in(Meters)),
+                    manipulator.scoreAlgaeC().withTimeout(0.5)
+                )
+            )
+        ).withName("AlgaeShoot");
     }
 
-    public Command feedCoralSequenceC(){
-        return sequence(
-            parallel(
-                funnel.feedCoralC(),
-                manipulator.feedCoralSequenceC()
-            )
-        );
+    public Command feedCoralSequenceC() {
+        return manipulator.feedCoralSequenceC();
     }
 
-    public Command feedCoralFastSequenceC(){
-        return sequence(
-            parallel(
-                funnel.feedCoralC(),
-                manipulator.feedCoralFastSequenceC()
-            )
-        );
+    public Command feedCoralFastSequenceC() {
+        return manipulator.feedCoralFastSequenceC();
     }
 
     //########## Auto commands
@@ -223,7 +218,7 @@ public class Superstructure {
         }).debounce(0.5).and(swerve.isAligning());
 
         return autoAlign(()->coralStation.getPose().plus(new Transform2d(kRobotLength.div(2).in(Meters), 0, Rotation2d.kZero)), false, true, 1.5)
-        .until(manipulator.isCoralDetected().or(funnel.isCoralDetected()).or(simSkipCoral));
+            .until(manipulator.isCoralDetected().or(funnel.isCoralDetected).or(simSkipCoral));
     }
 
     public void adjustDriving() {

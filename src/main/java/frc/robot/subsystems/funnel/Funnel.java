@@ -28,19 +28,15 @@ import frc.robot.util.TunableNumber;
 public class Funnel extends SubsystemBase{
     private TalonFX motor = new TalonFX(kMotorID);
     
-    // private SimpleMotorFeedforward ff = new SimpleMotorFeedforward(kConfig.Slot0.kS, kConfig.Slot0.kV);
-    // private PIDController PID = new PIDController(kConfig.Slot0.kP, kConfig.Slot0.kI, kConfig.Slot0.kD);
-
     private PositionVoltage positionRequest = new PositionVoltage(0).withEnableFOC(false);
     // private VelocityVoltage velocityRequest = new VelocityVoltage(0).withEnableFOC(false);
 
+    private boolean isManual = true;
 
-    boolean isManual = true;
+    private double lastFreeTime = Timer.getFPGATimestamp();
     
-    double lastFreeTime = Timer.getFPGATimestamp();
-    double lastSetTime = Timer.getFPGATimestamp();
-
-    AngularVelocity lastVel = RotationsPerSecond.of(0);
+    private AngularVelocity lastDropSenseVel = RotationsPerSecond.of(0);
+    private double lastDropSenseVoltage = 0;
 
     private final StatusSignal<Voltage> voltageStatus = motor.getMotorVoltage();
     private final StatusSignal<Angle> positionStatus = motor.getPosition();
@@ -53,15 +49,18 @@ public class Funnel extends SubsystemBase{
 
     // private final TunableNumber rpmPerVolt = new TunableNumber("Funnel/rpmPerVolt", kRPMPerVolt);
 
-    private final TunableNumber coralSensePercentDrop = new TunableNumber("Funnel/coralSensePercentDrop", kCoralSensePercentDrop);
-    private final TunableNumber coralDelayedSenseTime = new TunableNumber("Funnel/coralDelayedSenseTime", kCoralDelayedSenseTime);
+    private final TunableNumber coralDropSenseThresholdRPM = new TunableNumber("Funnel/coralDropSenseThresholdRPM", kCoralDropSenseThreshold.in(RPM));
 
     private final TunableNumber kP = new TunableNumber("Funnel/kP", kConfig.Slot0.kP);
     private final TunableNumber kD = new TunableNumber("Funnel/kD", kConfig.Slot0.kD);
 
     private final TunableNumber kS = new TunableNumber("Funnel/kS", kConfig.Slot0.kS);
     private final TunableNumber kV = new TunableNumber("Funnel/kV", kConfig.Slot0.kV);
-    
+
+    private boolean coralDetected = false;
+    public Trigger isCoralDetected = new Trigger(() -> coralDetected);
+
+    public Trigger isStalled = new Trigger(() -> Timer.getFPGATimestamp() >= (lastFreeTime + kStallTime));
     
     public Funnel(){
         // try applying motor configs
@@ -79,30 +78,31 @@ public class Funnel extends SubsystemBase{
 
     @Override
     public void periodic() {
-        // if(!isManual) {
-        //     motor.setVoltage(ff.calculate(PID.getSetpoint())+PID.calculate(getVelocity().in(RotationsPerSecond)));
-        // }
+        changeTunable();
 
         if (getCurrent() <= kStallCurrent){
             lastFreeTime = Timer.getFPGATimestamp();
         }
 
-        lastVel = getVelocity();
+        AngularVelocity vel = getVelocity();
+        double voltage = motor.getMotorVoltage().getValueAsDouble();
+        double deltaVel = vel.minus(lastDropSenseVel).in(RPM);
+        double deltaVoltage = voltage - lastDropSenseVoltage;
+        lastDropSenseVel = vel;
+        lastDropSenseVoltage = voltage;
 
-        changeTunable();
+        coralDetected = deltaVel < coralDropSenseThresholdRPM.get() && voltage > 0.1;
 
         log();
     }
 
     public void setVoltage(double voltage){
         isManual = true;
-        lastSetTime = Timer.getFPGATimestamp();
-        motor.setVoltage(-voltage);
+        motor.setVoltage(voltage);
     }
 
     public void setTargetPos(Angle position) {
         isManual = false;
-        lastSetTime = Timer.getFPGATimestamp();
         motor.setControl(positionRequest.withPosition(position));
     }
 
@@ -124,19 +124,6 @@ public class Funnel extends SubsystemBase{
         return statorStatus.getValueAsDouble();
     }
 
-    public Trigger isStalled(){
-        return new Trigger(() -> Timer.getFPGATimestamp() >= (lastFreeTime + kStallTime));
-    }
-
-    public Trigger isCoralDetected(){
-        return new Trigger(() -> {
-            double deltaVel = lastVel.minus(getVelocity()).in(RotationsPerSecond);
-            boolean velChanging = deltaVel/lastVel.in(RotationsPerSecond) > coralSensePercentDrop.get(); //TODO: Make absolute?
-            boolean velSet = Timer.getFPGATimestamp() - lastSetTime > coralDelayedSenseTime.get();
-            return velChanging && velSet;
-        });
-    }
-
     public Command setVoltageC(double voltage){
         return run(()->setVoltage(voltage));
     }
@@ -146,7 +133,7 @@ public class Funnel extends SubsystemBase{
     }
 
     public Command slowFeedCoralC() {
-        return run(()->setVoltage(feedSlowVoltage.get())).withName("D:SlowFeedCoral");
+        return run(()->setVoltage(feedSlowVoltage.get())).withName("SlowFeedCoral");
     }
 
     public Command backfeedCoralC() {
@@ -168,6 +155,8 @@ public class Funnel extends SubsystemBase{
     private void changeTunable() {
         feedFastVoltage.poll();
         feedSlowVoltage.poll();
+
+        coralDropSenseThresholdRPM.poll();
 
         kP.poll();
         kD.poll();
@@ -191,8 +180,8 @@ public class Funnel extends SubsystemBase{
         SmartDashboard.putNumber("Funnel/Motor Current", getCurrent());
         SmartDashboard.putNumber("Funnel/Rotations", getPosition().in(Rotations));
         SmartDashboard.putNumber("Funnel/Rotations per second", getVelocity().in(RotationsPerSecond));
-        SmartDashboard.putBoolean("Funnel/isStalled", isStalled().getAsBoolean());
-        SmartDashboard.putBoolean("Funnel/Coral Detected", isCoralDetected().getAsBoolean());
+        SmartDashboard.putBoolean("Funnel/isStalled", isStalled.getAsBoolean());
+        SmartDashboard.putBoolean("Funnel/Coral Detected", isCoralDetected.getAsBoolean());
 
         SmartDashboard.putNumber("Funnel/Coral Travelled Inches", kFunnelRollerDia.times(Math.PI).per(Rotation).timesDivisor(getPosition()).in(Inches));
     }
