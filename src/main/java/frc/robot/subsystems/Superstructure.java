@@ -226,7 +226,7 @@ public class Superstructure {
         }).debounce(0.5).and(swerve.isAligning());
 
         return autoAlign(()->coralStation.getPose().plus(new Transform2d(kRobotLength.div(2).in(Meters), 0, Rotation2d.kZero)), false, true, 1.5)
-            .until(manipulator.isCoralDetected().or(funnel.isCoralDetected).or(simSkipCoral));
+            .until(manipulator.isCoralDetected().or(simSkipCoral)); // TODO
     }
 
     public void adjustDriving() {
