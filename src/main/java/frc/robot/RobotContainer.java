@@ -228,6 +228,8 @@ public class RobotContainer {
 
         controller.leftBumper().whileTrue(manipulator.scoreAlgaeC());
         controller.rightBumper().whileTrue(manipulator.scoreCoralC());
+
+        controller.b().whileTrue(superstructure.algaeShoot());
         
         // controller.leftTrigger().whileTrue(swerve.drive(() -> new ChassisSpeeds(0, controller.getLeftTriggerAxis() * 0.3, 0), false, true).withName("Strafe Left"));
         // controller.rightTrigger().whileTrue(swerve.drive(() -> new ChassisSpeeds(0, controller.getRightTriggerAxis() * -0.3, 0), false, true).withName("Strafe Right"));       
@@ -258,7 +260,7 @@ public class RobotContainer {
         //=====
 
         //===== COMPOSITION CCOMMANDS
-        controller.back().whileTrue(superstructure.algaeShoot());
+        
         //=====
     }
 
