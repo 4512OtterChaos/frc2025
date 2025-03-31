@@ -21,10 +21,10 @@ public class FunnelConstants {
 
     public static DCMotor kMotor = DCMotor.getKrakenX60(1);
 
-    public static double kFeedFastVolts = 8;
-    public static double kFeedSlowVolts = 5;
+    public static double kFeedFastVolts = 6;
+    public static double kFeedSlowVolts = 3;
 
-    public static int kGearRatio = 4;
+    public static double kGearRatio = 1.5;// TODO: Fix if funnel ratio changes
     public static Distance kFunnelRollerDia = Inches.of(2);
 
     public static final int kMotorStallLimit = 30;
