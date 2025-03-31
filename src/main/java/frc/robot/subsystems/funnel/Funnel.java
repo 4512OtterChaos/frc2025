@@ -44,8 +44,8 @@ public class Funnel extends SubsystemBase{
     private final StatusSignal<Current> statorStatus = motor.getStatorCurrent();
 
     // Tunable numbers
-    private final TunableNumber feedSlowVoltage = new TunableNumber("Coral/feedSlowVoltage", kFeedSlowVolts);
-    private final TunableNumber feedFastVoltage = new TunableNumber("Coral/feedFastVoltage", kFeedFastVolts);
+    private final TunableNumber feedSlowVoltage = new TunableNumber("Funnel/feedSlowVoltage", kFeedSlowVolts);
+    private final TunableNumber feedFastVoltage = new TunableNumber("Funnel/feedFastVoltage", kFeedFastVolts);
 
     // private final TunableNumber rpmPerVolt = new TunableNumber("Funnel/rpmPerVolt", kRPMPerVolt);
 
