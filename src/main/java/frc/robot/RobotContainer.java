@@ -229,6 +229,8 @@ public class RobotContainer {
         controller.leftBumper().whileTrue(manipulator.scoreAlgaeC());
         controller.rightBumper().whileTrue(manipulator.scoreCoralC());
 
+        controller.povRight().whileTrue(funnel.feedCoralC());
+
         controller.b().whileTrue(superstructure.algaeShoot());
         
         // controller.leftTrigger().whileTrue(swerve.drive(() -> new ChassisSpeeds(0, controller.getLeftTriggerAxis() * 0.3, 0), false, true).withName("Strafe Left"));
