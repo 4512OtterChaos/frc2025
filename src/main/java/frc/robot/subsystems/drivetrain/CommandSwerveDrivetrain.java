@@ -337,40 +337,45 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     }
 
     public Command drive(Supplier<ChassisSpeeds> speedsSupplier, boolean fieldCentric, boolean limitTrlAccel, boolean limitRotAccel) {
-        return run(() -> {
-            var targetSpeeds = speedsSupplier.get();
-            if (!fieldCentric) {
-                targetSpeeds = ChassisSpeeds.fromRobotRelativeSpeeds(targetSpeeds, getGlobalPoseEstimate().getRotation());
-            }
+        return sequence(
+            runOnce(() -> {
+                lastTargetSpeeds = ChassisSpeeds.fromRobotRelativeSpeeds(getState().Speeds, getGlobalPoseEstimate().getRotation());
+            }),
+            run(() -> {
+                var targetSpeeds = speedsSupplier.get();
+                if (!fieldCentric) {
+                    targetSpeeds = ChassisSpeeds.fromRobotRelativeSpeeds(targetSpeeds, getGlobalPoseEstimate().getRotation());
+                }
 
-            var limitedSpeeds = limiter.calculate(targetSpeeds, lastTargetSpeeds, Robot.kDefaultPeriod);
-            if (limitTrlAccel) {
-                targetSpeeds.vxMetersPerSecond = limitedSpeeds.vxMetersPerSecond;
-                targetSpeeds.vyMetersPerSecond = limitedSpeeds.vyMetersPerSecond;
-            }
-            if (limitRotAccel) {
-                targetSpeeds.omegaRadiansPerSecond = limitedSpeeds.omegaRadiansPerSecond;
-            }
+                var limitedSpeeds = limiter.calculate(targetSpeeds, lastTargetSpeeds, Robot.kDefaultPeriod);
+                if (limitTrlAccel) {
+                    targetSpeeds.vxMetersPerSecond = limitedSpeeds.vxMetersPerSecond;
+                    targetSpeeds.vyMetersPerSecond = limitedSpeeds.vyMetersPerSecond;
+                }
+                if (limitRotAccel) {
+                    targetSpeeds.omegaRadiansPerSecond = limitedSpeeds.omegaRadiansPerSecond;
+                }
 
-            lastTargetSpeeds = targetSpeeds;
+                lastTargetSpeeds = targetSpeeds;
 
-            var robotSpeeds = ChassisSpeeds.fromFieldRelativeSpeeds(
-                targetSpeeds,
-                getGlobalPoseEstimate().getRotation());
+                var robotSpeeds = ChassisSpeeds.fromFieldRelativeSpeeds(
+                    targetSpeeds,
+                    getGlobalPoseEstimate().getRotation());
 
-            var request = applyPathRobotSpeeds
-                .withVelocityX(robotSpeeds.vxMetersPerSecond)
-                .withVelocityY(robotSpeeds.vyMetersPerSecond)
-                .withRotationalRate(robotSpeeds.omegaRadiansPerSecond);
-            if (limitTrlAccel) {
-                request.DriveRequestType = DriveRequestType.OpenLoopVoltage;
-            }
-            else {
-                request.DriveRequestType = DriveRequestType.Velocity;
-            }
+                var request = applyPathRobotSpeeds
+                    .withVelocityX(robotSpeeds.vxMetersPerSecond)
+                    .withVelocityY(robotSpeeds.vyMetersPerSecond)
+                    .withRotationalRate(robotSpeeds.omegaRadiansPerSecond);
+                if (limitTrlAccel) {
+                    request.DriveRequestType = DriveRequestType.OpenLoopVoltage;
+                }
+                else {
+                    request.DriveRequestType = DriveRequestType.Velocity;
+                }
 
-            setControl(request);
-        }).withName("Drive");
+                setControl(request);
+            })
+        ).withName("Drive");
     }
 
     public Command stop() {
@@ -547,20 +552,9 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
             ) {
         var command = new AutoAlign(
             "Reef",
-            this::getGlobalPoseEstimate,
-            goalSupplier,
-            () -> ChassisSpeeds.fromRobotRelativeSpeeds(getState().Speeds, getGlobalPoseEstimate().getRotation()),
-            targetSpeeds -> {
-                var robotSpeeds = ChassisSpeeds.fromFieldRelativeSpeeds(targetSpeeds, getGlobalPoseEstimate().getRotation());
-                setControl(applyPathRobotSpeeds
-                    .withVelocityX(robotSpeeds.vxMetersPerSecond)
-                    .withVelocityY(robotSpeeds.vyMetersPerSecond)
-                    .withRotationalRate(robotSpeeds.omegaRadiansPerSecond)
-                    .withDriveRequestType(DriveRequestType.Velocity)
-                );
-            }
+            this,
+            goalSupplier
         ).withName("AlignToPose");
-        command.addRequirements(this);
         return command;
     }
 

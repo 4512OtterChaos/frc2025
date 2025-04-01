@@ -6,13 +6,15 @@ import static frc.robot.subsystems.drivetrain.DriveConstants.*;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-import edu.wpi.first.math.controller.ProfiledPIDController;
+import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
+import com.ctre.phoenix6.swerve.SwerveRequest;
+
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Transform2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
-import edu.wpi.first.math.trajectory.TrapezoidProfile;
+import edu.wpi.first.math.util.Units;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.networktables.StructPublisher;
 import edu.wpi.first.units.measure.Angle;
@@ -20,9 +22,13 @@ import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.units.measure.LinearVelocity;
 import edu.wpi.first.wpilibj2.command.Command;
+import frc.robot.util.ProfiledPIDController;
+import frc.robot.util.TrapezoidProfile;
 import frc.robot.util.TunableNumber;
 
 public class AutoAlign extends Command {
+
+    private final CommandSwerveDrivetrain swerve;
 
     private final SwerveDriveLimiter limiter;
 
@@ -39,13 +45,14 @@ public class AutoAlign extends Command {
         new TrapezoidProfile.Constraints(0, 0)
     );
 
+    private final SwerveRequest.RobotCentric applyPathRobotSpeeds = new SwerveRequest.RobotCentric()
+            .withDeadband(Units.inchesToMeters(0.5))
+            .withRotationalDeadband(Units.degreesToRadians(3));
+
     private Pose2d lastSetpointPose;
     private ChassisSpeeds lastSetpointSpeeds;
 
-    private final Supplier<Pose2d> currentPoseSupplier;
     private final Supplier<Pose2d> goalPoseSupplier;
-    private final Supplier<ChassisSpeeds> fieldSpeedsSupplier;
-    private final Consumer<ChassisSpeeds> targetFieldSpeedsConsumer;
 
     // Static tunables
     private static final TunableNumber pathDriveKP = new TunableNumber("Align/pathDriveKP", kPathDriveKP);
@@ -80,38 +87,38 @@ public class AutoAlign extends Command {
     private final TunableNumber finalAlignDist;
 
     private final StructPublisher<Pose2d> goalPosePub;
-    private final StructPublisher<Pose2d> targetPosePub;
+    private final StructPublisher<Pose2d> setpointPosePub;
 
     public AutoAlign(
             String name,
-            Supplier<Pose2d> currentPoseSupplier, Supplier<Pose2d> goalPoseSupplier,
-            Supplier<ChassisSpeeds> fieldSpeedsSupplier, Consumer<ChassisSpeeds> targetFieldSpeedsConsumer)
+            CommandSwerveDrivetrain swerve,
+            Supplier<Pose2d> goalPoseSupplier)
     {
-        this(name, currentPoseSupplier, goalPoseSupplier, fieldSpeedsSupplier, targetFieldSpeedsConsumer, new Config());
+        this(name, swerve, goalPoseSupplier, new Config());
     }
 
     public AutoAlign(
             String name,
-            Supplier<Pose2d> currentPoseSupplier, Supplier<Pose2d> goalPoseSupplier,
-            Supplier<ChassisSpeeds> fieldSpeedsSupplier, Consumer<ChassisSpeeds> targetFieldSpeedsConsumer,
+            CommandSwerveDrivetrain swerve,
+            Supplier<Pose2d> goalPoseSupplier,
             Config config)
     {
-        this.currentPoseSupplier = currentPoseSupplier;
+        this.swerve = swerve;
         this.goalPoseSupplier = goalPoseSupplier;
-        this.fieldSpeedsSupplier = fieldSpeedsSupplier;
-        this.targetFieldSpeedsConsumer = targetFieldSpeedsConsumer;
 
         this.config = config;
-        this.limiter = config.standardLimiter;
+        this.limiter = config.standardLimiter.copy();
 
         drivePosTol = new TunableNumber("Align/"+name+"/drivePosTolInches", config.drivePosTol.in(Inches));
         driveVelTol = new TunableNumber("Align/"+name+"/driveVelTolInches", config.driveVelTol.in(InchesPerSecond));
         thetaPosTol = new TunableNumber("Align/"+name+"/thetaPosTolDegrees", config.thetaPosTol.in(Degrees));
         thetaVelTol = new TunableNumber("Align/"+name+"/thetaVelTolDegrees", config.thetaVelTol.in(DegreesPerSecond));
-        finalAlignDist = new TunableNumber("Align/"+name+"/finalAlignDistFeet", config.finalAlignDist.in(Feet));
+        finalAlignDist = new TunableNumber("Align/"+name+"/finalAlignDist", config.finalAlignDist.in(Meters));
 
         goalPosePub = NetworkTableInstance.getDefault().getStructTopic("Align/"+name+"/Goal Pose", Pose2d.struct).publish();
-        targetPosePub = NetworkTableInstance.getDefault().getStructTopic("Align/"+name+"/Target Pose", Pose2d.struct).publish();
+        setpointPosePub = NetworkTableInstance.getDefault().getStructTopic("Align/"+name+"/Setpoint Pose", Pose2d.struct).publish();
+
+        addRequirements(swerve);
     }
 
     @Override
@@ -120,31 +127,26 @@ public class AutoAlign extends Command {
          * To initialize our profiled controllers, we want to reset their setpoints to the current robot position and speeds.
          */
 
-        Pose2d currentPose = currentPoseSupplier.get();
+        Pose2d currentPose = swerve.getGlobalPoseEstimate();
         Pose2d goalPose = goalPoseSupplier.get();
         Pose2d goalRelPose = currentPose.relativeTo(goalPose);
-        if (goalRelPose.getTranslation().getNorm() > finalAlignDist.get()) {
-            goalPose = goalPose.plus(new Transform2d(finalAlignDist.get(), 0, Rotation2d.kZero));
-            goalRelPose = currentPose.relativeTo(goalPose);
-        }
 
-        ChassisSpeeds currentSpeeds = fieldSpeedsSupplier.get();
-        Translation2d linearVelocity = new Translation2d(currentSpeeds.vxMetersPerSecond, currentSpeeds.vyMetersPerSecond);
-        Translation2d goalRelVel = linearVelocity.rotateBy(goalRelPose.getRotation().unaryMinus());
+        ChassisSpeeds currentSpeeds = ChassisSpeeds.fromRobotRelativeSpeeds(swerve.getState().Speeds, currentPose.getRotation());
+        ChassisSpeeds goalRelVel = ChassisSpeeds.fromFieldRelativeSpeeds(currentSpeeds, goalPose.getRotation());
 
         xController.reset(
             goalRelPose.getX(),
-            goalRelVel.getX()
+            goalRelVel.vxMetersPerSecond
         );
 
         yController.reset(
             goalRelPose.getY(),
-            goalRelVel.getY()
+            goalRelVel.vyMetersPerSecond
         );
 
         thetaController.reset(
-            currentPose.getRotation().getRadians(),
-            currentSpeeds.omegaRadiansPerSecond
+            goalRelPose.getRotation().getRadians(),
+            goalRelVel.omegaRadiansPerSecond
         );
 
         lastSetpointPose = currentPose;
@@ -155,18 +157,18 @@ public class AutoAlign extends Command {
     public void execute() {
         changeTunable();
 
-        Pose2d currentPose = currentPoseSupplier.get();
+        Pose2d currentPose = swerve.getGlobalPoseEstimate();
         Pose2d goalPose = goalPoseSupplier.get();
         goalPosePub.set(goalPose);
         Pose2d goalRelPose = currentPose.relativeTo(goalPose);
         double finalDist = finalAlignDist.get();
         boolean isFinalAlignment = goalRelPose.getTranslation().getNorm() <= finalDist;
-        if (!isFinalAlignment) {
-            double finalAlignXOffset = config.alignBackwards ? finalDist : -finalDist;
-            goalPose = goalPose.plus(new Transform2d(finalAlignXOffset, 0, Rotation2d.kZero));
-            goalRelPose = currentPose.relativeTo(goalPose);
-        }
-        double distToGoal = goalRelPose.getTranslation().getNorm();        
+        // if (!isFinalAlignment) {
+        //     double finalAlignXOffset = config.alignBackwards ? finalDist : -finalDist;
+        //     goalPose = goalPose.plus(new Transform2d(finalAlignXOffset, 0, Rotation2d.kZero));
+        //     goalRelPose = currentPose.relativeTo(goalPose);
+        // }
+        double distToGoal = goalRelPose.getTranslation().getNorm();
 
         /*
          * We reset the controllers with the last setpoint, which is stored field-relative.
@@ -194,17 +196,14 @@ public class AutoAlign extends Command {
          * the path's shape, it is important to do this with their combined linear result in mind.
          */
         updateConstraints(distToGoal);
-        Rotation2d goalRelTrlAngle = goalRelPose.getTranslation().getAngle(); // TODO: this needs to not shrink y as it approaches?
 
-        double xScale = goalRelTrlAngle.getCos();
         xController.setConstraints(new TrapezoidProfile.Constraints(
-            limiter.linearTopSpeed.in(MetersPerSecond) * xScale,
+            limiter.linearTopSpeed.in(MetersPerSecond),
             limiter.linearAcceleration.in(MetersPerSecondPerSecond)
         ));
 
-        double yScale = goalRelTrlAngle.getSin();
         yController.setConstraints(new TrapezoidProfile.Constraints(
-            limiter.linearTopSpeed.in(MetersPerSecond) * yScale,
+            limiter.linearTopSpeed.in(MetersPerSecond),
             limiter.linearAcceleration.in(MetersPerSecondPerSecond)
         ));
 
@@ -217,27 +216,35 @@ public class AutoAlign extends Command {
          * Calculate the next profile setpoint.
          * We use a threshold that slows down the robot for the final bit of alignment.
          */
+        double finalAlignXOffset = config.alignBackwards ? finalDist : -finalDist;
         double finalAlignSpeed = Math.min(limiter.linearTopSpeed.in(MetersPerSecond), config.finishLimiter.linearTopSpeed.in(MetersPerSecond));
         double finalAlignXSpeed = config.alignBackwards ? -finalAlignSpeed : finalAlignSpeed;
-        xController.calculate(
-            goalRelPose.getX(),
-            new TrapezoidProfile.State(0, isFinalAlignment ? 0 : finalAlignXSpeed)
+        ChassisSpeeds pidSpeeds = ChassisSpeeds.fromRobotRelativeSpeeds(
+            xController.calculate(
+                goalRelPose.getX(),
+                new TrapezoidProfile.State(
+                    isFinalAlignment ? 0 : finalAlignXOffset,
+                    isFinalAlignment ? 0 : finalAlignXSpeed
+                )
+            ),
+
+            yController.calculate(
+                goalRelPose.getY()
+            ),
+
+            thetaController.calculate(
+                goalRelPose.getRotation().getRadians()
+            ),
+
+            goalPose.getRotation()
         );
 
-        yController.calculate(
-            goalRelPose.getY()
-        );
-
-        thetaController.calculate(
-            goalRelPose.getRotation().getRadians()
-        );
-
-        lastSetpointPose = new Pose2d(
+        lastSetpointPose = goalPose.plus(new Transform2d(
             xController.getSetpoint().position,
             yController.getSetpoint().position,
             new Rotation2d(thetaController.getSetpoint().position)
-        ).plus(goalPose.minus(Pose2d.kZero));
-        targetPosePub.set(lastSetpointPose);
+        ));
+        setpointPosePub.set(lastSetpointPose);
 
         lastSetpointSpeeds = ChassisSpeeds.fromRobotRelativeSpeeds(
             xController.getSetpoint().velocity,
@@ -246,7 +253,13 @@ public class AutoAlign extends Command {
             goalPose.getRotation()
         );
 
-        targetFieldSpeedsConsumer.accept(lastSetpointSpeeds);
+        var robotSpeeds = ChassisSpeeds.fromFieldRelativeSpeeds(lastSetpointSpeeds.plus(pidSpeeds), currentPose.getRotation());
+        swerve.setControl(applyPathRobotSpeeds
+            .withVelocityX(robotSpeeds.vxMetersPerSecond)
+            .withVelocityY(robotSpeeds.vyMetersPerSecond)
+            .withRotationalRate(robotSpeeds.omegaRadiansPerSecond)
+            .withDriveRequestType(DriveRequestType.Velocity)
+        );
     }
 
     @Override

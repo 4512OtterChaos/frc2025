@@ -79,7 +79,7 @@ public class DriveConstants {
     );
 
     // Threshold to use final alignment speeds
-    public static final double kFinalAlignDist = Feet.of(6).in(Meters);
+    public static final double kFinalAlignDist = Feet.of(3).in(Meters);
 
     // Driving speed for final auto-alignment
     public static final double kDriveSpeedAlignFinal = 0.25 * kMaxLinearSpeed;
