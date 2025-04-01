@@ -304,6 +304,11 @@ public class RobotContainer {
     }
 }
 /*TODO List:
- * Auto go to L2 after feedsequence
- * change default command to include algae default command
+ * middle l4 + algae net auto
+ * auto choose algae height based on closest reef face
+ * l1 coral sequence
+ * run funnel wheels more often
+ * Autos: go to L2 after feedsequence
+ * cleaner auto align logic
+ * auto align + auto scoring?
 */
