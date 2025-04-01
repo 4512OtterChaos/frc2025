@@ -224,8 +224,9 @@ public class RobotContainer {
         // reset the robot heading to forward
         controller.start().onTrue(swerve.runOnce(() -> swerve.resetRotation(Rotation2d.kZero)));
 
-        controller.leftTrigger().whileTrue(superstructure.autoAlign(ReefPosition.LEFT, false, true));
-        controller.rightTrigger().whileTrue(superstructure.autoAlign(ReefPosition.RIGHT, false, true));
+        controller.leftTrigger().and(controller.rightTrigger().negate()).whileTrue(superstructure.autoAlign(ReefPosition.LEFT, false, true));
+        controller.rightTrigger().and(controller.leftTrigger().negate()).whileTrue(superstructure.autoAlign(ReefPosition.RIGHT, false, true));
+        controller.leftTrigger().and(controller.rightTrigger()).whileTrue(superstructure.autoAlign(ReefPosition.CENTER, false, true));
 
         controller.leftBumper().whileTrue(manipulator.scoreAlgaeC());
         controller.rightBumper().whileTrue(manipulator.scoreCoralC());
