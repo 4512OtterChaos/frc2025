@@ -118,16 +118,33 @@ public class FieldUtil {
     }
 
     public enum ReefFace {
-        FRONT(2), NEARLEFT(1), FARLEFT(2), BACK(1), FARRIGHT(2), NEARRIGHT(1);
+        FRONT(2, kReefCenterPoses.get(0)), NEARLEFT(1, kReefCenterPoses.get(1)), FARLEFT(2, kReefCenterPoses.get(2)), BACK(1, kReefCenterPoses.get(3)), FARRIGHT(2, kReefCenterPoses.get(4)), NEARRIGHT(1, kReefCenterPoses.get(5));
 
         int algaeHeight; 
+        Pose2d pose;
+        static List<Pose2d> poses =  kReefCenterPoses;
 
-        private ReefFace(int algaeHeight){
-
+        private ReefFace(int algaeHeight, Pose2d pose){
+            this.algaeHeight = algaeHeight;
+            this.pose = pose;
         }
 
+        /**
+         * 
+         * @return 1 or 2 depending on the height of the algae on that reef face
+         */
         public int getAlgaeHeight() {
             return algaeHeight;
+        }
+
+        public static ReefFace getClosest(Pose2d currentPose){
+            Pose2d closest = currentPose.nearest(poses);
+            for (ReefFace reefFace : values()){
+                if (reefFace.pose.equals(closest)){
+                    return reefFace;
+                }
+            }
+            return null;
         }
 
     }
