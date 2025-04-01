@@ -95,7 +95,7 @@ public class RobotContainer {
         configureDriverBindings(driver);
         // configureOperatorBindings(driver);
         configureOperatorBindings(operator);
-        if (Robot.isSimulation() || true){
+        if (Robot.isSimulation() || true){//TODO: Delete when in pits
             simBindings(driver);
         }
         // configureOperatorBindings(operator);
@@ -165,6 +165,7 @@ public class RobotContainer {
         // Automatically feed coral to a consistent position when detected
         manipulator.isCoralDetected().and(()->manipulator.getCurrentCommand() != null && manipulator.getCurrentCommand().equals(manipulator.getDefaultCommand()))
             .onTrue(superstructure.feedCoralSequenceC());
+
         // Automatically start intaking if close to station
         nearCoralStation.whileTrue(
             sequence(
