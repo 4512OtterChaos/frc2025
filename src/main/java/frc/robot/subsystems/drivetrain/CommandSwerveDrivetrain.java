@@ -361,9 +361,30 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
             }),
             drive(() -> {
                 var targetSpeeds = trlSpeedsSupplier.get();
+                double goalRadians = targetAngleSupplier.get().getRadians();
+                double actualRadians = getGlobalPoseEstimate().getRotation().getRadians();
                 targetSpeeds.omegaRadiansPerSecond = pathThetaController.calculate(
-                    getGlobalPoseEstimate().getRotation().getRadians(), targetAngleSupplier.get().getRadians()
+                    actualRadians, pathTurnLastState.position
                 );
+
+                // Profile rotational movement towards the goal pose
+                pathTurnConstraints = new TrapezoidProfile.Constraints(
+                    turnSpeed.in(RadiansPerSecond),
+                    limiter.angularAcceleration
+                );
+                var turnProfile = new TrapezoidProfile(pathTurnConstraints);
+                // Handle continuous angle wrapping
+                double errorBound = Math.PI;
+                double goalMinDistance =
+                    MathUtil.inputModulus(goalRadians - actualRadians, -errorBound, errorBound);
+                double setpointMinDistance =
+                    MathUtil.inputModulus(pathTurnLastState.position - actualRadians, -errorBound, errorBound);
+
+                goalRadians = goalMinDistance + actualRadians;
+                pathTurnLastState.position = setpointMinDistance + actualRadians;
+                pathTurnLastState = turnProfile.calculate(0.02, pathTurnLastState, new TrapezoidProfile.State(goalRadians, 0));
+                targetSpeeds.omegaRadiansPerSecond += pathTurnLastState.velocity;
+                
                 return targetSpeeds;
             }, limitTrlAccel, limitRotAccel)
         ).withName("DriveFacingAngle");

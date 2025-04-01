@@ -39,6 +39,9 @@ public class Manipulator extends SubsystemBase {
     private PositionVoltage positionRequest = new PositionVoltage(0).withEnableFOC(false);
 
     boolean isManual = true;
+
+    boolean hasAlgae = false;
+    boolean hasCoral = false; //TODO: set true on auto init for certain autos
     
     double lastFreeTime = Timer.getFPGATimestamp();
 
@@ -96,6 +99,8 @@ public class Manipulator extends SubsystemBase {
             lastFreeTime = Timer.getFPGATimestamp();
         }
 
+        updateGamePieceState();
+
         changeTunable();
 
         log();
@@ -124,6 +129,10 @@ public class Manipulator extends SubsystemBase {
         return velocityStatus.getValue();
     }
 
+    public Voltage getVoltage(){
+        return voltageStatus.getValue();
+    }
+
     public double getCurrent(){
         return statorStatus.getValueAsDouble();
     }
@@ -143,6 +152,25 @@ public class Manipulator extends SubsystemBase {
         return Millimeters.of(measurement.distance_mm);
     }
 
+    public void updateGamePieceState(){
+        if (this.getCurrentCommand() == null){
+            return;
+        }
+        String commandName = this.getCurrentCommand().getName();
+
+        if (commandName.equals("ScoreCoral") && isStalled().getAsBoolean()) {
+            hasCoral = true;            
+        }
+
+        if (commandName.equals("ScoreAlgae")){
+            hasAlgae = false;
+        }
+
+        if (commandName.equals("ScoreCoral")){
+            hasCoral = false;
+        }
+    }
+
     public Trigger isCoralDetected(){
         return new Trigger(() -> {
             var measurement = sensor.getMeasurement();
@@ -152,6 +180,14 @@ public class Manipulator extends SubsystemBase {
             boolean statusOk = measurement.status == LaserCan.LASERCAN_STATUS_VALID_MEASUREMENT;
             return withinRange && validRange && statusOk;
         });
+    }
+
+    public Trigger hasCoral(){
+        return new Trigger(() -> hasCoral);
+    }
+
+    public Trigger hasAlgae(){
+        return new Trigger(() -> hasAlgae);
     }
 
     public Command setVoltageC(double voltage){
@@ -190,17 +226,11 @@ public class Manipulator extends SubsystemBase {
     }
 
     public Command feedCoralSequenceC() {
-        // return feedCoralSlowC().until(isCoralDetected().negate()).withName("FeedCoral");
-
-        // return sequence(
-        //     feedCoralFastC().withTimeout(0.25),
-        //     feedCoralSlowC()
-        // ).until(isCoralDetected().negate()).withName("FeedCoral");
-
         return sequence( // Grab coral quickly, then slowly home it to a consistent position
             feedCoralFastC().until(isCoralDetected().negate()),
             backfeedCoralSlowC().until(isCoralDetected()),
-            feedCoralSlowC().until(isCoralDetected().negate())
+            feedCoralSlowC().until(isCoralDetected().negate()),
+            runOnce(() -> hasCoral = true)
         ).withName("FeedCoral");
     }
 
@@ -214,6 +244,13 @@ public class Manipulator extends SubsystemBase {
     /** Does not end */
     public Command setPositionC(Angle position) {
         return run(() -> setTargetPos(position)).withName("SetPosition");
+    }
+
+    public Command defaultCommand() {
+        if (hasAlgae){
+            return holdAlgaeC().withName("D:HoldAlgae");
+        }
+        return holdPositionC().withName("D:HoldPosition");
     }
 
     public Command holdPositionC() {
@@ -253,6 +290,8 @@ public class Manipulator extends SubsystemBase {
         SmartDashboard.putNumber("Coral/Rotations", getPosition().in(Rotations));
         SmartDashboard.putNumber("Coral/Rotations per second", getVelocity().in(RotationsPerSecond));
         SmartDashboard.putBoolean("Coral/isStalled", isStalled().getAsBoolean());
+        SmartDashboard.putBoolean("Coral/hasCoral", hasCoral);
+        SmartDashboard.putBoolean("Coral/hasAlgae", hasAlgae);
 
         SmartDashboard.putNumber("Coral/Coral Travelled Inches", kCoralRollerDia.times(Math.PI).per(Rotation).timesDivisor(getPosition()).in(Inches));
     }

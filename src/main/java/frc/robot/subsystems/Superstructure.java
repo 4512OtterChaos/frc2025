@@ -12,6 +12,7 @@ import static frc.robot.subsystems.drivetrain.DriveConstants.*;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Transform2d;
+import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
@@ -119,27 +120,29 @@ public class Superstructure {
     public Command algaeShoot(){
         return sequence(
             elevator.setMinC(),
-            elevator.setL4C().until(()->elevator.getHeight().in(Meters) >= ElevatorConstants.kL4Height.minus(Inches.of(netAlgaeReleaseHeight.get())).in(Meters)),
-            manipulator.scoreAlgaeC().withTimeout(1)
-        ).withName("AlgeaShoot");
+            parallel(
+                elevator.setL4C(),
+                sequence(
+                    waitUntil(()->elevator.getHeight().in(Meters) >= ElevatorConstants.kL4Height.minus(Inches.of(netAlgaeReleaseHeight.get())).in(Meters))
+                        .deadlineFor(
+                            manipulator.scoreCoralC()
+                    ),
+                    manipulator.scoreAlgaeC().withTimeout(0.75)
+                ),
+                sequence(
+                    waitSeconds(0.1),
+                    swerve.drive(()->new ChassisSpeeds(0.5, 0, 0)).withTimeout(1).andThen(swerve.stop())
+                )
+            )
+        ).withName("AlgaeShoot");
     }
 
-    public Command feedCoralSequenceC(){
-        return sequence(
-            parallel(
-                funnel.feedCoralC(),
-                manipulator.feedCoralSequenceC()
-            )
-        );
+    public Command feedCoralSequenceC() {
+        return manipulator.feedCoralSequenceC();
     }
 
-    public Command feedCoralFastSequenceC(){
-        return sequence(
-            parallel(
-                funnel.feedCoralC(),
-                manipulator.feedCoralFastSequenceC()
-            )
-        );
+    public Command feedCoralFastSequenceC() {
+        return manipulator.feedCoralFastSequenceC();
     }
 
     //########## Auto commands
@@ -182,7 +185,7 @@ public class Superstructure {
         }).debounce(0.5).and(swerve.isAligning);
 
         return swerve.alignToStation(() -> FieldUtil.offsetCoralStation(coralStation.getPose(), alignment), false)
-            .until(manipulator.isCoralDetected().or(funnel.isCoralDetected()).or(simSkipCoral));
+            .until(manipulator.isCoralDetected().or(simSkipCoral));
     }
 
     public void adjustDriving() {

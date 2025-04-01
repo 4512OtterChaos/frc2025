@@ -58,9 +58,9 @@ public class DriveConstants {
     public static final double kPathDriveKI = 0;
     public static final double kPathDriveKD = 0;
     
-    public static final double kPathTurnKP = 7;
+    public static final double kPathTurnKP = 3;
     public static final double kPathTurnKI = 0;
-    public static final double kPathTurnKD = 0;
+    public static final double kPathTurnKD = 0.1;
 
     // Driving speed for auto-alignment
     public static final double kDriveSpeedAlign = 0.6 * kMaxLinearSpeed;
@@ -104,7 +104,6 @@ public class DriveConstants {
     public static final double kAlignTurnVelTol = Degrees.of(6).in(Radians);
 
     // Threshold to output zero when close
-    public static final double kStopAlignTrlDist = Inches.of(0.65).in(Meters);
+    public static final double kStopAlignTrlDist = Inches.of(0.6).in(Meters);
     public static final double kStopAlignRotDist = Degrees.of(2).in(Radians);
-    
 }

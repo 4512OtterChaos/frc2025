@@ -93,7 +93,7 @@ public class RobotContainer {
         configureDriverBindings(driver);
         // configureOperatorBindings(driver);
         configureOperatorBindings(operator);
-        if (Robot.isSimulation() || true){
+        if (Robot.isSimulation() || true){//TODO: Delete when in pits
             simBindings(driver);
         }
         // configureOperatorBindings(operator);
@@ -158,13 +158,21 @@ public class RobotContainer {
     }
 
     public void configureDefaultBindings() {
-        manipulator.setDefaultCommand(manipulator.holdPositionC());
-        funnel.setDefaultCommand(funnel.slowFeedCoralC());
+        manipulator.setDefaultCommand(manipulator.defaultCommand());
+        funnel.setDefaultCommand(funnel.setVoltageC(0)); //TODO: Change to slow feed voltage?
         // Automatically feed coral to a consistent position when detected
         manipulator.isCoralDetected().and(()->manipulator.getCurrentCommand() != null && manipulator.getCurrentCommand().equals(manipulator.getDefaultCommand()))
             .onTrue(superstructure.feedCoralSequenceC());
+
         // Automatically start intaking if close to station
-        nearCoralStation.onTrue(superstructure.feedCoralFastSequenceC());
+        nearCoralStation.whileTrue(
+            sequence(
+                superstructure.feedCoralFastSequenceC().deadlineFor(
+                    funnel.feedCoralC()
+                ).until(manipulator.isCoralDetected()),
+                superstructure.feedCoralSequenceC().asProxy()
+            )
+        );
     }
 
     private void configureDriverBindings(OCXboxController controller) {
@@ -196,7 +204,7 @@ public class RobotContainer {
             );
         
         // snap to reef angle
-        nearCoralStation.negate()
+        nearCoralStation.negate().and(manipulator.hasAlgae().negate())
             .and(()->swerve.getCurrentCommand() != null && swerve.getCurrentCommand().equals(swerve.getDefaultCommand()))
             .and(driverSomeRightInput.negate().debounce(0.5))
             .onTrue(
@@ -214,11 +222,16 @@ public class RobotContainer {
         // reset the robot heading to forward
         controller.start().onTrue(swerve.runOnce(() -> swerve.resetRotation(Rotation2d.kZero)));
 
-        controller.leftTrigger().whileTrue(swerve.alignToReef(Alignment.LEFT, true));
-        controller.rightTrigger().whileTrue(swerve.alignToReef(Alignment.RIGHT, true));
+        controller.leftTrigger().and(controller.rightTrigger().negate()).whileTrue(swerve.alignToReef(Alignment.LEFT, true));
+        controller.rightTrigger().and(controller.leftTrigger().negate()).whileTrue(swerve.alignToReef(Alignment.RIGHT, true));
+        controller.leftTrigger().and(controller.rightTrigger()).whileTrue(swerve.alignToReef(Alignment.CENTER, true));
 
         controller.leftBumper().whileTrue(manipulator.scoreAlgaeC());
         controller.rightBumper().whileTrue(manipulator.scoreCoralC());
+
+        controller.povRight().whileTrue(funnel.feedCoralC());
+
+        controller.b().whileTrue(superstructure.algaeShoot());
         
         // controller.leftTrigger().whileTrue(swerve.drive(() -> new ChassisSpeeds(0, controller.getLeftTriggerAxis() * 0.3, 0), false, true).withName("Strafe Left"));
         // controller.rightTrigger().whileTrue(swerve.drive(() -> new ChassisSpeeds(0, controller.getRightTriggerAxis() * -0.3, 0), false, true).withName("Strafe Right"));       
@@ -249,7 +262,7 @@ public class RobotContainer {
         //=====
 
         //===== COMPOSITION CCOMMANDS
-        controller.back().whileTrue(superstructure.algaeShoot());
+        
         //=====
     }
 
@@ -288,3 +301,12 @@ public class RobotContainer {
         vision.simulationPeriodic(swerve.getState().Pose);
     }
 }
+/*TODO List:
+ * middle l4 + algae net auto
+ * auto choose algae height based on closest reef face
+ * l1 coral sequence
+ * run funnel wheels more often
+ * Autos: go to L2 after feedsequence
+ * cleaner auto align logic
+ * auto align + auto scoring?
+*/

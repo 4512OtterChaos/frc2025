@@ -31,6 +31,9 @@ public class VisionConstants {
         List<AprilTag> tags = new ArrayList<>(originalLayout.getTags());
         tags.removeIf(tag -> tag.ID <= 5 || (tag.ID >= 12 && tag.ID <= 16));
         kTagLayout = new AprilTagFieldLayout(tags, originalLayout.getFieldLength(), originalLayout.getFieldWidth());
+        for (var tag : kTagLayout.getTags()) {
+            System.err.println("tag id "+tag.ID);
+        }
     }
     
     // The standard deviations of our vision estimated poses, which affect correction rate
@@ -39,7 +42,7 @@ public class VisionConstants {
     public static final double kMultitagBaseTrustTrlStdDevs = 0.5;
     public static final double kMultitagBaseTrustRotStdDevs = 2;
     /** Lower values reduce trust when estimate is far from visible tags */
-    public static final double kDistanceTrustScale = 30;
+    public static final double kDistanceTrustScale = 5;
     /** Lower values reduce trust as robot rotates faster */
     public static final double kRotSpeedTrustScale = 0.5;
 }

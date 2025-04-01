@@ -95,6 +95,7 @@ public class AutoRoutines {
             // Score on close left/right
             // swerve.alignToPose(()->preAlign1, 0.5, 1, 1, 1, false, false),
             superstructure.autoScore(reefPos2, ElevatorHeight.L4),
+            // Drive to coral station and wait for coral
             parallel(
                 superstructure.autoCoralStation(coralStation, Alignment.LEFT),
                 sequence(
