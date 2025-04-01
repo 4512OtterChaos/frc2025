@@ -41,7 +41,7 @@ import frc.robot.subsystems.manipulator.Manipulator;
 import frc.robot.subsystems.vision.Vision;
 import frc.robot.util.FieldUtil;
 import frc.robot.util.OCXboxController;
-import frc.robot.util.FieldUtil.ReefPosition;
+import frc.robot.util.FieldUtil.Alignment;
 
 public class RobotContainer {
         
@@ -75,13 +75,11 @@ public class RobotContainer {
     private LEDPattern layer4Pattern = LEDPattern.kOff;
     
     /* Path follower */
-    private final AutoFactory autoFactory;
     private final AutoRoutines autoRoutines;
     private final AutoChooser autoChooser = new AutoChooser();
     
     public RobotContainer() {
-        autoFactory = swerve.createAutoFactory();
-        autoRoutines = new AutoRoutines(autoFactory, superstructure, swerve, elevator, manipulator);
+        autoRoutines = new AutoRoutines(superstructure, swerve, elevator, manipulator);
         
         autoChooser.addCmd("TaxiAuto", autoRoutines::taxiAuto);
         autoChooser.addCmd("TaxiFarAuto", autoRoutines::taxiFar);
@@ -211,13 +209,13 @@ public class RobotContainer {
         
         new Trigger(() -> {
             return Math.hypot(controller.getLeftX(), controller.getLeftY()) > 0.9;
-        }).debounce(0.3).and(swerve.isAligning().negate()).and(()->DriverStation.isTeleop()).onTrue(elevator.setMinC());
+        }).debounce(0.3).and(swerve.isAligning.negate()).and(()->DriverStation.isTeleop()).onTrue(elevator.setMinC());
         
         // reset the robot heading to forward
         controller.start().onTrue(swerve.runOnce(() -> swerve.resetRotation(Rotation2d.kZero)));
 
-        controller.leftTrigger().whileTrue(superstructure.autoAlign(ReefPosition.LEFT, false, true));
-        controller.rightTrigger().whileTrue(superstructure.autoAlign(ReefPosition.RIGHT, false, true));
+        controller.leftTrigger().whileTrue(swerve.alignToReef(Alignment.LEFT, true));
+        controller.rightTrigger().whileTrue(swerve.alignToReef(Alignment.RIGHT, true));
 
         controller.leftBumper().whileTrue(manipulator.scoreAlgaeC());
         controller.rightBumper().whileTrue(manipulator.scoreCoralC());
@@ -266,16 +264,16 @@ public class RobotContainer {
             ()->layer2Pattern = LEDPattern.kOff
         ));
 
-        swerve.isAligning().whileTrue(runEnd(
+        swerve.isAligning.whileTrue(runEnd(
             ()->layer3Pattern = LEDConstants.kPatternOrangeBlink,
             ()->layer3Pattern = LEDPattern.kOff
         ));
 
-        swerve.isAligned().onTrue(runEnd(
+        swerve.isAligned.onTrue(runEnd(
             ()->layer4Pattern = LEDConstants.kPatternPurpleSolid,
             ()->layer4Pattern = LEDPattern.kOff
         ).withTimeout(0.75));
-        swerve.isAligned().and(swerve.isAligning()).whileTrue(runEnd(
+        swerve.isAligned.and(swerve.isAligning).whileTrue(runEnd(
             ()->layer4Pattern = LEDConstants.kPatternPurpleSolid,
             ()->layer4Pattern = LEDPattern.kOff
         ));

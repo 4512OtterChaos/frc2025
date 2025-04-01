@@ -18,18 +18,15 @@ import frc.robot.subsystems.elevator.ElevatorConstants.ElevatorHeight;
 import frc.robot.subsystems.manipulator.Manipulator;
 import frc.robot.util.FieldUtil;
 import frc.robot.util.FieldUtil.CoralStation;
-import frc.robot.util.FieldUtil.ReefPosition;
+import frc.robot.util.FieldUtil.Alignment;
 
 public class AutoRoutines {
-    private final AutoFactory m_factory;
-
     private final Superstructure superstructure;
     private final CommandSwerveDrivetrain swerve;
     private final Elevator elevator;
     private final Manipulator manipulator;
 
-    public AutoRoutines(AutoFactory factory, Superstructure superstructure, CommandSwerveDrivetrain swerve, Elevator elevator, Manipulator manipulator) {
-        m_factory = factory;
+    public AutoRoutines(Superstructure superstructure, CommandSwerveDrivetrain swerve, Elevator elevator, Manipulator manipulator) {
 
         this.superstructure = superstructure;
         this.swerve = swerve;
@@ -60,7 +57,7 @@ public class AutoRoutines {
             runOnce(()->swerve.resetPose(new Pose2d(7.5, 4.2, Rotation2d.k180deg)), swerve),
             waitSeconds(1),
             // Score on far left/right right branch
-            superstructure.autoScore(ReefPosition.RIGHT, ElevatorHeight.L4)
+            superstructure.autoScore(Alignment.RIGHT, ElevatorHeight.L4)
         );
     }
 
@@ -75,9 +72,9 @@ public class AutoRoutines {
         Pose2d preAlign1Right = FieldUtil.mirrorY(preAlign1Left);
         Pose2d preAlign1 = rightSide ? preAlign1Right : preAlign1Left;
 
-        ReefPosition reefPos1 = rightSide ? ReefPosition.LEFT : ReefPosition.RIGHT;
-        ReefPosition reefPos2 = rightSide ? ReefPosition.RIGHT : ReefPosition.LEFT;
-        ReefPosition reefPos3 = reefPos1;
+        Alignment reefPos1 = rightSide ? Alignment.LEFT : Alignment.RIGHT;
+        Alignment reefPos2 = rightSide ? Alignment.RIGHT : Alignment.LEFT;
+        Alignment reefPos3 = reefPos1;
 
         return sequence(
             // Reset odom
@@ -88,7 +85,7 @@ public class AutoRoutines {
             parallel(
                 sequence(
                     swerve.drive(()->new ChassisSpeeds(0, rightSide ? -1 : 1, 0)).withTimeout(0.5),
-                    superstructure.autoCoralStation(coralStation)
+                    superstructure.autoCoralStation(coralStation, Alignment.LEFT)
                 ),
                 sequence(
                     waitSeconds(0.1),
@@ -96,16 +93,16 @@ public class AutoRoutines {
                 )
             ),
             // Score on close left/right
-            swerve.alignToPose(()->preAlign1, 0.5, 1, 1, 1, false, false),
+            // swerve.alignToPose(()->preAlign1, 0.5, 1, 1, 1, false, false),
             superstructure.autoScore(reefPos2, ElevatorHeight.L4),
             parallel(
-                superstructure.autoCoralStation(coralStation),
+                superstructure.autoCoralStation(coralStation, Alignment.LEFT),
                 sequence(
                     waitSeconds(0.1),
                     elevator.setMinC()
                 )
             ),
-            swerve.alignToPose(()->preAlign1, 0.5, 1, 1, 1, false, false),
+            // swerve.alignToPose(()->preAlign1, 0.5, 1, 1, 1, false, false),
             superstructure.autoScore(reefPos3, ElevatorHeight.L4)
         );
     }

@@ -2,9 +2,11 @@ package frc.robot.util;
 
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Transform2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.util.Units;
 import static edu.wpi.first.units.Units.*;
+import static frc.robot.subsystems.drivetrain.DriveConstants.kRobotLength;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -39,7 +41,7 @@ public class FieldUtil {
     public static final double kAlignAdjustDrivePosTol = Inches.of(7).in(Meters);
     public static final double kAlignAdjustTurnPosTol = Degrees.of(10).in(Radians);
 
-    public enum ReefPosition {
+    public enum Alignment {
         CENTER,
         LEFT,
         RIGHT
@@ -92,6 +94,16 @@ public class FieldUtil {
         add(new Pose2d(kCoralScoreRightPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(300)), Rotation2d.fromDegrees(300)));
     }};
 
+    public static Pose2d nearestReefPose(Pose2d robotPose, Alignment reef) {
+        List<Pose2d> poses;
+        switch (reef) {
+            case LEFT -> poses = kReefLeftCoralPoses;
+            case RIGHT -> poses = kReefRightCoralPoses;
+            default -> poses = kReefCenterPoses;
+        }
+        return robotPose.nearest(poses);
+    } 
+
     //########## CORAL STATION
 
     public enum CoralStation {
@@ -120,7 +132,32 @@ public class FieldUtil {
     }
     public static final List<Pose2d> kCoralStationPoses = List.of(CoralStation.RIGHT.getPose(), CoralStation.LEFT.getPose());
 
+    private static final Transform2d kCoralStationOffsetX = new Transform2d(
+        kRobotLength.div(2).in(Meters),
+        0,
+        Rotation2d.kZero
+    );
+    private static final Transform2d kCoralStationOffsetY = new Transform2d(
+        0,
+        Units.feetToMeters(2),
+        Rotation2d.kZero
+    );
+
     public static Pose2d nearestCoralStation(Pose2d robotPose) {
         return robotPose.nearest(kCoralStationPoses);
+    }
+
+    public static Pose2d offsetCoralStation(Pose2d station, Alignment alignment) {
+        station = station.plus(kCoralStationOffsetX);
+        switch (alignment) {
+            case LEFT -> station = station.plus(kCoralStationOffsetY);
+            case RIGHT -> station = station.plus(kCoralStationOffsetY.inverse());
+            default -> {}
+        }
+        return station;
+    }
+
+    public static Pose2d nearestOffsetCoralStation(Pose2d robotPose, Alignment alignment) {
+        return offsetCoralStation(nearestCoralStation(robotPose), alignment);
     }
 }

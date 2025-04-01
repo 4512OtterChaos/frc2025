@@ -57,15 +57,6 @@ public class AutoAlign extends Command {
 
     private final Supplier<Pose2d> goalPoseSupplier;
 
-    private boolean aligning = false;
-    public final Trigger isAligning = new Trigger(() -> aligning);
-    private boolean atSetpointVel = false;
-    public final Trigger isAtSetpoint = new Trigger(() -> atSetpointVel);
-    private boolean atGoal = false;
-    public final Trigger isAtGoal = new Trigger(() -> atGoal);
-    private boolean finished = false;
-    public final Trigger isFinished = new Trigger(() -> finished);
-
     public static class Config {
         /** Limiter for normal alignment speeds */
         public SwerveDriveLimiter standardLimiter = kAlignLimiter.copy();
@@ -168,7 +159,7 @@ public class AutoAlign extends Command {
         errorRotPub = NetworkTableInstance.getDefault().getDoubleTopic("Align/"+name+"/Rot Error Degrees").publish();
 
         addRequirements(swerve);
-        withName("AutoAlign");
+        setName("AutoAlign");
     }
 
     @Override
@@ -179,6 +170,7 @@ public class AutoAlign extends Command {
 
         Pose2d currentPose = swerve.getGlobalPoseEstimate();
         Pose2d goalPose = goalPoseSupplier.get();
+        swerve.alignGoal = goalPose;
         Pose2d goalRelPose = currentPose.relativeTo(goalPose);
 
         ChassisSpeeds currentSpeeds = ChassisSpeeds.fromRobotRelativeSpeeds(swerve.getState().Speeds, currentPose.getRotation());
@@ -207,15 +199,16 @@ public class AutoAlign extends Command {
     public void execute() {
         changeTunable();
 
-        aligning = true;
+        swerve.aligning = true;
         Pose2d currentPose = swerve.getGlobalPoseEstimate();
         Pose2d goalPose = goalPoseSupplier.get();
+        swerve.alignGoal = goalPose;
         goalPosePub.set(goalPose);
         Pose2d goalRelPose = currentPose.relativeTo(goalPose);
 
-        atGoal = MathUtil.isNear(0, goalRelPose.getX(), Units.inchesToMeters(drivePosTol.get()));
-        atGoal &= MathUtil.isNear(0, goalRelPose.getY(), Units.inchesToMeters(drivePosTol.get()));
-        atGoal &= MathUtil.isNear(0, goalRelPose.getRotation().getRadians(), Units.degreesToRadians(thetaPosTol.get()), -Math.PI, Math.PI);
+        swerve.atGoal = MathUtil.isNear(0, goalRelPose.getX(), Units.inchesToMeters(drivePosTol.get()));
+        swerve.atGoal &= MathUtil.isNear(0, goalRelPose.getY(), Units.inchesToMeters(drivePosTol.get()));
+        swerve.atGoal &= MathUtil.isNear(0, goalRelPose.getRotation().getRadians(), Units.degreesToRadians(thetaPosTol.get()), -Math.PI, Math.PI);
 
         double finalDist = finalAlignDist.get();
         double distToGoal = goalRelPose.getTranslation().getNorm();
@@ -243,9 +236,9 @@ public class AutoAlign extends Command {
         ChassisSpeeds currentSpeeds = ChassisSpeeds.fromRobotRelativeSpeeds(swerve.getState().Speeds, currentPose.getRotation());
         ChassisSpeeds goalRelVel = ChassisSpeeds.fromFieldRelativeSpeeds(currentSpeeds, goalPose.getRotation());
         ChassisSpeeds speedsError = goalRelVel.minus(currentSpeeds);
-        atSetpointVel = MathUtil.isNear(0, speedsError.vxMetersPerSecond, Units.inchesToMeters(driveVelTol.get()));
-        atSetpointVel &= MathUtil.isNear(0, speedsError.vyMetersPerSecond, Units.inchesToMeters(driveVelTol.get()));
-        atSetpointVel &= MathUtil.isNear(0, speedsError.omegaRadiansPerSecond, Units.inchesToMeters(thetaVelTol.get()));
+        swerve.atSetpointVel = MathUtil.isNear(0, speedsError.vxMetersPerSecond, Units.inchesToMeters(driveVelTol.get()));
+        swerve.atSetpointVel &= MathUtil.isNear(0, speedsError.vyMetersPerSecond, Units.inchesToMeters(driveVelTol.get()));
+        swerve.atSetpointVel &= MathUtil.isNear(0, speedsError.omegaRadiansPerSecond, Units.inchesToMeters(thetaVelTol.get()));
 
         /*
          * We update the profile constraints based on our current limiter values.
@@ -327,13 +320,13 @@ public class AutoAlign extends Command {
 
     @Override
     public boolean isFinished() {
-        return aligning && atSetpointVel && atGoal;
+        swerve.aligned = swerve.aligning && swerve.atSetpointVel && swerve.atGoal;
+        return swerve.aligned && !config.runForever;
     }
 
     @Override
     public void end(boolean interrupted) {
-        aligning = false;
-        finished = true;
+        swerve.aligning = false;
     }
 
     private void updateConstraints(double distToGoal) {

@@ -53,8 +53,10 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.Robot;
 import frc.robot.subsystems.drivetrain.TunerConstants.TunerSwerveDrivetrain;
+import frc.robot.util.FieldUtil;
 import frc.robot.util.PhoenixUtil;
 import frc.robot.util.TunableNumber;
+import frc.robot.util.FieldUtil.Alignment;
 
 import static frc.robot.subsystems.drivetrain.DriveConstants.*;
 
@@ -91,34 +93,24 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
             .withForwardPerspective(ForwardPerspectiveValue.OperatorPerspective)
             .withDriveRequestType(DriveRequestType.Velocity);
 
-    private final PIDController pathXController = new PIDController(kPathDriveKP, kPathDriveKI, kPathDriveKD);
-    private final PIDController pathYController = new PIDController(kPathDriveKP, kPathDriveKI, kPathDriveKD);
-    private TrapezoidProfile.Constraints pathDriveConstraints = new TrapezoidProfile.Constraints(kDriveSpeed, kLinearAccel);
-    private TrapezoidProfile.State pathDriveLastState = new TrapezoidProfile.State();
     private final PIDController pathThetaController = new PIDController(kPathTurnKP, kPathTurnKI, kPathTurnKD);
     private TrapezoidProfile.Constraints pathTurnConstraints = new TrapezoidProfile.Constraints(kTurnSpeed, kAngularAccel);
     private TrapezoidProfile.State pathTurnLastState = new TrapezoidProfile.State();
-    private boolean isAligning = false;
-    private boolean isAligned = false;
-    private Pose2d lastTargetPose = Pose2d.kZero;
-    private Pose2d goalPose = Pose2d.kZero;
-    private ChassisSpeeds lastAlignSetpointSpeeds = new ChassisSpeeds();
 
     {
         pathThetaController.enableContinuousInput(-Math.PI, Math.PI);
-        pathXController.setTolerance(kAlignDrivePosTol, kAlignDriveVelTol);
-        pathYController.setTolerance(kAlignDrivePosTol, kAlignDriveVelTol);
         pathThetaController.setTolerance(kAlignTurnPosTol, kAlignTurnVelTol);
-
-        // isAligned().onTrue(Commands.runOnce(()->isAligned = false));
     }
 
-    private final StructPublisher<Pose2d> goalPosePub = NetworkTableInstance.getDefault().getStructTopic("Swerve/Goal Pose", Pose2d.struct).publish();
-    private final StructPublisher<Pose2d> targetPosePub = NetworkTableInstance.getDefault().getStructTopic("Swerve/Target Pose", Pose2d.struct).publish();
-    private final DoublePublisher alignErrorTrlPub = NetworkTableInstance.getDefault().getDoubleTopic("Swerve/Align Trl Error Inches").publish();
-    private final DoublePublisher alignErrorXPub = NetworkTableInstance.getDefault().getDoubleTopic("Swerve/Align X Error Inches").publish();
-    private final DoublePublisher alignErrorYPub = NetworkTableInstance.getDefault().getDoubleTopic("Swerve/Align Y Error Inches").publish();
-    private final DoublePublisher alignErrorRotPub = NetworkTableInstance.getDefault().getDoubleTopic("Swerve/Align Rot Error Degrees").publish();
+    Pose2d alignGoal = Pose2d.kZero;
+    boolean aligning = false;
+    public final Trigger isAligning = new Trigger(() -> aligning);
+    boolean atSetpointVel = false;
+    public final Trigger isAtSetpoint = new Trigger(() -> atSetpointVel);
+    boolean atGoal = false;
+    public final Trigger isAtGoal = new Trigger(() -> atGoal);
+    boolean aligned = false;
+    public final Trigger isAligned = new Trigger(() -> aligned);
 
     private final Slot0Configs moduleDriveConfigs = TunerConstants.FrontLeft.DriveMotorGains;
     private final TunableNumber moduleDriveKS = new TunableNumber("Swerve/moduleDriveKS", moduleDriveConfigs.kS);
@@ -301,33 +293,6 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         }
     }
 
-    /**
-     * Creates a new auto factory for this drivetrain.
-     *
-     * @return AutoFactory for this drivetrain
-     */
-    public AutoFactory createAutoFactory() {
-        return createAutoFactory((sample, isStart) -> {});
-    }
-
-    /**
-     * Creates a new auto factory for this drivetrain with the given
-     * trajectory logger.
-     *
-     * @param trajLogger Logger for the trajectory
-     * @return AutoFactory for this drivetrain
-     */
-    public AutoFactory createAutoFactory(TrajectoryLogger<SwerveSample> trajLogger) {
-        return new AutoFactory(
-            () -> getState().Pose,
-            this::resetPose,
-            this::followChoreoPath,
-            false,
-            this,
-            trajLogger
-        );
-    }
-
     public Command drive(Supplier<ChassisSpeeds> speedsSupplier) {
         return drive(speedsSupplier, true, true, true);
     }
@@ -414,176 +379,46 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         return run(() -> this.setControl(requestSupplier.get()));
     }
 
-    public Trigger isAligning() {
-        return new Trigger(() -> isAligning);
+    public Pose2d getAlignGoal() {
+        return alignGoal;
     }
 
-    public Trigger isAligned() {
-        return new Trigger(() -> isAligned);
+    public Command alignToReef(Alignment position, boolean runForever) {
+        return alignToReef(() -> FieldUtil.nearestReefPose(getGlobalPoseEstimate(), position), runForever);
     }
 
-    public Command simpleAlignToPose(
-            Supplier<Pose2d> goalSupplier,
-            boolean runForever
-            ) {
-        return simpleAlignToPose(
-            goalSupplier,
-            pathDrivePosTol.get(), pathDriveVelTol.get(),
-            pathTurnPosTol.get(), pathTurnVelTol.get(),
-            runForever
-            );
-    }
+    public Command alignToReef(Supplier<Pose2d> goalSupplier, boolean runForever) {
+        var config = new AutoAlign.Config();
+        config.alignBackwards = false;
+        config.runForever = runForever;
+        config.referenceLimiter = limiter;
 
-    public Command simpleAlignToPose(
-            Supplier<Pose2d> goalSupplier,
-            double posTolMeters, double velTolMeters,
-            double posTolRadians, double velTolRadians,
-            boolean runForever
-            ) {
-        return sequence(
-            // Reset pid on init
-            runOnce(() -> {
-                pathXController.reset();
-                pathYController.reset();
-                pathThetaController.reset();
-            }),
-            drive(() -> {
-                isAligning = true;
-                var actual = getGlobalPoseEstimate();
-                var goal = goalSupplier.get();
-                goalPose = goal;
-                goalPosePub.set(goal);
-
-                // log error
-                var relative = actual.relativeTo(goal);
-                alignErrorTrlPub.set(Units.metersToInches(relative.getTranslation().getNorm()));
-                alignErrorXPub.set(Units.metersToInches(relative.getX()));
-                alignErrorYPub.set(Units.metersToInches(relative.getY()));
-                alignErrorRotPub.set(relative.getRotation().getDegrees());
-
-                // Calculate PID output
-                var targetSpeeds = new ChassisSpeeds();
-                double pidX = pathXController.calculate(
-                    actual.getX(), goal.getX()
-                );
-                double pidY = pathYController.calculate(
-                    actual.getY(), goal.getY()
-                );
-                double pidHypot = Math.hypot(pidX, pidY);
-                double pidScale = 1;
-                if (pidHypot > 1e-5) {
-                    pidScale = Math.min(driveSpeed.in(MetersPerSecond), pidHypot) / pidHypot; // Clamp pid output to drivespeed
-                }
-                targetSpeeds.vxMetersPerSecond = pidX * pidScale;
-                targetSpeeds.vyMetersPerSecond = pidY * pidScale;
-                targetSpeeds.omegaRadiansPerSecond = pathThetaController.calculate(
-                    actual.getRotation().getRadians(), goal.getRotation().getRadians()
-                );
-
-                // if very close, avoid small outputs
-                if (relative.getTranslation().getNorm() < kStopAlignTrlDist) {
-                    targetSpeeds.vxMetersPerSecond = 0;
-                    targetSpeeds.vyMetersPerSecond = 0;
-                }
-                if (Math.abs(relative.getRotation().getRadians()) < kStopAlignRotDist) {
-                    targetSpeeds.omegaRadiansPerSecond = 0;
-                }
-                return targetSpeeds;
-            }, true, false, false)
-            .until(() -> { // finish when goal pose is reached
-                boolean atSetpointVel = MathUtil.isNear(0, pathXController.getErrorDerivative(), velTolMeters);
-                atSetpointVel &= MathUtil.isNear(0, pathYController.getErrorDerivative(), velTolMeters);
-                atSetpointVel &= MathUtil.isNear(0, pathThetaController.getErrorDerivative(), velTolRadians);
-
-                var relative = goalSupplier.get().minus(getGlobalPoseEstimate());
-                boolean atGoal = MathUtil.isNear(0, relative.getX(), posTolMeters);
-                atGoal &= MathUtil.isNear(0, relative.getY(), posTolMeters);
-                atGoal &= MathUtil.isNear(0, relative.getRotation().getRadians(), posTolRadians, -Math.PI, Math.PI);
-
-                SmartDashboard.putBoolean("Swerve/atSetpointVel", atSetpointVel);
-                SmartDashboard.putBoolean("Swerve/atGoal", atGoal);
-                SmartDashboard.putBoolean("Swerve/isAligning", isAligning);
-                boolean finished = atGoal && atSetpointVel && isAligning;
-                isAligned = finished;
-                return finished && !runForever;
-            })
-            .finallyDo((interrupted)->{
-                isAligning = false;
-                goalPosePub.set(null);
-                targetPosePub.set(null);
-                alignErrorTrlPub.set(0);
-                alignErrorXPub.set(0);
-                alignErrorYPub.set(0);
-                alignErrorRotPub.set(0);
-                SmartDashboard.putBoolean("Swerve/atSetpointVel", false);
-                SmartDashboard.putBoolean("Swerve/atGoal", false);
-                SmartDashboard.putBoolean("Swerve/isAligning", false);
-                lastTargetSpeeds = new ChassisSpeeds();
-                setControl(new SwerveRequest.ApplyRobotSpeeds());
-            }).withName("SimpleAlignToPose")
-        );
-    }
-
-    public Command alignToPose(Supplier<Pose2d> goalSupplier, boolean slowApproach, boolean runForever) {
-        return alignToPose(
-            goalSupplier,
-            pathDrivePosTol.get(), pathDriveVelTol.get(),
-            pathTurnPosTol.get(), pathTurnVelTol.get(),
-            slowApproach,
-            runForever
-        );
-    }
-
-    /**
-     * 
-     * @param goalSupplier Supplier of the goal pose to drive to
-     * @param posTolMeters Position tolerance in meters of the translation
-     * @param velTolMeters Velocity tolerance in meters of the translation
-     * @param posTolRadians Position tolerance in radians of the rotation
-     * @param velTolRadians Velocity tolerance in radians of the rotation
-     * @param runForever If this command should not end
-     */
-    public Command alignToPose(
-            Supplier<Pose2d> goalSupplier,
-            double posTolMeters, double velTolMeters,
-            double posTolRadians, double velTolRadians,
-            boolean slowApproach,
-            boolean runForever
-            ) {
         var command = new AutoAlign(
             "Reef",
             this,
-            goalSupplier
-        ).withName("AlignToPose");
+            goalSupplier,
+            config
+        ).withName("AlignToReef");
         return command;
     }
 
-    /**
-     * Follows the given field-centric path sample with PID.
-     *
-     * @param sample Sample along the path to follow
-     */
-    public void followChoreoPath(SwerveSample sample) {
-        
+    public Command alignToStation(boolean runForever) {
+        return alignToStation(() -> FieldUtil.nearestCoralStation(getGlobalPoseEstimate()), runForever);
+    }
 
-        var pose = getState().Pose;
+    public Command alignToStation(Supplier<Pose2d> goalSupplier, boolean runForever) {
+        var config = new AutoAlign.Config();
+        config.alignBackwards = true;
+        config.runForever = runForever;
+        config.referenceLimiter = limiter;
 
-        var targetSpeeds = sample.getChassisSpeeds();
-        targetSpeeds.vxMetersPerSecond += pathXController.calculate(
-            pose.getX(), sample.x
-        );
-        targetSpeeds.vyMetersPerSecond += pathYController.calculate(
-            pose.getY(), sample.y
-        );
-        targetSpeeds.omegaRadiansPerSecond += pathThetaController.calculate(
-            pose.getRotation().getRadians(), sample.heading
-        );
-
-        setControl(
-            applyPathFieldSpeeds.withSpeeds(targetSpeeds)
-                .withWheelForceFeedforwardsX(sample.moduleForcesX())
-                .withWheelForceFeedforwardsY(sample.moduleForcesY())
-        );
+        var command = new AutoAlign(
+            "Station",
+            this,
+            goalSupplier,
+            config
+        ).withName("AlignToStation");
+        return command;
     }
 
     /**
@@ -649,10 +484,6 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
             updateSimState(deltaTime, RobotController.getBatteryVoltage());
         });
         m_simNotifier.startPeriodic(kSimLoopPeriod);
-    }
-
-    public Pose2d getGoalPose() {
-        return goalPose;
     }
 
     public Pose2d getGlobalPoseEstimate() {
@@ -793,15 +624,6 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
                 var steer = module.getSteerMotor();
                 PhoenixUtil.tryUntilOk(2, () -> steer.getConfigurator().apply(moduleSteerConfigs));
             }
-        }
-        // Path translational PID
-        if (pathDriveKP.hasChanged(hash) || pathDriveKD.hasChanged(hash)) {
-            pathXController.setPID(pathDriveKP.get(), kPathDriveKI, pathDriveKD.get());
-            pathYController.setPID(pathDriveKP.get(), kPathDriveKI, pathDriveKD.get());
-        }
-        if (pathDrivePosTol.hasChanged(hash) || pathDriveVelTol.hasChanged(hash)) {
-            pathXController.setTolerance(pathDrivePosTol.get(), pathDriveVelTol.get());
-            pathYController.setTolerance(pathDrivePosTol.get(), pathDriveVelTol.get());
         }
         // Path rotational PID
         if (pathTurnKP.hasChanged(hash) || pathTurnKD.hasChanged(hash)) {
