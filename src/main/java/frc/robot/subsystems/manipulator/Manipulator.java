@@ -99,7 +99,7 @@ public class Manipulator extends SubsystemBase {
             lastFreeTime = Timer.getFPGATimestamp();
         }
 
-        updateGamePeiceState();
+        updateGamePieceState();
 
         changeTunable();
 
@@ -152,7 +152,10 @@ public class Manipulator extends SubsystemBase {
         return Millimeters.of(measurement.distance_mm);
     }
 
-    public void updateGamePeiceState(){
+    public void updateGamePieceState(){
+        if (this.getCurrentCommand() == null){
+            return;
+        }
         String commandName = this.getCurrentCommand().getName();
 
         if (commandName.equals("ScoreCoral") && isStalled().getAsBoolean()) {
