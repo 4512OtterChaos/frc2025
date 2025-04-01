@@ -160,8 +160,8 @@ public class RobotContainer {
     }
 
     public void configureDefaultBindings() {
-        manipulator.setDefaultCommand(manipulator.holdPositionC());
-        funnel.setDefaultCommand(funnel.setVoltageC(0));
+        manipulator.setDefaultCommand(manipulator.defaultCommand());
+        funnel.setDefaultCommand(funnel.setVoltageC(0)); //TODO: Change to slow feed voltage?
         // Automatically feed coral to a consistent position when detected
         manipulator.isCoralDetected().and(()->manipulator.getCurrentCommand() != null && manipulator.getCurrentCommand().equals(manipulator.getDefaultCommand()))
             .onTrue(superstructure.feedCoralSequenceC());
@@ -206,7 +206,7 @@ public class RobotContainer {
             );
         
         // snap to reef angle
-        nearCoralStation.negate()
+        nearCoralStation.negate().and(manipulator.hasAlgae().negate())
             .and(()->swerve.getCurrentCommand() != null && swerve.getCurrentCommand().equals(swerve.getDefaultCommand()))
             .and(driverSomeRightInput.negate().debounce(0.5))
             .onTrue(
@@ -302,3 +302,7 @@ public class RobotContainer {
         vision.simulationPeriodic(swerve.getState().Pose);
     }
 }
+/*TODO List:
+ * Auto go to L2 after feedsequence
+ * change default command to include algae default command
+*/

@@ -243,6 +243,13 @@ public class Manipulator extends SubsystemBase {
         return run(() -> setTargetPos(position)).withName("SetPosition");
     }
 
+    public Command defaultCommand() {
+        if (hasAlgae){
+            return holdAlgaeC().withName("D:HoldAlgae");
+        }
+        return holdPositionC().withName("D:HoldPosition");
+    }
+
     public Command holdPositionC() {
         return startEnd(
             () -> setTargetPos(getPosition()),
