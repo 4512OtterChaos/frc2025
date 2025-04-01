@@ -9,12 +9,14 @@ import java.util.function.Supplier;
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 
+import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Transform2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.util.Units;
+import edu.wpi.first.networktables.DoublePublisher;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.networktables.StructPublisher;
 import edu.wpi.first.units.measure.Angle;
@@ -22,6 +24,7 @@ import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.units.measure.LinearVelocity;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.button.Trigger;
 import frc.robot.util.ProfiledPIDController;
 import frc.robot.util.TrapezoidProfile;
 import frc.robot.util.TunableNumber;
@@ -54,17 +57,20 @@ public class AutoAlign extends Command {
 
     private final Supplier<Pose2d> goalPoseSupplier;
 
-    // Static tunables
-    private static final TunableNumber pathDriveKP = new TunableNumber("Align/pathDriveKP", kPathDriveKP);
-    private static final TunableNumber pathDriveKD = new TunableNumber("Align/pathDriveKD", kPathDriveKD);
-    private static final TunableNumber pathTurnKP = new TunableNumber("Align/pathTurnKP", kPathTurnKP);
-    private static final TunableNumber pathTurnKD = new TunableNumber("Align/pathTurnKD", kPathTurnKD);
+    private boolean aligning = false;
+    public final Trigger isAligning = new Trigger(() -> aligning);
+    private boolean atSetpointVel = false;
+    public final Trigger isAtSetpoint = new Trigger(() -> atSetpointVel);
+    private boolean atGoal = false;
+    public final Trigger isAtGoal = new Trigger(() -> atGoal);
+    private boolean finished = false;
+    public final Trigger isFinished = new Trigger(() -> finished);
 
     public static class Config {
         /** Limiter for normal alignment speeds */
         public SwerveDriveLimiter standardLimiter = kAlignLimiter.copy();
         /** Limiter for final alignment speeds to goal pose */
-        public SwerveDriveLimiter finishLimiter = kAlignFinalLimiter.copy();
+        public SwerveDriveLimiter finalLimiter = kAlignFinalLimiter.copy();
         /** Reference swerve limiter. The auto-align speeds will never be more aggressive than this. */
         public SwerveDriveLimiter referenceLimiter;
 
@@ -76,18 +82,41 @@ public class AutoAlign extends Command {
         public Distance finalAlignDist = Meters.of(kFinalAlignDist);
 
         public boolean alignBackwards = false;
+
+        public boolean runForever = false;
     }
 
     // Instance tunables
     private final Config config;
+
+    private final TunableNumber pathDriveKP;
+    private final TunableNumber pathDriveKD;
+    private final TunableNumber pathTurnKP;
+    private final TunableNumber pathTurnKD;
     private final TunableNumber drivePosTol;
     private final TunableNumber driveVelTol;
     private final TunableNumber thetaPosTol;
     private final TunableNumber thetaVelTol;
+
+    private final TunableNumber driveSpeedNormal;
+    private final TunableNumber driveAccelNormal;
+    private final TunableNumber turnSpeedNormal;
+    private final TunableNumber turnAccelNormal;
+
     private final TunableNumber finalAlignDist;
+
+    private final TunableNumber driveSpeedFinal;
+    private final TunableNumber driveAccelFinal;
+    private final TunableNumber turnSpeedFinal;
+    private final TunableNumber turnAccelFinal;
 
     private final StructPublisher<Pose2d> goalPosePub;
     private final StructPublisher<Pose2d> setpointPosePub;
+
+    private final DoublePublisher errorDistPub;
+    private final DoublePublisher errorXPub;
+    private final DoublePublisher errorYPub;
+    private final DoublePublisher errorRotPub;
 
     public AutoAlign(
             String name,
@@ -109,16 +138,37 @@ public class AutoAlign extends Command {
         this.config = config;
         this.limiter = config.standardLimiter.copy();
 
-        drivePosTol = new TunableNumber("Align/"+name+"/drivePosTolInches", config.drivePosTol.in(Inches));
-        driveVelTol = new TunableNumber("Align/"+name+"/driveVelTolInches", config.driveVelTol.in(InchesPerSecond));
-        thetaPosTol = new TunableNumber("Align/"+name+"/thetaPosTolDegrees", config.thetaPosTol.in(Degrees));
-        thetaVelTol = new TunableNumber("Align/"+name+"/thetaVelTolDegrees", config.thetaVelTol.in(DegreesPerSecond));
+        pathDriveKP = new TunableNumber("Align/"+name+"/Controller/pathDriveKP", kPathDriveKP);
+        pathDriveKD = new TunableNumber("Align/"+name+"/Controller/pathDriveKD", kPathDriveKD);
+        pathTurnKP = new TunableNumber("Align/"+name+"/Controller/pathTurnKP", kPathTurnKP);
+        pathTurnKD = new TunableNumber("Align/"+name+"/Controller/pathTurnKD", kPathTurnKD);
+        drivePosTol = new TunableNumber("Align/"+name+"/Controller/drivePosTolInches", config.drivePosTol.in(Inches));
+        driveVelTol = new TunableNumber("Align/"+name+"/Controller/driveVelTolInches", config.driveVelTol.in(InchesPerSecond));
+        thetaPosTol = new TunableNumber("Align/"+name+"/Controller/thetaPosTolDegrees", config.thetaPosTol.in(Degrees));
+        thetaVelTol = new TunableNumber("Align/"+name+"/Controller/thetaVelTolDegrees", config.thetaVelTol.in(DegreesPerSecond));
+
+        driveSpeedNormal = new TunableNumber("Align/"+name+"/Standard Limiter/driveSpeedNormal", config.standardLimiter.linearTopSpeed.in(MetersPerSecond));
+        driveAccelNormal = new TunableNumber("Align/"+name+"/Standard Limiter/driveAccelNormal", config.standardLimiter.linearAcceleration.in(MetersPerSecondPerSecond));
+        turnSpeedNormal = new TunableNumber("Align/"+name+"/Standard Limiter/turnSpeedNormal", config.standardLimiter.angularTopSpeed.in(RadiansPerSecond));
+        turnAccelNormal = new TunableNumber("Align/"+name+"/Standard Limiter/turnAccelNormal", config.standardLimiter.angularAcceleration.in(RadiansPerSecondPerSecond));
+
         finalAlignDist = new TunableNumber("Align/"+name+"/finalAlignDist", config.finalAlignDist.in(Meters));
+
+        driveSpeedFinal = new TunableNumber("Align/"+name+"/Final Limiter/driveSpeedFinal", config.finalLimiter.linearTopSpeed.in(MetersPerSecond));
+        driveAccelFinal = new TunableNumber("Align/"+name+"/Final Limiter/driveAccelFinal", config.finalLimiter.linearAcceleration.in(MetersPerSecondPerSecond));
+        turnSpeedFinal = new TunableNumber("Align/"+name+"/Final Limiter/turnSpeedFinal", config.finalLimiter.angularTopSpeed.in(RadiansPerSecond));
+        turnAccelFinal = new TunableNumber("Align/"+name+"/Final Limiter/turnAccelFinal", config.finalLimiter.angularAcceleration.in(RadiansPerSecondPerSecond));
 
         goalPosePub = NetworkTableInstance.getDefault().getStructTopic("Align/"+name+"/Goal Pose", Pose2d.struct).publish();
         setpointPosePub = NetworkTableInstance.getDefault().getStructTopic("Align/"+name+"/Setpoint Pose", Pose2d.struct).publish();
 
+        errorDistPub = NetworkTableInstance.getDefault().getDoubleTopic("Align/"+name+"/Dist Error Inches").publish();
+        errorXPub = NetworkTableInstance.getDefault().getDoubleTopic("Align/"+name+"/X Error Inches").publish();
+        errorYPub = NetworkTableInstance.getDefault().getDoubleTopic("Align/"+name+"/Y Error Inches").publish();
+        errorRotPub = NetworkTableInstance.getDefault().getDoubleTopic("Align/"+name+"/Rot Error Degrees").publish();
+
         addRequirements(swerve);
+        withName("AutoAlign");
     }
 
     @Override
@@ -157,17 +207,17 @@ public class AutoAlign extends Command {
     public void execute() {
         changeTunable();
 
+        aligning = true;
         Pose2d currentPose = swerve.getGlobalPoseEstimate();
         Pose2d goalPose = goalPoseSupplier.get();
         goalPosePub.set(goalPose);
         Pose2d goalRelPose = currentPose.relativeTo(goalPose);
+
+        atGoal = MathUtil.isNear(0, goalRelPose.getX(), Units.inchesToMeters(drivePosTol.get()));
+        atGoal &= MathUtil.isNear(0, goalRelPose.getY(), Units.inchesToMeters(drivePosTol.get()));
+        atGoal &= MathUtil.isNear(0, goalRelPose.getRotation().getRadians(), Units.degreesToRadians(thetaPosTol.get()), -Math.PI, Math.PI);
+
         double finalDist = finalAlignDist.get();
-        boolean isFinalAlignment = goalRelPose.getTranslation().getNorm() <= finalDist;
-        // if (!isFinalAlignment) {
-        //     double finalAlignXOffset = config.alignBackwards ? finalDist : -finalDist;
-        //     goalPose = goalPose.plus(new Transform2d(finalAlignXOffset, 0, Rotation2d.kZero));
-        //     goalRelPose = currentPose.relativeTo(goalPose);
-        // }
         double distToGoal = goalRelPose.getTranslation().getNorm();
 
         /*
@@ -189,6 +239,13 @@ public class AutoAlign extends Command {
             goalRelLastSetpointPose.getRotation().getRadians(),
             lastSetpointSpeeds.omegaRadiansPerSecond
         );
+
+        ChassisSpeeds currentSpeeds = ChassisSpeeds.fromRobotRelativeSpeeds(swerve.getState().Speeds, currentPose.getRotation());
+        ChassisSpeeds goalRelVel = ChassisSpeeds.fromFieldRelativeSpeeds(currentSpeeds, goalPose.getRotation());
+        ChassisSpeeds speedsError = goalRelVel.minus(currentSpeeds);
+        atSetpointVel = MathUtil.isNear(0, speedsError.vxMetersPerSecond, Units.inchesToMeters(driveVelTol.get()));
+        atSetpointVel &= MathUtil.isNear(0, speedsError.vyMetersPerSecond, Units.inchesToMeters(driveVelTol.get()));
+        atSetpointVel &= MathUtil.isNear(0, speedsError.omegaRadiansPerSecond, Units.inchesToMeters(thetaVelTol.get()));
 
         /*
          * We update the profile constraints based on our current limiter values.
@@ -216,8 +273,9 @@ public class AutoAlign extends Command {
          * Calculate the next profile setpoint.
          * We use a threshold that slows down the robot for the final bit of alignment.
          */
+        boolean isFinalAlignment = distToGoal <= finalDist;
         double finalAlignXOffset = config.alignBackwards ? finalDist : -finalDist;
-        double finalAlignSpeed = Math.min(limiter.linearTopSpeed.in(MetersPerSecond), config.finishLimiter.linearTopSpeed.in(MetersPerSecond));
+        double finalAlignSpeed = Math.min(limiter.linearTopSpeed.in(MetersPerSecond), config.finalLimiter.linearTopSpeed.in(MetersPerSecond));
         double finalAlignXSpeed = config.alignBackwards ? -finalAlignSpeed : finalAlignSpeed;
         ChassisSpeeds pidSpeeds = ChassisSpeeds.fromRobotRelativeSpeeds(
             xController.calculate(
@@ -238,6 +296,11 @@ public class AutoAlign extends Command {
 
             goalPose.getRotation()
         );
+
+        errorXPub.set(xController.getPositionError());
+        errorYPub.set(yController.getPositionError());
+        errorDistPub.set(Math.hypot(xController.getPositionError(), yController.getPositionError()));
+        errorRotPub.set(Units.radiansToDegrees(thetaController.getPositionError()));
 
         lastSetpointPose = goalPose.plus(new Transform2d(
             xController.getSetpoint().position,
@@ -263,7 +326,14 @@ public class AutoAlign extends Command {
     }
 
     @Override
+    public boolean isFinished() {
+        return aligning && atSetpointVel && atGoal;
+    }
+
+    @Override
     public void end(boolean interrupted) {
+        aligning = false;
+        finished = true;
     }
 
     private void updateConstraints(double distToGoal) {
@@ -273,7 +343,7 @@ public class AutoAlign extends Command {
         // if within final alignment distance, use final alignment limiting
         double finalDist = finalAlignDist.get();
         if (distToGoal <= finalDist) {
-            limiter.copyFrom(config.finishLimiter);
+            limiter.copyFrom(config.finalLimiter);
         }
 
         // ensure not faster than reference (e.g. reference limited based on elevator height)
@@ -291,7 +361,18 @@ public class AutoAlign extends Command {
         driveVelTol.poll();
         thetaPosTol.poll();
         thetaVelTol.poll();
+
+        driveSpeedNormal.poll();
+        driveAccelNormal.poll();
+        turnSpeedNormal.poll();
+        turnAccelNormal.poll();
+
         finalAlignDist.poll();
+
+        driveSpeedFinal.poll();
+        driveAccelFinal.poll();
+        turnSpeedFinal.poll();
+        turnAccelFinal.poll();
 
         int hash = hashCode();
         if (pathDriveKP.hasChanged(hash) || pathDriveKD.hasChanged(hash)) {
@@ -310,6 +391,26 @@ public class AutoAlign extends Command {
         }
         if (thetaPosTol.hasChanged(hash) || thetaVelTol.hasChanged(hash)) {
             thetaController.setTolerance(thetaPosTol.get(), thetaVelTol.get());
+        }
+
+        if (driveSpeedNormal.hasChanged(hash) || driveAccelNormal.hasChanged(hash)
+                || turnSpeedNormal.hasChanged(hash) || turnAccelNormal.hasChanged(hash)) {
+            config.standardLimiter.linearTopSpeed = MetersPerSecond.of(driveSpeedNormal.get());
+            config.standardLimiter.linearAcceleration = MetersPerSecondPerSecond.of(driveAccelNormal.get());
+            config.standardLimiter.linearDeceleration = MetersPerSecondPerSecond.of(driveAccelNormal.get());
+            config.standardLimiter.angularTopSpeed = RadiansPerSecond.of(turnSpeedNormal.get());
+            config.standardLimiter.angularAcceleration = RadiansPerSecondPerSecond.of(turnAccelNormal.get());
+            config.standardLimiter.angularDeceleration = RadiansPerSecondPerSecond.of(turnAccelNormal.get());
+        }
+
+        if (driveSpeedFinal.hasChanged(hash) || driveAccelFinal.hasChanged(hash)
+                || turnSpeedFinal.hasChanged(hash) || turnAccelFinal.hasChanged(hash)) {
+            config.finalLimiter.linearTopSpeed = MetersPerSecond.of(driveSpeedFinal.get());
+            config.finalLimiter.linearAcceleration = MetersPerSecondPerSecond.of(driveAccelFinal.get());
+            config.finalLimiter.linearDeceleration = MetersPerSecondPerSecond.of(driveAccelFinal.get());
+            config.finalLimiter.angularTopSpeed = RadiansPerSecond.of(turnSpeedFinal.get());
+            config.finalLimiter.angularAcceleration = RadiansPerSecondPerSecond.of(turnAccelFinal.get());
+            config.finalLimiter.angularDeceleration = RadiansPerSecondPerSecond.of(turnAccelFinal.get());
         }
     }
 }
