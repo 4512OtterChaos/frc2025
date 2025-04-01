@@ -24,6 +24,7 @@ import frc.robot.subsystems.elevator.ElevatorConstants.ElevatorHeight;
 import frc.robot.subsystems.funnel.Funnel;
 import frc.robot.subsystems.manipulator.Manipulator;
 import frc.robot.util.FieldUtil.Alignment;
+import frc.robot.util.FieldUtil.CoralStation;
 import frc.robot.util.FieldUtil;
 import frc.robot.util.TunableNumber;
 
@@ -219,6 +220,26 @@ public class Superstructure {
         int hash = hashCode();
         if (reefAlignXOffset.hasChanged(hash)) {
             reefAlignOffset = new Transform2d(reefAlignXOffset.get(), 0, Rotation2d.kZero);
+        }
+
+        if (driveSpeedNormal.hasChanged(hash) || driveAccelNormal.hasChanged(hash) || driveDecelNormal.hasChanged(hash)
+                || turnSpeedNormal.hasChanged(hash) || turnAccelNormal.hasChanged(hash) || turnDecelNormal.hasChanged(hash)) {
+            kStandardLimiter.linearTopSpeed = MetersPerSecond.of(driveSpeedNormal.get());
+            kStandardLimiter.linearAcceleration = MetersPerSecondPerSecond.of(driveAccelNormal.get());
+            kStandardLimiter.linearDeceleration = MetersPerSecondPerSecond.of(driveDecelNormal.get());
+            kStandardLimiter.angularTopSpeed = RadiansPerSecond.of(turnSpeedNormal.get());
+            kStandardLimiter.angularAcceleration = RadiansPerSecondPerSecond.of(turnAccelNormal.get());
+            kStandardLimiter.angularDeceleration = RadiansPerSecondPerSecond.of(turnDecelNormal.get());
+        }
+
+        if (driveSpeedTippy.hasChanged(hash) || driveAccelTippy.hasChanged(hash) || driveDecelTippy.hasChanged(hash)
+                || turnSpeedTippy.hasChanged(hash) || turnAccelTippy.hasChanged(hash) || turnDecelTippy.hasChanged(hash)) {
+            kTippyLimiter.linearTopSpeed = MetersPerSecond.of(driveSpeedTippy.get());
+            kTippyLimiter.linearAcceleration = MetersPerSecondPerSecond.of(driveAccelTippy.get());
+            kTippyLimiter.linearDeceleration = MetersPerSecondPerSecond.of(driveDecelTippy.get());
+            kTippyLimiter.angularTopSpeed = RadiansPerSecond.of(turnSpeedTippy.get());
+            kTippyLimiter.angularAcceleration = RadiansPerSecondPerSecond.of(turnAccelTippy.get());
+            kTippyLimiter.angularDeceleration = RadiansPerSecondPerSecond.of(turnDecelTippy.get());
         }
     }
 }

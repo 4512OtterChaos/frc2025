@@ -58,7 +58,7 @@ public class DriveConstants {
     public static final double kPathDriveKI = 0;
     public static final double kPathDriveKD = 0;
     
-    public static final double kPathTurnKP = 3;
+    public static final double kPathTurnKP = 5;
     public static final double kPathTurnKI = 0;
     public static final double kPathTurnKD = 0.1;
 
@@ -67,7 +67,7 @@ public class DriveConstants {
     public static final double kTurnSpeedAlign = 0.5 * kMaxAngularRate;
     // Driving acceleration for auto-alignment
     public static final double kLinearAccelAlign = FeetPerSecondPerSecond.of(25).in(MetersPerSecondPerSecond); //m/s/s
-    public static final double kAngularAccelAlign = RotationsPerSecondPerSecond.of(6).in(RadiansPerSecondPerSecond);
+    public static final double kAngularAccelAlign = RotationsPerSecondPerSecond.of(4).in(RadiansPerSecondPerSecond);
 
     public static final SwerveDriveLimiter kAlignLimiter = new SwerveDriveLimiter(
         MetersPerSecond.of(kDriveSpeedAlign),
@@ -85,7 +85,7 @@ public class DriveConstants {
     public static final double kDriveSpeedAlignFinal = 0.25 * kMaxLinearSpeed;
     public static final double kTurnSpeedAlignFinal = 0.2 * kMaxAngularRate;
     // Driving acceleration for final auto-alignment
-    public static final double kLinearAccelAlignFinal = FeetPerSecondPerSecond.of(12).in(MetersPerSecondPerSecond); //m/s/s
+    public static final double kLinearAccelAlignFinal = FeetPerSecondPerSecond.of(10).in(MetersPerSecondPerSecond); //m/s/s
     public static final double kAngularAccelAlignFinal = RotationsPerSecondPerSecond.of(4).in(RadiansPerSecondPerSecond);
 
     public static final SwerveDriveLimiter kAlignFinalLimiter = new SwerveDriveLimiter(

@@ -30,7 +30,6 @@ import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
-import edu.wpi.first.math.trajectory.TrapezoidProfile;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.networktables.DoublePublisher;
 import edu.wpi.first.networktables.NetworkTableInstance;
@@ -55,6 +54,8 @@ import frc.robot.Robot;
 import frc.robot.subsystems.drivetrain.TunerConstants.TunerSwerveDrivetrain;
 import frc.robot.util.FieldUtil;
 import frc.robot.util.PhoenixUtil;
+import frc.robot.util.ProfiledPIDController;
+import frc.robot.util.TrapezoidProfile;
 import frc.robot.util.TunableNumber;
 import frc.robot.util.FieldUtil.Alignment;
 
@@ -93,8 +94,10 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
             .withForwardPerspective(ForwardPerspectiveValue.OperatorPerspective)
             .withDriveRequestType(DriveRequestType.Velocity);
 
-    private final PIDController pathThetaController = new PIDController(kPathTurnKP, kPathTurnKI, kPathTurnKD);
-    private TrapezoidProfile.Constraints pathTurnConstraints = new TrapezoidProfile.Constraints(kTurnSpeed, kAngularAccel);
+    private final ProfiledPIDController pathThetaController = new ProfiledPIDController(
+        kPathTurnKP, kPathTurnKI, kPathTurnKD,
+        new TrapezoidProfile.Constraints(kTurnSpeed, kAngularAccel)
+    );
     private TrapezoidProfile.State pathTurnLastState = new TrapezoidProfile.State();
 
     {
@@ -357,33 +360,29 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
             ) {
         return sequence(
             runOnce(() -> {
-                pathThetaController.reset();
+                pathThetaController.reset(
+                    getGlobalPoseEstimate().getRotation().getRadians(),
+                    getState().Speeds.omegaRadiansPerSecond
+                );
             }),
             drive(() -> {
                 var targetSpeeds = trlSpeedsSupplier.get();
                 double goalRadians = targetAngleSupplier.get().getRadians();
                 double actualRadians = getGlobalPoseEstimate().getRotation().getRadians();
+
+                pathThetaController.setConstraints(new TrapezoidProfile.Constraints(
+                    limiter.angularTopSpeed.in(RadiansPerSecond),
+                    limiter.angularAcceleration.in(RadiansPerSecondPerSecond)
+                ));
+
+                // PID
                 targetSpeeds.omegaRadiansPerSecond = pathThetaController.calculate(
-                    actualRadians, pathTurnLastState.position
+                    actualRadians,
+                    goalRadians
                 );
 
-                // Profile rotational movement towards the goal pose
-                pathTurnConstraints = new TrapezoidProfile.Constraints(
-                    turnSpeed.in(RadiansPerSecond),
-                    limiter.angularAcceleration
-                );
-                var turnProfile = new TrapezoidProfile(pathTurnConstraints);
-                // Handle continuous angle wrapping
-                double errorBound = Math.PI;
-                double goalMinDistance =
-                    MathUtil.inputModulus(goalRadians - actualRadians, -errorBound, errorBound);
-                double setpointMinDistance =
-                    MathUtil.inputModulus(pathTurnLastState.position - actualRadians, -errorBound, errorBound);
-
-                goalRadians = goalMinDistance + actualRadians;
-                pathTurnLastState.position = setpointMinDistance + actualRadians;
-                pathTurnLastState = turnProfile.calculate(0.02, pathTurnLastState, new TrapezoidProfile.State(goalRadians, 0));
-                targetSpeeds.omegaRadiansPerSecond += pathTurnLastState.velocity;
+                // Feedforward
+                targetSpeeds.omegaRadiansPerSecond += pathThetaController.getSetpoint().velocity;
                 
                 return targetSpeeds;
             }, limitTrlAccel, limitRotAccel)
