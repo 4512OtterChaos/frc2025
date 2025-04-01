@@ -123,4 +123,19 @@ public class FieldUtil {
     public static Pose2d nearestCoralStation(Pose2d robotPose) {
         return robotPose.nearest(kCoralStationPoses);
     }
+
+    public enum ReefFace {
+        FRONT(2), NEARLEFT(1), FARLEFT(2), BACK(1), FARRIGHT(2), NEARRIGHT(1);
+
+        int algaeHeight; 
+
+        private ReefFace(int algaeHeight){
+
+        }
+
+        public int getAlgaeHeight() {
+            return algaeHeight;
+        }
+
+    }
 }
