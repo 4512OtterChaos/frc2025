@@ -58,9 +58,9 @@ public class DriveConstants {
     public static final double kPathDriveKI = 0;
     public static final double kPathDriveKD = 0;
     
-    public static final double kPathTurnKP = 5;
+    public static final double kPathTurnKP = 3;
     public static final double kPathTurnKI = 0;
-    public static final double kPathTurnKD = 0.1;
+    public static final double kPathTurnKD = 0;
 
     // Driving speed for auto-alignment
     public static final double kDriveSpeedAlign = 0.6 * kMaxLinearSpeed;

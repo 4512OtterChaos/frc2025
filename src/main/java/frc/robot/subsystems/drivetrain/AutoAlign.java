@@ -48,9 +48,7 @@ public class AutoAlign extends Command {
         new TrapezoidProfile.Constraints(0, 0)
     );
 
-    private final SwerveRequest.RobotCentric applyPathRobotSpeeds = new SwerveRequest.RobotCentric()
-            .withDeadband(Units.inchesToMeters(0.5))
-            .withRotationalDeadband(Units.degreesToRadians(3));
+    private final SwerveRequest.RobotCentric applyPathRobotSpeeds = new SwerveRequest.RobotCentric();
 
     private Pose2d lastSetpointPose;
     private ChassisSpeeds lastSetpointSpeeds;
@@ -71,6 +69,9 @@ public class AutoAlign extends Command {
         public AngularVelocity thetaVelTol = RadiansPerSecond.of(kAlignTurnVelTol);
 
         public Distance finalAlignDist = Meters.of(kFinalAlignDist);
+
+        public LinearVelocity driveDeadband = InchesPerSecond.of(0.75);
+        public AngularVelocity turnDeadband = DegreesPerSecond.of(3);
 
         public boolean alignBackwards = false;
 
@@ -100,6 +101,9 @@ public class AutoAlign extends Command {
     private final TunableNumber driveAccelFinal;
     private final TunableNumber turnSpeedFinal;
     private final TunableNumber turnAccelFinal;
+
+    private final TunableNumber driveDeadbandInches;
+    private final TunableNumber turnDeadband;
 
     private final StructPublisher<Pose2d> goalPosePub;
     private final StructPublisher<Pose2d> setpointPosePub;
@@ -149,6 +153,9 @@ public class AutoAlign extends Command {
         driveAccelFinal = new TunableNumber("Align/"+name+"/Final Limiter/driveAccelFinal", config.finalLimiter.linearAcceleration.in(MetersPerSecondPerSecond));
         turnSpeedFinal = new TunableNumber("Align/"+name+"/Final Limiter/turnSpeedFinal", config.finalLimiter.angularTopSpeed.in(RadiansPerSecond));
         turnAccelFinal = new TunableNumber("Align/"+name+"/Final Limiter/turnAccelFinal", config.finalLimiter.angularAcceleration.in(RadiansPerSecondPerSecond));
+
+        driveDeadbandInches = new TunableNumber("Align/"+name+"/driveDeadbandInches", config.driveDeadband.in(InchesPerSecond));
+        turnDeadband = new TunableNumber("Align/"+name+"/turnDeadbandDegrees", config.turnDeadband.in(DegreesPerSecond));
 
         goalPosePub = NetworkTableInstance.getDefault().getStructTopic("Align/"+name+"/Goal Pose", Pose2d.struct).publish();
         setpointPosePub = NetworkTableInstance.getDefault().getStructTopic("Align/"+name+"/Setpoint Pose", Pose2d.struct).publish();
@@ -367,6 +374,9 @@ public class AutoAlign extends Command {
         turnSpeedFinal.poll();
         turnAccelFinal.poll();
 
+        driveDeadbandInches.poll();
+        turnDeadband.poll();
+
         int hash = hashCode();
         if (pathDriveKP.hasChanged(hash) || pathDriveKD.hasChanged(hash)) {
             xController.setP(pathDriveKP.get());
@@ -404,6 +414,11 @@ public class AutoAlign extends Command {
             config.finalLimiter.angularTopSpeed = RadiansPerSecond.of(turnSpeedFinal.get());
             config.finalLimiter.angularAcceleration = RadiansPerSecondPerSecond.of(turnAccelFinal.get());
             config.finalLimiter.angularDeceleration = RadiansPerSecondPerSecond.of(turnAccelFinal.get());
+        }
+
+        if (driveDeadbandInches.hasChanged(hash) || turnDeadband.hasChanged(hash)) {
+            applyPathRobotSpeeds.Deadband = Units.inchesToMeters(driveDeadbandInches.get());
+            applyPathRobotSpeeds.RotationalDeadband = Units.degreesToRadians(turnDeadband.get());
         }
     }
 }
