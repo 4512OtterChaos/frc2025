@@ -108,6 +108,8 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     Pose2d alignGoal = Pose2d.kZero;
     boolean aligning = false;
     public final Trigger isAligning = new Trigger(() -> aligning);
+    boolean finalAlignment = false;
+    public final Trigger isFinalAlignment = new Trigger(() -> finalAlignment);
     boolean atSetpointVel = false;
     public final Trigger isAtSetpoint = new Trigger(() -> atSetpointVel);
     boolean atGoal = false;
@@ -134,8 +136,6 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     private final TunableNumber pathTurnKD = new TunableNumber("Swerve/pathTurnKD", kPathTurnKD);
     private final TunableNumber pathTurnPosTol = new TunableNumber("Swerve/pathTurnPosTol", kAlignTurnPosTol);
     private final TunableNumber pathTurnVelTol = new TunableNumber("Swerve/pathTurnVelTol", kAlignTurnVelTol);
-
-    private final TunableNumber finalAlignDist = new TunableNumber("Swerve/finalAlignDist", kFinalAlignDist);
 
     public final SwerveDrivePoseEstimator visionEstimator = new SwerveDrivePoseEstimator(
         getKinematics(),
@@ -431,6 +431,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         config.alignBackwards = true;
         config.runForever = runForever;
         config.referenceLimiter = limiter;
+        config.finalAlignDist = kFinalAlignDistStation;
 
         var command = new AutoAlign(
             "Station",
@@ -622,7 +623,6 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         pathTurnKD.poll();
         pathTurnPosTol.poll();
         pathTurnVelTol.poll();
-        finalAlignDist.poll();
 
         int hash = hashCode();
         // Module drive PID

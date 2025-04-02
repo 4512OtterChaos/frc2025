@@ -161,11 +161,11 @@ public class FieldUtil {
 
     public enum ReefFace {
         FRONT(AlgaeHeight.L3, Rotation2d.fromDegrees(0)),
-        NEARLEFT(AlgaeHeight.L2, Rotation2d.fromDegrees(60)),
-        FARLEFT(AlgaeHeight.L3, Rotation2d.fromDegrees(120)),
-        BACK(AlgaeHeight.L2, Rotation2d.fromDegrees(180)),
-        FARRIGHT(AlgaeHeight.L3, Rotation2d.fromDegrees(240)),
-        NEARRIGHT(AlgaeHeight.L2, Rotation2d.fromDegrees(300));
+        NEARLEFT(AlgaeHeight.L2, Rotation2d.fromDegrees(-60)),
+        FARLEFT(AlgaeHeight.L3, Rotation2d.fromDegrees(-120)),
+        BACK(AlgaeHeight.L2, Rotation2d.fromDegrees(-180)),
+        FARRIGHT(AlgaeHeight.L3, Rotation2d.fromDegrees(-240)),
+        NEARRIGHT(AlgaeHeight.L2, Rotation2d.fromDegrees(-300));
 
         public final AlgaeHeight algaeHeight; 
         public final Pose2d centerPose;
@@ -177,6 +177,16 @@ public class FieldUtil {
             this.centerPose = new Pose2d(kReefCenterPoseTemplate.rotateAround(kReefTrl, reefAngle), reefAngle);
             this.leftPose = new Pose2d(kCoralScoreLeftPoseTemplate.rotateAround(kReefTrl, reefAngle), reefAngle);
             this.rightPose = new Pose2d(kCoralScoreRightPoseTemplate.rotateAround(kReefTrl, reefAngle), reefAngle);
+        }
+
+        public Pose2d getAlignmentPose(Alignment alignment) {
+            Pose2d pose;
+            switch (alignment) {
+                case LEFT -> pose = leftPose;
+                case RIGHT -> pose = rightPose;
+                default -> pose = centerPose;
+            }
+            return pose;
         }
 
         public static ReefFace getClosest(Pose2d currentPose){
@@ -191,6 +201,5 @@ public class FieldUtil {
             }
             return closest;
         }
-
     }
 }

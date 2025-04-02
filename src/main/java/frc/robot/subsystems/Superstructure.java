@@ -149,13 +149,14 @@ public class Superstructure {
     //########## Auto commands
 
     public Command autoScore(Alignment alignment, ElevatorHeight scorePos) {
-        Trigger closingInOnGoal = new Trigger(() -> {
-            Pose2d swervePose = swerve.getGlobalPoseEstimate();
-            Pose2d goalPose = swerve.getAlignGoal();
-            double dist = goalPose.getTranslation().getDistance(swervePose.getTranslation());
-            return dist < 1;
-        }).and(swerve.isAligning);
+        return autoScore(() -> ReefFace.getClosest(swerve.getGlobalPoseEstimate()).getAlignmentPose(alignment), scorePos);
+    }
 
+    public Command autoScore(ReefFace face, Alignment alignment, ElevatorHeight scorePos) {
+        return autoScore(() -> face.getAlignmentPose(alignment), scorePos);
+    }
+
+    public Command autoScore(Supplier<Pose2d> goalSupplier, ElevatorHeight scorePos) {
         Command elevatorCommand;
         switch (scorePos) {
             case L1 -> elevatorCommand = elevator.setL1C();
@@ -167,14 +168,14 @@ public class Superstructure {
 
         return sequence(
             parallel(
-                swerve.alignToReef(alignment, false),
+                swerve.alignToReef(goalSupplier, false),
                 sequence(
-                    waitUntil(closingInOnGoal),
+                    waitUntil(swerve.isFinalAlignment),
                     elevatorCommand
                 )
             ),
             manipulator.scoreCoralC().asProxy().withTimeout(0.4)
-        ).withName( "AlignToReef" + alignment.toString() + "AndScore" + scorePos.toString());
+        ).withName("AlignToReefAndScore" + scorePos.toString());
     }
 
     public Command autoCoralStation(CoralStation coralStation, Alignment alignment){

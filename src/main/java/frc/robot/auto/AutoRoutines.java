@@ -18,6 +18,7 @@ import frc.robot.subsystems.elevator.ElevatorConstants.ElevatorHeight;
 import frc.robot.subsystems.manipulator.Manipulator;
 import frc.robot.util.FieldUtil;
 import frc.robot.util.FieldUtil.CoralStation;
+import frc.robot.util.FieldUtil.ReefFace;
 import frc.robot.util.FieldUtil.Alignment;
 
 public class AutoRoutines {
@@ -55,9 +56,9 @@ public class AutoRoutines {
         return sequence(
             // Reset odom
             runOnce(()->swerve.resetPose(new Pose2d(7.5, 4.2, Rotation2d.k180deg)), swerve),
-            waitSeconds(1),
+            waitSeconds(4),
             // Score on far left/right right branch
-            superstructure.autoScore(Alignment.RIGHT, ElevatorHeight.L4)
+            superstructure.autoScore(ReefFace.BACK, Alignment.RIGHT, ElevatorHeight.L4)
         );
     }
 
@@ -67,25 +68,25 @@ public class AutoRoutines {
         Pose2d startPose = rightSide ? startRightPose : startLeftPose;
 
         CoralStation coralStation = rightSide ? CoralStation.RIGHT : CoralStation.LEFT;
+        Alignment stationAlignment = rightSide ? Alignment.RIGHT : Alignment.LEFT;
 
-        Pose2d preAlign1Left = new Pose2d(3, 6.5, Rotation2d.fromDegrees(-60));
-        Pose2d preAlign1Right = FieldUtil.mirrorY(preAlign1Left);
-        Pose2d preAlign1 = rightSide ? preAlign1Right : preAlign1Left;
-
-        Alignment reefPos1 = rightSide ? Alignment.LEFT : Alignment.RIGHT;
-        Alignment reefPos2 = rightSide ? Alignment.RIGHT : Alignment.LEFT;
-        Alignment reefPos3 = reefPos1;
+        ReefFace reefFace1 = rightSide ? ReefFace.FARRIGHT : ReefFace.FARLEFT;
+        Alignment reefAlign1 = rightSide ? Alignment.LEFT : Alignment.RIGHT;
+        ReefFace reefFace2 = rightSide ? ReefFace.NEARRIGHT : ReefFace.NEARLEFT;
+        Alignment reefAlign2 = rightSide ? Alignment.RIGHT : Alignment.LEFT;
+        ReefFace reefFace3 = rightSide ? ReefFace.NEARRIGHT : ReefFace.NEARLEFT;
+        Alignment reefAlign3 = reefAlign1;
 
         return sequence(
             // Reset odom
             runOnce(()->swerve.resetPose(startPose), swerve),
             // Score on far left/right right branch
-            superstructure.autoScore(reefPos1, ElevatorHeight.L4),
+            superstructure.autoScore(reefFace1, reefAlign1, ElevatorHeight.L4),
             // Drive to coral station and wait for coral
             parallel(
                 sequence(
                     swerve.drive(()->new ChassisSpeeds(0, rightSide ? -1 : 1, 0)).withTimeout(0.5),
-                    superstructure.autoCoralStation(coralStation, Alignment.LEFT)
+                    superstructure.autoCoralStation(coralStation, stationAlignment)
                 ),
                 sequence(
                     waitSeconds(0.1),
@@ -93,29 +94,24 @@ public class AutoRoutines {
                 )
             ),
             // Score on close left/right
-            // swerve.alignToPose(()->preAlign1, 0.5, 1, 1, 1, false, false),
-            superstructure.autoScore(reefPos2, ElevatorHeight.L4),
+            superstructure.autoScore(reefFace2, reefAlign2, ElevatorHeight.L4),
             // Drive to coral station and wait for coral
             parallel(
-                superstructure.autoCoralStation(coralStation, Alignment.LEFT),
+                superstructure.autoCoralStation(coralStation, stationAlignment),
                 sequence(
                     waitSeconds(0.1),
                     elevator.setMinC()
                 )
             ),
-            // swerve.alignToPose(()->preAlign1, 0.5, 1, 1, 1, false, false),
-            superstructure.autoScore(reefPos3, ElevatorHeight.L4)
+            superstructure.autoScore(reefFace3, reefAlign3, ElevatorHeight.L4),
+            // Drive to coral station and wait for coral
+            parallel(
+                superstructure.autoCoralStation(coralStation, stationAlignment),
+                sequence(
+                    waitSeconds(0.1),
+                    elevator.setMinC()
+                )
+            )
         );
     }
-
-    // public AutoRoutine simplePathAuto() {
-    //     final AutoRoutine routine = m_factory.newRoutine("SimplePath Auto");
-    //     final AutoTrajectory simplePath = routine.trajectory("SimplePath");
-
-    //     routine.active().onTrue(
-    //         simplePath.resetOdometry()
-    //             .andThen(simplePath.cmd())
-    //     );
-    //     return routine;p
-    // }
 }

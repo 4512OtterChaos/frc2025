@@ -79,13 +79,14 @@ public class DriveConstants {
     );
 
     // Threshold to use final alignment speeds
-    public static final double kFinalAlignDist = Feet.of(3).in(Meters);
+    public static final Distance kFinalAlignDistReef = Feet.of(3);
+    public static final Distance kFinalAlignDistStation = Feet.of(2);
 
     // Driving speed for final auto-alignment
     public static final double kDriveSpeedAlignFinal = 0.25 * kMaxLinearSpeed;
     public static final double kTurnSpeedAlignFinal = 0.2 * kMaxAngularRate;
     // Driving acceleration for final auto-alignment
-    public static final double kLinearAccelAlignFinal = FeetPerSecondPerSecond.of(10).in(MetersPerSecondPerSecond); //m/s/s
+    public static final double kLinearAccelAlignFinal = FeetPerSecondPerSecond.of(8).in(MetersPerSecondPerSecond); //m/s/s
     public static final double kAngularAccelAlignFinal = RotationsPerSecondPerSecond.of(4).in(RadiansPerSecondPerSecond);
 
     public static final SwerveDriveLimiter kAlignFinalLimiter = new SwerveDriveLimiter(

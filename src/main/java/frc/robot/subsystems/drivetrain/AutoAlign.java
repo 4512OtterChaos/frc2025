@@ -68,7 +68,7 @@ public class AutoAlign extends Command {
         public Angle thetaPosTol = Radians.of(kAlignTurnPosTol);
         public AngularVelocity thetaVelTol = RadiansPerSecond.of(kAlignTurnVelTol);
 
-        public Distance finalAlignDist = Meters.of(kFinalAlignDist);
+        public Distance finalAlignDist = kFinalAlignDistReef;
 
         public LinearVelocity driveDeadband = InchesPerSecond.of(0.75);
         public AngularVelocity turnDeadband = DegreesPerSecond.of(3);
@@ -274,6 +274,7 @@ public class AutoAlign extends Command {
          * We use a threshold that slows down the robot for the final bit of alignment.
          */
         boolean isFinalAlignment = distToGoal <= finalDist;
+        swerve.finalAlignment = isFinalAlignment;
         double finalAlignXOffset = config.alignBackwards ? finalDist : -finalDist;
         double finalAlignSpeed = Math.min(limiter.linearTopSpeed.in(MetersPerSecond), config.finalLimiter.linearTopSpeed.in(MetersPerSecond));
         double finalAlignXSpeed = config.alignBackwards ? -finalAlignSpeed : finalAlignSpeed;
