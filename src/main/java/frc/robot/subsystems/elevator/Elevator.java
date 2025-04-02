@@ -71,6 +71,9 @@ public class Elevator extends SubsystemBase {
     private final TunableNumber heightL3Inches = new TunableNumber("Elevator/heightL3Inches", kL3Height.in(Inches));
     private final TunableNumber heightL4Inches = new TunableNumber("Elevator/heightL4Inches", kL4Height.in(Inches));
 
+    private final TunableNumber heightAlgaeL2Inches = new TunableNumber("Elevator/heightAlgaeL2Inches", kAlgaeL2Height.in(Inches));
+    private final TunableNumber heightAlgaeL3Inches = new TunableNumber("Elevator/heightAlgaeL3Inches", kAlgaeL3Height.in(Inches));
+
     public Elevator(){
         // try applying motor configs
         boolean success = PhoenixUtil.tryUntilOk(5, () -> leftMotor.getConfigurator().apply(kConfig));
@@ -217,9 +220,14 @@ public class Elevator extends SubsystemBase {
         return setHeightC(() -> Inches.of(heightL4Inches.get())).withName("Go to L4");
     }
 
-    /** Sets the target elevator height to the L3 height and ends when it is within tolerance. */
+    /** Sets the target elevator height to the algae L2 height and ends when it is within tolerance. */
+    public Command setAlgaeL2C(){
+        return setHeightC(() -> Inches.of(heightAlgaeL2Inches.get())).withName("Go to algae L2");
+    }
+
+    /** Sets the target elevator height to the algae L3 height and ends when it is within tolerance. */
     public Command setAlgaeL3C(){
-        return setHeightC(() -> kAlgaeL3Height).withName("Go to algae L3");
+        return setHeightC(() -> Inches.of(heightAlgaeL3Inches.get())).withName("Go to algae L3");
     }
 
     /** Runs the elevator into the base, detecting a current spike and resetting the elevator height. */

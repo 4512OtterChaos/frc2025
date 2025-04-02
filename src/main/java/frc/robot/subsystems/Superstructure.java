@@ -23,8 +23,10 @@ import frc.robot.subsystems.elevator.ElevatorConstants;
 import frc.robot.subsystems.elevator.ElevatorConstants.ElevatorHeight;
 import frc.robot.subsystems.funnel.Funnel;
 import frc.robot.subsystems.manipulator.Manipulator;
+import frc.robot.util.FieldUtil.AlgaeHeight;
 import frc.robot.util.FieldUtil.Alignment;
 import frc.robot.util.FieldUtil.CoralStation;
+import frc.robot.util.FieldUtil.ReefFace;
 import frc.robot.util.FieldUtil;
 import frc.robot.util.TunableNumber;
 
@@ -188,6 +190,32 @@ public class Superstructure {
 
         return swerve.alignToStation(() -> FieldUtil.offsetCoralStation(coralStation.getPose(), alignment), false)
             .until(manipulator.isCoralDetected().or(simSkipCoral));
+    }
+
+    public Command autoAlgaePickUp(ReefFace face) {
+        return autoAlgaePickUp(() -> face.getAlignmentPose(Alignment.CENTER), face.algaeHeight);
+    }
+
+    public Command autoAlgaePickUp(Supplier<Pose2d> goalSupplier, AlgaeHeight algaeHeight) {
+        Command elevatorCommand;
+        switch (algaeHeight) {
+            case L2 -> elevatorCommand = elevator.setAlgaeL2C();
+            case L3 -> elevatorCommand = elevator.setAlgaeL3C();
+            default -> elevatorCommand = elevator.setAlgaeL2C();
+        }
+
+        return sequence(
+            parallel(
+                swerve.alignToReef(goalSupplier, false),
+                sequence(
+                    waitUntil(swerve.isFinalAlignment),
+                    parallel(
+                        elevatorCommand,
+                        manipulator.scoreCoralC().asProxy().until(manipulator.hasAlgae())                        
+                    )
+                )
+            )
+        ).withName("AlignToReefAndPickUpAlgae" + algaeHeight.toString());
     }
 
     public void adjustDriving() {
