@@ -9,6 +9,7 @@ import choreo.auto.AutoRoutine;
 import choreo.auto.AutoTrajectory;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Transform2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.subsystems.Superstructure;
@@ -59,6 +60,62 @@ public class AutoRoutines {
             waitSeconds(4),
             // Score on far left/right right branch
             superstructure.autoScore(ReefFace.BACK, Alignment.RIGHT, ElevatorHeight.L4)
+        );
+    }
+
+    public Command Middle1CoralL41Algae() {
+        Pose2d startingPose = new Pose2d(7.3, FieldUtil.kFieldWidth.div(2).in(Meters), Rotation2d.k180deg);
+        Pose2d algaePrepPose = new Pose2d(7.3, FieldUtil.kFieldWidth.div(2).plus(kRobotWidth.times(2)).in(Meters), Rotation2d.kZero); //TODO: use REAL pose
+        
+        return sequence(
+            // Reset odom
+            runOnce(()->swerve.resetPose(startingPose), swerve),
+            waitSeconds(4),
+            // Score on far left/right right branch
+            superstructure.autoScore(ReefFace.BACK, Alignment.RIGHT, ElevatorHeight.L4),
+
+            //Back up then pick up algae
+            swerve.drive(()->new ChassisSpeeds(-1, 0, 0)).withTimeout(0.5),
+            superstructure.autoAlgaePickUp(ReefFace.BACK),
+
+            //TODO: align to barge score pose
+            swerve.alignToReef(()-> algaePrepPose, false), //TODO: transfer to align barge command(?)
+            
+            //Shoot the algae
+            superstructure.algaeShoot()
+        );
+    }
+
+    public Command Middle1CoralL42Algae() {
+        Pose2d startingPose = new Pose2d(7.3, FieldUtil.kFieldWidth.div(2).in(Meters), Rotation2d.k180deg);
+        Pose2d algaePrepPose = new Pose2d(7.3, FieldUtil.kFieldWidth.div(2).plus(kRobotWidth.times(2)).in(Meters), Rotation2d.kZero); //TODO: use REAL pose
+        Pose2d algaePrepPose2 = algaePrepPose.plus(new Transform2d(Meters.of(0), Meters.of(0.5), Rotation2d.kZero)); //TODO: use REAL pose
+        
+        return sequence(
+            // Reset odom
+            runOnce(()->swerve.resetPose(startingPose), swerve),
+            waitSeconds(4),
+            // Score on far left/right right branch
+            superstructure.autoScore(ReefFace.BACK, Alignment.RIGHT, ElevatorHeight.L4),
+
+            //Back up then pick up algae
+            swerve.drive(()->new ChassisSpeeds(-1, 0, 0)).withTimeout(0.5),
+            superstructure.autoAlgaePickUp(ReefFace.BACK),
+
+            //align to barge score pose
+            swerve.alignToReef(()-> algaePrepPose, false), //TODO: transfer to align barge command(?)
+            
+            //Shoot the algae
+            superstructure.algaeShoot(),
+
+            
+            superstructure.autoAlgaePickUp(ReefFace.FARLEFT),
+
+            //align to barge score pose
+            swerve.alignToReef(()-> algaePrepPose2, false), //TODO: transfer to align barge command(?)
+            
+            //Shoot the algae
+            superstructure.algaeShoot()
         );
     }
 
