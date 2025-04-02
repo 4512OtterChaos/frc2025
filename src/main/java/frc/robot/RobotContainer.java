@@ -159,7 +159,7 @@ public class RobotContainer {
 
     public void configureDefaultBindings() {
         manipulator.setDefaultCommand(manipulator.defaultCommand());
-        funnel.setDefaultCommand(funnel.setVoltageC(0)); //TODO: Change to slow feed voltage?
+        funnel.setDefaultCommand(funnel.slowFeedCoralC());
         // Automatically feed coral to a consistent position when detected
         manipulator.isCoralDetected().and(()->manipulator.getCurrentCommand() != null && manipulator.getCurrentCommand().equals(manipulator.getDefaultCommand()))
             .onTrue(superstructure.feedCoralSequenceC());
