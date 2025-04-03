@@ -220,9 +220,10 @@ public class RobotContainer {
                 ).until(driverSomeRightInput.or(nearCoralStation))
             );
         
+        // auto-stow
         new Trigger(() -> {
-            return Math.hypot(controller.getLeftX(), controller.getLeftY()) > 0.9;
-        }).debounce(0.3).and(swerve.isAligning.negate()).and(()->DriverStation.isTeleop()).onTrue(elevator.setMinC());
+            return Math.hypot(controller.getLeftX(), controller.getLeftY()) > 0.75;
+        }).debounce(0.15).and(swerve.isAligning.negate()).and(()->DriverStation.isTeleop()).onTrue(elevator.setMinC());
         
         // reset the robot heading to forward
         controller.start().onTrue(swerve.runOnce(() -> swerve.resetRotation(Rotation2d.kZero)));
