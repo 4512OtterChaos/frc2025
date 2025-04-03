@@ -158,10 +158,11 @@ public class RobotContainer {
     }
 
     public void configureDefaultBindings() {
-        manipulator.setDefaultCommand(manipulator.holdPositionC());
-        manipulator.hasAlgae()
-            .onTrue(run(()-> manipulator.setDefaultCommand(manipulator.holdAlgaeC())))
-            .onFalse(run(()-> manipulator.setDefaultCommand(manipulator.holdPositionC())));
+        manipulator.setDefaultCommand(either(
+            manipulator.holdAlgaeC(),
+            manipulator.holdPositionC(),
+            manipulator.hasAlgae()
+        ));
 
         funnel.setDefaultCommand(funnel.slowFeedCoralC());
         // Automatically feed coral to a consistent position when detected

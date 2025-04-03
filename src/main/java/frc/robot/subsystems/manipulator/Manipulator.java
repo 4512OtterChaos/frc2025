@@ -109,7 +109,7 @@ public class Manipulator extends SubsystemBase {
 
     public void setVoltage(double voltage){
         isManual = true;
-        motor.setVoltage(-voltage);
+        motor.setVoltage(voltage);
     }
 
     public void setTargetPos(Angle position) {
@@ -159,15 +159,15 @@ public class Manipulator extends SubsystemBase {
         }
         String commandName = this.getCurrentCommand().getName();
 
-        if (getVoltage().in(Volts) >= 3 && isStalled().getAsBoolean()) {
+        if (getVoltage().in(Volts) >= kScoreCoralVolts && isStalled().getAsBoolean()) {
             hasAlgae = true;
         }
 
-        if (getVoltage().in(Volts) <= -3){
+        if (getVoltage().in(Volts) <= kScoreAlgaeVolts){
             hasAlgae = false;
         }
 
-        if (getVoltage().in(Volts) >= 3){
+        if (getVoltage().in(Volts) >= kScoreCoralVolts){ // TODO: use position instead of voltage
             hasCoral = false;
         }
 
@@ -317,5 +317,10 @@ public class Manipulator extends SubsystemBase {
         motorSim.setRawRotorPosition(model.getAngularPosition().times(kGearRatio));
         motorSim.setRotorVelocity(model.getAngularVelocity().times(kGearRatio));
         motorSim.setRotorAcceleration(model.getAngularAcceleration().times(kGearRatio));
+    }
+
+    public void setSimState(boolean hasCoral, boolean hasAlgae) {
+        this.hasCoral = hasCoral;
+        this.hasAlgae = hasAlgae;
     }
 }
