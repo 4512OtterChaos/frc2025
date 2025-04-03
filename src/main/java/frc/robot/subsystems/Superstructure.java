@@ -122,15 +122,15 @@ public class Superstructure {
 
     public Command algaeShoot(){
         return sequence(
-            elevator.setMinC(),
+            either(none(), elevator.setAlgaeL2C(), ()-> elevator.getHeight().lt(ElevatorConstants.kAlgaeL3Height)),
             parallel(
                 elevator.setL4C(),
                 sequence(
                     waitUntil(()->elevator.getHeight().in(Meters) >= ElevatorConstants.kL4Height.minus(Inches.of(netAlgaeReleaseHeight.get())).in(Meters))
                         .deadlineFor(
-                            manipulator.scoreCoralC()
+                            manipulator.scoreCoralC().asProxy()
                     ),
-                    manipulator.scoreAlgaeC().withTimeout(0.75)
+                    manipulator.scoreAlgaeC().withTimeout(0.75).asProxy()
                 ),
                 sequence(
                     waitSeconds(0.25),
@@ -192,11 +192,25 @@ public class Superstructure {
             .until(manipulator.isCoralDetected().or(simSkipCoral));
     }
 
+    public Command autoAlgaePickUp() {
+        return autoAlgaePickUp(() -> 
+            ReefFace.getClosest(swerve.getGlobalPoseEstimate()).getAlignmentPose(Alignment.CENTER), 
+            ReefFace.getClosest(swerve.getGlobalPoseEstimate()).algaeHeight
+        );
+    }
+
     public Command autoAlgaePickUp(ReefFace face) {
         return autoAlgaePickUp(() -> face.getAlignmentPose(Alignment.CENTER), face.algaeHeight);
     }
 
     public Command autoAlgaePickUp(Supplier<Pose2d> goalSupplier, AlgaeHeight algaeHeight) {
+        Trigger simSkipAlgae = new Trigger(() -> {
+            Pose2d swervePose = swerve.getGlobalPoseEstimate();
+            Pose2d goalPose = swerve.getAlignGoal();
+            double dist = goalPose.getTranslation().getDistance(swervePose.getTranslation());
+            return dist < 0.1 && Robot.isSimulation();
+        }).debounce(0.5).and(swerve.isAligning);
+
         Command elevatorCommand;
         switch (algaeHeight) {
             case L2 -> elevatorCommand = elevator.setAlgaeL2C();
@@ -206,14 +220,13 @@ public class Superstructure {
 
         return sequence(
             parallel(
-                swerve.alignToReef(goalSupplier, false),
                 sequence(
                     waitUntil(swerve.isFinalAlignment),
                     parallel(
                         elevatorCommand,
-                        manipulator.scoreCoralC().asProxy().until(manipulator.hasAlgae)                        
+                        manipulator.scoreCoralC().asProxy().until(manipulator.hasAlgae.or(simSkipAlgae))
                     )
-                )
+                ).deadlineFor(swerve.alignToReef(goalSupplier, true))
             )
         ).withName("AlignToReefAndPickUpAlgae" + algaeHeight.toString());
     }

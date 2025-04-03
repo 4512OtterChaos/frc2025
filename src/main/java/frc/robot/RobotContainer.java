@@ -227,18 +227,20 @@ public class RobotContainer {
         nearCoralStation
             .and(()->swerve.getCurrentCommand() != null && swerve.getCurrentCommand().equals(swerve.getDefaultCommand()))
             .and(driverSomeRightInput.negate().debounce(0.5))
+            .and(()->DriverStation.isTeleopEnabled())
             .onTrue(
                 swerve.driveFacingAngle(
                     driveSupplier,
                     () -> FieldUtil.nearestCoralStation(swerve.getGlobalPoseEstimate()).getRotation(),
                     true, false
-                ).until(driverSomeRightInput.or(nearCoralStation.negate()))
+                ).until(driverSomeRightInput.or(nearCoralStation.negate())).withName("FacingCoralStation")
             );
         
         // snap to reef angle
         nearCoralStation.negate().and(manipulator.hasAlgae.negate())
             .and(()->swerve.getCurrentCommand() != null && swerve.getCurrentCommand().equals(swerve.getDefaultCommand()))
             .and(driverSomeRightInput.negate().debounce(0.5))
+            .and(()->DriverStation.isTeleopEnabled())
             .onTrue(
                 swerve.driveFacingAngle(
                     driveSupplier,
@@ -287,16 +289,6 @@ public class RobotContainer {
         controller.x().and(controller.rightBumper()).onTrue(elevator.setAlgaeL3C()
             .beforeStarting(waitUntil(manipulator.isCoralDetected().negate())));
         //=====
-        
-        //===== CORAL MANIPULATOR
-        
-
-        
-        //=====
-
-        //===== COMPOSITION CCOMMANDS
-        
-        //=====
     }
 
     private void simBindings(OCXboxController controller) {
@@ -335,10 +327,8 @@ public class RobotContainer {
     }
 }
 /*TODO List:
- * middle l4 + algae net auto
  * auto choose algae height based on closest reef face
  * l1 coral sequence
- * run funnel wheels more often
  * Autos: go to L2 after feedsequence
  * cleaner auto align logic
  * auto align + auto scoring?

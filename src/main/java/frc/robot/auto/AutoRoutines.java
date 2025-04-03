@@ -103,7 +103,7 @@ public class AutoRoutines {
 
     public Command Middle1CoralL41Algae() {
         Pose2d startingPose = new Pose2d(7.3, FieldUtil.kFieldWidth.div(2).in(Meters), Rotation2d.k180deg);
-        Pose2d algaePrepPose = new Pose2d(7.3, FieldUtil.kFieldWidth.div(2).plus(kRobotWidth.times(2)).in(Meters), Rotation2d.kZero); //TODO: use REAL pose
+        Pose2d algaePrepPose = new Pose2d(7, FieldUtil.kFieldWidth.div(2).plus(kRobotWidth.times(2)).in(Meters), Rotation2d.kZero); //TODO: use REAL pose
         
         return sequence(
             // Reset odom
@@ -137,7 +137,7 @@ public class AutoRoutines {
 
     public Command Middle1CoralL42Algae() {
         Pose2d startingPose = new Pose2d(7.3, FieldUtil.kFieldWidth.div(2).in(Meters), Rotation2d.k180deg);
-        Pose2d algaePrepPose = new Pose2d(7.3, FieldUtil.kFieldWidth.div(2).plus(kRobotWidth.times(2)).in(Meters), Rotation2d.kZero); //TODO: use REAL pose
+        Pose2d algaePrepPose = new Pose2d(7, FieldUtil.kFieldWidth.div(2).plus(kRobotWidth.times(2)).in(Meters), Rotation2d.kZero); //TODO: use REAL pose
         Pose2d algaePrepPose2 = algaePrepPose.plus(new Transform2d(Meters.of(0), Meters.of(0.5), Rotation2d.kZero)); //TODO: use REAL pose
         
         return sequence(
