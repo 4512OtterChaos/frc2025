@@ -158,17 +158,29 @@ public class Manipulator extends SubsystemBase {
         }
         String commandName = this.getCurrentCommand().getName();
 
-        if (commandName.equals("ScoreCoral") && isStalled().getAsBoolean()) {
-            hasCoral = true;            
+        if (getVoltage().in(Volts) >= 3 && isStalled().getAsBoolean()) {
+            hasAlgae = true;
         }
 
-        if (commandName.equals("ScoreAlgae")){
+        if (getVoltage().in(Volts) <= -3){
             hasAlgae = false;
         }
 
-        if (commandName.equals("ScoreCoral")){
+        if (getVoltage().in(Volts) >= 3){
             hasCoral = false;
         }
+
+        // if (commandName.equals("ScoreCoral") && isStalled().getAsBoolean()) {
+        //     hasAlgae = true;
+        // }
+
+        // if (commandName.equals("ScoreAlgae")){
+        //     hasAlgae = false;
+        // }
+
+        // if (commandName.equals("ScoreCoral")){
+        //     hasCoral = false;
+        // }
     }
 
     public Trigger isCoralDetected(){
