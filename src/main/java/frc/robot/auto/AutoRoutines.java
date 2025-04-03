@@ -28,6 +28,9 @@ public class AutoRoutines {
     private final Elevator elevator;
     private final Manipulator manipulator;
 
+    private boolean shouldResetTranslation = true;
+    private boolean shouldResetRotation = true;
+
     public AutoRoutines(Superstructure superstructure, CommandSwerveDrivetrain swerve, Elevator elevator, Manipulator manipulator) {
 
         this.superstructure = superstructure;
@@ -36,17 +39,42 @@ public class AutoRoutines {
         this.manipulator = manipulator;
     }
 
+    public void setShouldResetPose(boolean shouldTranslation, boolean shouldRotation) {
+        shouldResetTranslation = shouldTranslation;
+        shouldResetRotation = shouldRotation;
+    }
+
     public Command taxiAuto() {
+        var startPose = new Pose2d(FieldUtil.kFieldWidth, FieldUtil.kFieldWidth, Rotation2d.k180deg);
         return sequence(
-            runOnce(()->swerve.resetPose(new Pose2d(FieldUtil.kFieldWidth, FieldUtil.kFieldWidth, Rotation2d.k180deg)), swerve),
+            either(
+                runOnce(()->swerve.resetTranslation(startPose.getTranslation()), swerve),
+                none(),
+                () -> shouldResetTranslation
+            ),
+            either(
+                runOnce(()->swerve.resetRotation(startPose.getRotation()), swerve),
+                none(),
+                () -> shouldResetRotation
+            ),
             swerve.drive(()->new ChassisSpeeds(-1, 0, 0)).withTimeout(1.5),
             swerve.stop()
         );
     }
 
     public Command taxiFar() {
+        var startPose = new Pose2d(7.5, 4.2, Rotation2d.k180deg);
         return sequence(
-            runOnce(()->swerve.resetPose(new Pose2d(7.5, 4.2, Rotation2d.k180deg)), swerve),
+            either(
+                runOnce(()->swerve.resetTranslation(startPose.getTranslation()), swerve),
+                none(),
+                () -> shouldResetTranslation
+            ),
+            either(
+                runOnce(()->swerve.resetRotation(startPose.getRotation()), swerve),
+                none(),
+                () -> shouldResetRotation
+            ),
             swerve.drive(()->new ChassisSpeeds(-1.5, 0, 0)).withTimeout(1),
             swerve.drive(()->new ChassisSpeeds(-0.5, 0, 0)).withTimeout(1.5),
             swerve.stop()
@@ -54,9 +82,19 @@ public class AutoRoutines {
     }
 
     public Command Middle1CoralL4() {
+        var startPose = new Pose2d(7.5, 4.2, Rotation2d.k180deg);
         return sequence(
             // Reset odom
-            runOnce(()->swerve.resetPose(new Pose2d(7.5, 4.2, Rotation2d.k180deg)), swerve),
+            either(
+                runOnce(()->swerve.resetTranslation(startPose.getTranslation()), swerve),
+                none(),
+                () -> shouldResetTranslation
+            ),
+            either(
+                runOnce(()->swerve.resetRotation(startPose.getRotation()), swerve),
+                none(),
+                () -> shouldResetRotation
+            ),
             waitSeconds(4),
             // Score on far left/right right branch
             superstructure.autoScore(ReefFace.BACK, Alignment.RIGHT, ElevatorHeight.L4)
@@ -69,14 +107,25 @@ public class AutoRoutines {
         
         return sequence(
             // Reset odom
-            runOnce(()->swerve.resetPose(startingPose), swerve),
-            waitSeconds(4),
+            either(
+                runOnce(()->swerve.resetTranslation(startingPose.getTranslation()), swerve),
+                none(),
+                () -> shouldResetTranslation
+            ),
+            either(
+                runOnce(()->swerve.resetRotation(startingPose.getRotation()), swerve),
+                none(),
+                () -> shouldResetRotation
+            ),
             // Score on far left/right right branch
             superstructure.autoScore(ReefFace.BACK, Alignment.RIGHT, ElevatorHeight.L4),
 
             //Back up then pick up algae
-            swerve.drive(()->new ChassisSpeeds(-1, 0, 0)).withTimeout(0.5),
-            superstructure.autoAlgaePickUp(ReefFace.BACK),
+            parallel(
+                swerve.drive(()->new ChassisSpeeds(1, 0, 0)).withTimeout(0.5),
+                elevator.setAlgaeL2C()
+            ),
+            // superstructure.autoAlgaePickUp(ReefFace.BACK),
 
             //TODO: align to barge score pose
             swerve.alignToReef(()-> algaePrepPose, false), //TODO: transfer to align barge command(?)
@@ -93,13 +142,24 @@ public class AutoRoutines {
         
         return sequence(
             // Reset odom
-            runOnce(()->swerve.resetPose(startingPose), swerve),
-            waitSeconds(4),
+            either(
+                runOnce(()->swerve.resetTranslation(startingPose.getTranslation()), swerve),
+                none(),
+                () -> shouldResetTranslation
+            ),
+            either(
+                runOnce(()->swerve.resetRotation(startingPose.getRotation()), swerve),
+                none(),
+                () -> shouldResetRotation
+            ),
             // Score on far left/right right branch
             superstructure.autoScore(ReefFace.BACK, Alignment.RIGHT, ElevatorHeight.L4),
 
             //Back up then pick up algae
-            swerve.drive(()->new ChassisSpeeds(-1, 0, 0)).withTimeout(0.5),
+            parallel(
+                swerve.drive(()->new ChassisSpeeds(1, 0, 0)).withTimeout(0.5),
+                elevator.setAlgaeL2C()
+            ),
             superstructure.autoAlgaePickUp(ReefFace.BACK),
 
             //align to barge score pose
@@ -107,8 +167,7 @@ public class AutoRoutines {
             
             //Shoot the algae
             superstructure.algaeShoot(),
-
-            
+            elevator.setAlgaeL3C(),
             superstructure.autoAlgaePickUp(ReefFace.FARLEFT),
 
             //align to barge score pose
@@ -136,7 +195,16 @@ public class AutoRoutines {
 
         return sequence(
             // Reset odom
-            runOnce(()->swerve.resetPose(startPose), swerve),
+            either(
+                runOnce(()->swerve.resetTranslation(startPose.getTranslation()), swerve),
+                none(),
+                () -> shouldResetTranslation
+            ),
+            either(
+                runOnce(()->swerve.resetRotation(startPose.getRotation()), swerve),
+                none(),
+                () -> shouldResetRotation
+            ),
             // Score on far left/right right branch
             superstructure.autoScore(reefFace1, reefAlign1, ElevatorHeight.L4),
             // Drive to coral station and wait for coral

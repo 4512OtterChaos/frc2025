@@ -27,6 +27,7 @@ import edu.wpi.first.wpilibj.DataLogManager;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.LEDPattern;
 import edu.wpi.first.wpilibj.Timer;
+import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
@@ -77,17 +78,31 @@ public class RobotContainer {
     /* Path follower */
     private final AutoRoutines autoRoutines;
     private final AutoChooser autoChooser = new AutoChooser();
+
+    private enum ResetBehavior {
+        FULL_RESET,
+        ROT_RESET,
+        NO_RESET
+    }
+    private final SendableChooser<ResetBehavior> resetBehaviorChooser = new SendableChooser<>();
     
     public RobotContainer() {
         autoRoutines = new AutoRoutines(superstructure, swerve, elevator, manipulator);
         
         autoChooser.addCmd("TaxiAuto", autoRoutines::taxiAuto);
         autoChooser.addCmd("TaxiFarAuto", autoRoutines::taxiFar);
-        autoChooser.addCmd("Wall3CoralL4 Left", () -> autoRoutines.Wall3CoralL4(false));
-        autoChooser.addCmd("Wall3CoralL4 Right", () -> autoRoutines.Wall3CoralL4(true));
-        autoChooser.addCmd("Middle1CoralL4", () -> autoRoutines.Middle1CoralL4());
+        autoChooser.addCmd("LeftWall 3CoralL4", () -> autoRoutines.Wall3CoralL4(false));
+        autoChooser.addCmd("RightWall 3CoralL4", () -> autoRoutines.Wall3CoralL4(true));
+        autoChooser.addCmd("Middle 1CoralL4", () -> autoRoutines.Middle1CoralL4());
+        autoChooser.addCmd("Middle 1CoralL4 1Algae", () -> autoRoutines.Middle1CoralL41Algae());
+        autoChooser.addCmd("Middle 1CoralL4 2Algae", () -> autoRoutines.Middle1CoralL42Algae());
         // autoChooser.addRoutine("SimplePath", autoRoutines::simplePathAuto);
         SmartDashboard.putData("Auto Chooser", autoChooser);
+
+        resetBehaviorChooser.addOption("* FULL RESET *", ResetBehavior.FULL_RESET);
+        resetBehaviorChooser.addOption("ROTATION RESET", ResetBehavior.ROT_RESET);
+        resetBehaviorChooser.addOption("NO RESET", ResetBehavior.NO_RESET);
+        SmartDashboard.putData("Reset Behavior", resetBehaviorChooser);
         
         configureDefaultBindings();
         configureDriverBindings(driver);
@@ -109,6 +124,9 @@ public class RobotContainer {
         };
         setSwerveUpdateFrequency(swerveMotors);
         ParentDevice.optimizeBusUtilizationForAll(swerveMotors);
+
+        SmartDashboard.putData("Commands/ResetHeading0", runOnce(()->swerve.resetRotation(Rotation2d.kZero)).withName("Reset heading 0"));
+        SmartDashboard.putData("Commands/ResetHeading180", runOnce(()->swerve.resetRotation(Rotation2d.k180deg)).withName("Reset heading 180"));
         
         bindLEDAnimations();
         led.setLength(15);
@@ -120,6 +138,15 @@ public class RobotContainer {
     public void periodic() {
         superstructure.periodic();
         vision.periodic();
+
+        var resetBehavior = resetBehaviorChooser.getSelected();
+        if (resetBehavior != null) {
+            switch(resetBehavior){
+                case FULL_RESET -> autoRoutines.setShouldResetPose(true, true);
+                case ROT_RESET -> autoRoutines.setShouldResetPose(false, true);
+                case NO_RESET -> autoRoutines.setShouldResetPose(false, false);
+            };
+        };
 
         // update pose estimator with vision measurements
         double phoenixTimeOffset = Timer.getFPGATimestamp() - Utils.getCurrentTimeSeconds();
