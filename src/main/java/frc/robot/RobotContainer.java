@@ -161,7 +161,7 @@ public class RobotContainer {
         manipulator.setDefaultCommand(either(
             manipulator.holdAlgaeC(),
             manipulator.holdPositionC(),
-            manipulator.hasAlgae()
+            manipulator.hasAlgae
         ));
 
         funnel.setDefaultCommand(funnel.slowFeedCoralC());
@@ -170,7 +170,7 @@ public class RobotContainer {
             .onTrue(superstructure.feedCoralSequenceC());
 
         // Automatically start intaking if close to station
-        nearCoralStation.whileTrue(
+        nearCoralStation.and(manipulator.hasCoral.negate()).whileTrue(
             sequence(
                 superstructure.feedCoralFastSequenceC().deadlineFor(
                     funnel.feedCoralC()
@@ -209,7 +209,7 @@ public class RobotContainer {
             );
         
         // snap to reef angle
-        nearCoralStation.negate().and(manipulator.hasAlgae().negate())
+        nearCoralStation.negate().and(manipulator.hasAlgae.negate())
             .and(()->swerve.getCurrentCommand() != null && swerve.getCurrentCommand().equals(swerve.getDefaultCommand()))
             .and(driverSomeRightInput.negate().debounce(0.5))
             .onTrue(

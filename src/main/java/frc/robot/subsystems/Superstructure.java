@@ -211,7 +211,7 @@ public class Superstructure {
                     waitUntil(swerve.isFinalAlignment),
                     parallel(
                         elevatorCommand,
-                        manipulator.scoreCoralC().asProxy().until(manipulator.hasAlgae())                        
+                        manipulator.scoreCoralC().asProxy().until(manipulator.hasAlgae)                        
                     )
                 )
             )
