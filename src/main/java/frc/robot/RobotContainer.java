@@ -43,6 +43,7 @@ import frc.robot.subsystems.vision.Vision;
 import frc.robot.util.FieldUtil;
 import frc.robot.util.OCXboxController;
 import frc.robot.util.FieldUtil.Alignment;
+import frc.robot.util.FieldUtil.ReefFace;
 
 public class RobotContainer {
         
@@ -244,7 +245,7 @@ public class RobotContainer {
             .onTrue(
                 swerve.driveFacingAngle(
                     driveSupplier,
-                    () -> swerve.getGlobalPoseEstimate().nearest(FieldUtil.kReefCenterPoses).getRotation(),
+                    () -> ReefFace.getClosest(swerve.getGlobalPoseEstimate(), Alignment.CENTER).getAlignmentPose(Alignment.CENTER).getRotation(),
                     true, false
                 ).until(driverSomeRightInput.or(nearCoralStation))
             );
@@ -286,7 +287,7 @@ public class RobotContainer {
         controller.b().onTrue(elevator.setL4C()
             .beforeStarting(waitUntil(manipulator.isCoralDetected().negate())));
 
-        controller.x().and(controller.rightBumper()).onTrue(elevator.setAlgaeL3C()
+        controller.rightBumper().onTrue(elevator.setAlgaeL3C()
             .beforeStarting(waitUntil(manipulator.isCoralDetected().negate())));
         //=====
     }
@@ -327,7 +328,7 @@ public class RobotContainer {
     }
 }
 /*TODO List:
- * auto choose algae height based on closest reef face
+ * reef align offset
  * l1 coral sequence
  * Autos: go to L2 after feedsequence
  * cleaner auto align logic

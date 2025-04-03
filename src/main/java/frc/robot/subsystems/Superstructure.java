@@ -60,8 +60,7 @@ public class Superstructure {
     private final TunableNumber turnAccelTippy = new TunableNumber("Driver/turnAccelTippy", kAngularAccelTippy);
     private final TunableNumber turnDecelTippy = new TunableNumber("Driver/turnDecelTippy", kAngularDecelTippy);
     
-    private final TunableNumber reefAlignXOffset = new TunableNumber("Align/reefAlignXOffset", Units.inchesToMeters(1));
-    private Transform2d reefAlignOffset = new Transform2d(reefAlignXOffset.get(), 0, Rotation2d.kZero);
+    private final TunableNumber reefAlignXOffset = new TunableNumber("Align/reefAlignXOffset", Units.inchesToMeters(0.75));
 
     private final TunableNumber netAlgaeReleaseHeight = new TunableNumber("Commands/algaeShotElevHeightOffsetInches", 12);
 
@@ -151,7 +150,7 @@ public class Superstructure {
     //########## Auto commands
 
     public Command autoScore(Alignment alignment, ElevatorHeight scorePos) {
-        return autoScore(() -> ReefFace.getClosest(swerve.getGlobalPoseEstimate()).getAlignmentPose(alignment), scorePos);
+        return autoScore(() -> ReefFace.getClosest(swerve.getGlobalPoseEstimate(), alignment).getAlignmentPose(alignment), scorePos);
     }
 
     public Command autoScore(ReefFace face, Alignment alignment, ElevatorHeight scorePos) {
@@ -194,8 +193,8 @@ public class Superstructure {
 
     public Command autoAlgaePickUp() {
         return autoAlgaePickUp(() -> 
-            ReefFace.getClosest(swerve.getGlobalPoseEstimate()).getAlignmentPose(Alignment.CENTER), 
-            ReefFace.getClosest(swerve.getGlobalPoseEstimate()).algaeHeight
+            ReefFace.getClosest(swerve.getGlobalPoseEstimate(), Alignment.CENTER).getAlignmentPose(Alignment.CENTER), 
+            ReefFace.getClosest(swerve.getGlobalPoseEstimate(), Alignment.CENTER).algaeHeight
         );
     }
 
@@ -261,7 +260,7 @@ public class Superstructure {
         
         int hash = hashCode();
         if (reefAlignXOffset.hasChanged(hash)) {
-            reefAlignOffset = new Transform2d(reefAlignXOffset.get(), 0, Rotation2d.kZero);
+            FieldUtil.ReefFace.updatePoses(Meters.of(reefAlignXOffset.get()));
         }
 
         if (driveSpeedNormal.hasChanged(hash) || driveAccelNormal.hasChanged(hash) || driveDecelNormal.hasChanged(hash)

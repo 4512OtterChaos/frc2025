@@ -58,6 +58,7 @@ import frc.robot.util.ProfiledPIDController;
 import frc.robot.util.TrapezoidProfile;
 import frc.robot.util.TunableNumber;
 import frc.robot.util.FieldUtil.Alignment;
+import frc.robot.util.FieldUtil.ReefFace;
 
 import static frc.robot.subsystems.drivetrain.DriveConstants.*;
 
@@ -404,7 +405,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     }
 
     public Command alignToReef(Alignment position, boolean runForever) {
-        return alignToReef(() -> FieldUtil.nearestReefPose(getGlobalPoseEstimate(), position), runForever);
+        return alignToReef(() -> ReefFace.getClosest(getGlobalPoseEstimate(), position).getAlignmentPose(position), runForever);
     }
 
     public Command alignToReef(Supplier<Pose2d> goalSupplier, boolean runForever) {

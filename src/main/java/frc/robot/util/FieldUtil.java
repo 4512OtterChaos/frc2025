@@ -60,43 +60,6 @@ public class FieldUtil {
         kReefTrl.getX() - (kReefWidth.div(2).plus(DriveConstants.kRobotLength.div(2)).in(Meters)),
         kReefTrl.getMeasureY().in(Meters));
 
-    public static final List<Pose2d> kReefLeftCoralPoses = new ArrayList<Pose2d>() {{
-        add(new Pose2d(kCoralScoreLeftPoseTemplate, Rotation2d.fromDegrees(0)));
-        add(new Pose2d(kCoralScoreLeftPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(60)), Rotation2d.fromDegrees(60)));
-        add(new Pose2d(kCoralScoreLeftPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(120)), Rotation2d.fromDegrees(120)));
-        add(new Pose2d(kCoralScoreLeftPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(180)), Rotation2d.fromDegrees(180)));
-        add(new Pose2d(kCoralScoreLeftPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(240)), Rotation2d.fromDegrees(240)));
-        add(new Pose2d(kCoralScoreLeftPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(300)), Rotation2d.fromDegrees(300)));
-    }};
-
-    public static final List<Pose2d> kReefRightCoralPoses = new ArrayList<Pose2d>() {{
-        add(new Pose2d(kCoralScoreRightPoseTemplate, Rotation2d.fromDegrees(0)));
-        add(new Pose2d(kCoralScoreRightPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(60)), Rotation2d.fromDegrees(60)));
-        add(new Pose2d(kCoralScoreRightPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(120)), Rotation2d.fromDegrees(120)));
-        add(new Pose2d(kCoralScoreRightPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(180)), Rotation2d.fromDegrees(180)));
-        add(new Pose2d(kCoralScoreRightPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(240)), Rotation2d.fromDegrees(240)));
-        add(new Pose2d(kCoralScoreRightPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(300)), Rotation2d.fromDegrees(300)));
-    }};
-    
-    public static final List<Pose2d> kReefCenterPoses = new ArrayList<Pose2d>() {{
-        add(new Pose2d(kReefCenterPoseTemplate, Rotation2d.fromDegrees(0)));
-        add(new Pose2d(kReefCenterPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(60)), Rotation2d.fromDegrees(60)));
-        add(new Pose2d(kReefCenterPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(120)), Rotation2d.fromDegrees(120)));
-        add(new Pose2d(kReefCenterPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(180)), Rotation2d.fromDegrees(180)));
-        add(new Pose2d(kReefCenterPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(240)), Rotation2d.fromDegrees(240)));
-        add(new Pose2d(kReefCenterPoseTemplate.rotateAround(kReefTrl, Rotation2d.fromDegrees(300)), Rotation2d.fromDegrees(300)));
-    }};
-
-    public static Pose2d nearestReefPose(Pose2d robotPose, Alignment reef) {
-        List<Pose2d> poses;
-        switch (reef) {
-            case LEFT -> poses = kReefLeftCoralPoses;
-            case RIGHT -> poses = kReefRightCoralPoses;
-            default -> poses = kReefCenterPoses;
-        }
-        return robotPose.nearest(poses);
-    } 
-
     //########## CORAL STATION
 
     public enum CoralStation {
@@ -168,15 +131,23 @@ public class FieldUtil {
         NEARRIGHT(AlgaeHeight.L2, Rotation2d.fromDegrees(-300));
 
         public final AlgaeHeight algaeHeight; 
-        public final Pose2d centerPose;
-        public final Pose2d leftPose;
-        public final Pose2d rightPose;
+        public final Rotation2d reefAngle;
+        public Pose2d centerPose;
+        public Pose2d leftPose;
+        public Pose2d rightPose;
 
         private ReefFace(AlgaeHeight algaeHeight, Rotation2d reefAngle){
             this.algaeHeight = algaeHeight;
-            this.centerPose = new Pose2d(kReefCenterPoseTemplate.rotateAround(kReefTrl, reefAngle), reefAngle);
-            this.leftPose = new Pose2d(kCoralScoreLeftPoseTemplate.rotateAround(kReefTrl, reefAngle), reefAngle);
-            this.rightPose = new Pose2d(kCoralScoreRightPoseTemplate.rotateAround(kReefTrl, reefAngle), reefAngle);
+            this.reefAngle = reefAngle;
+        }
+
+        public static void updatePoses(Distance offsetX){
+            var offset  = new Translation2d(offsetX.in(Meters), 0);
+            for (ReefFace face : values()){
+                face.centerPose = new Pose2d(kReefCenterPoseTemplate.plus(offset).rotateAround(kReefTrl, face.reefAngle), face.reefAngle);
+                face.leftPose = new Pose2d(kCoralScoreLeftPoseTemplate.plus(offset).rotateAround(kReefTrl, face.reefAngle), face.reefAngle);
+                face.rightPose = new Pose2d(kCoralScoreRightPoseTemplate.plus(offset).rotateAround(kReefTrl, face.reefAngle), face.reefAngle);
+            }
         }
 
         public Pose2d getAlignmentPose(Alignment alignment) {
@@ -189,11 +160,11 @@ public class FieldUtil {
             return pose;
         }
 
-        public static ReefFace getClosest(Pose2d currentPose){
+        public static ReefFace getClosest(Pose2d currentPose, Alignment alignment){
             ReefFace closest = ReefFace.FRONT;
             double closestDist = Double.MAX_VALUE;
             for (ReefFace reefFace : values()) {
-                double dist = reefFace.centerPose.getTranslation().getDistance(currentPose.getTranslation());
+                double dist = reefFace.getAlignmentPose(alignment).getTranslation().getDistance(currentPose.getTranslation());
                 if (dist < closestDist) {
                     closestDist = dist;
                     closest = reefFace;
