@@ -60,6 +60,8 @@ public class Manipulator extends SubsystemBase {
     private final TunableNumber holdAlgaeVolts = new TunableNumber("Coral/holdAlgaeVolts", kHoldAlgaeVolts);
     private final TunableNumber scoreAlgaeVolts = new TunableNumber("Coral/scoreAlgaeVolts", kScoreAlgaeVolts);
 
+    private final TunableNumber stallCurrent = new TunableNumber("Coral/stallCurrent", kStallCurrent);
+
     // private final TunableNumber rpmPerVolt = new TunableNumber("Coral/rpmPerVolt", kRPMPerVolt);
 
 
@@ -98,7 +100,7 @@ public class Manipulator extends SubsystemBase {
         //     motor.setVoltage(ff.calculate(PID.getSetpoint())+PID.calculate(getVelocity().in(RotationsPerSecond)));
         // }
 
-        if (getCurrent() <= kStallCurrent){
+        if (getCurrent() <= stallCurrent.get()){
             lastFreeTime = Timer.getFPGATimestamp();
         }
 

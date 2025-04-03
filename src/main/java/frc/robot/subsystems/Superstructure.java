@@ -60,7 +60,8 @@ public class Superstructure {
     private final TunableNumber turnAccelTippy = new TunableNumber("Driver/turnAccelTippy", kAngularAccelTippy);
     private final TunableNumber turnDecelTippy = new TunableNumber("Driver/turnDecelTippy", kAngularDecelTippy);
     
-    private final TunableNumber reefAlignXOffset = new TunableNumber("Align/reefAlignXOffset", Units.inchesToMeters(0.75));
+    private final TunableNumber reefCoralXOffset = new TunableNumber("Align/reefCoralXOffset", Units.inchesToMeters(0.75));
+    private final TunableNumber reefAlgaeXOffset = new TunableNumber("Align/reefAlgaeXOffset", Units.inchesToMeters(1));
 
     private final TunableNumber netAlgaeReleaseHeight = new TunableNumber("Commands/algaeShotElevHeightOffsetInches", 12);
 
@@ -192,17 +193,18 @@ public class Superstructure {
     }
 
     public Command autoAlgaePickUp() {
-        return autoAlgaePickUp(() -> 
-            ReefFace.getClosest(swerve.getGlobalPoseEstimate(), Alignment.CENTER).getAlignmentPose(Alignment.CENTER), 
-            ReefFace.getClosest(swerve.getGlobalPoseEstimate(), Alignment.CENTER).algaeHeight
-        );
+        return autoAlgaePickUp(() -> ReefFace.getClosest(swerve.getGlobalPoseEstimate(), Alignment.CENTER));
+    }
+
+    public Command autoAlgaePickUp(Supplier<ReefFace> face) {
+        return autoAlgaePickUp(()-> face.get().getAlignmentPose(Alignment.CENTER), ()-> face.get().algaeHeight);
     }
 
     public Command autoAlgaePickUp(ReefFace face) {
-        return autoAlgaePickUp(() -> face.getAlignmentPose(Alignment.CENTER), face.algaeHeight);
+        return autoAlgaePickUp(() -> face.getAlignmentPose(Alignment.CENTER), () -> face.algaeHeight);
     }
 
-    public Command autoAlgaePickUp(Supplier<Pose2d> goalSupplier, AlgaeHeight algaeHeight) {
+    public Command autoAlgaePickUp(Supplier<Pose2d> goalSupplier, Supplier<AlgaeHeight> algaeHeight) {
         Trigger simSkipAlgae = new Trigger(() -> {
             Pose2d swervePose = swerve.getGlobalPoseEstimate();
             Pose2d goalPose = swerve.getAlignGoal();
@@ -210,22 +212,17 @@ public class Superstructure {
             return dist < 0.1 && Robot.isSimulation();
         }).debounce(0.5).and(swerve.isAligning);
 
-        Command elevatorCommand;
-        switch (algaeHeight) {
-            case L2 -> elevatorCommand = elevator.setAlgaeL2C();
-            case L3 -> elevatorCommand = elevator.setAlgaeL3C();
-            default -> elevatorCommand = elevator.setAlgaeL2C();
-        }
-
         return sequence(
             parallel(
                 sequence(
                     waitUntil(swerve.isFinalAlignment),
                     parallel(
-                        elevatorCommand,
                         manipulator.scoreCoralC().asProxy().until(manipulator.hasAlgae.or(simSkipAlgae))
                     )
-                ).deadlineFor(swerve.alignToReef(goalSupplier, true))
+                ).deadlineFor(
+                    swerve.alignToReef(goalSupplier, true),
+                    elevator.setHeightC(()-> elevator.getAlgaeHeight(algaeHeight.get())).repeatedly()
+                )
             )
         ).withName("AlignToReefAndPickUpAlgae" + algaeHeight.toString());
     }
@@ -254,13 +251,14 @@ public class Superstructure {
         turnAccelTippy.poll();
         turnDecelTippy.poll();
 
-        reefAlignXOffset.poll();
+        reefCoralXOffset.poll();
+        reefAlgaeXOffset.poll();
 
         netAlgaeReleaseHeight.poll();
         
         int hash = hashCode();
-        if (reefAlignXOffset.hasChanged(hash)) {
-            FieldUtil.ReefFace.updatePoses(Meters.of(reefAlignXOffset.get()));
+        if (reefCoralXOffset.hasChanged(hash) || reefAlgaeXOffset.hasChanged(hash)) {
+            FieldUtil.ReefFace.updatePoses(Meters.of(reefCoralXOffset.get()), Meters.of(reefAlgaeXOffset.get()));
         }
 
         if (driveSpeedNormal.hasChanged(hash) || driveAccelNormal.hasChanged(hash) || driveDecelNormal.hasChanged(hash)

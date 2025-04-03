@@ -11,6 +11,7 @@ import com.ctre.phoenix6.sim.ChassisReference;
 import edu.wpi.first.math.MathUtil;
 
 import static edu.wpi.first.units.Units.*;
+import static edu.wpi.first.wpilibj2.command.Commands.either;
 
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.AngularVelocity;
@@ -27,6 +28,7 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.util.PhoenixUtil;
 import frc.robot.util.TunableNumber;
+import frc.robot.util.FieldUtil.AlgaeHeight;
 
 import static frc.robot.subsystems.elevator.ElevatorConstants.*;
 
@@ -176,6 +178,13 @@ public class Elevator extends SubsystemBase {
 
     public boolean isStalled(){
         return (Timer.getFPGATimestamp() - lastNonStallTime) > kStallThresholdSeconds;
+    }
+
+    public Distance getAlgaeHeight(AlgaeHeight algaeHeight){
+        return switch (algaeHeight) {
+            case L3 -> Inches.of(heightAlgaeL3Inches.get());
+            default -> Inches.of(heightAlgaeL2Inches.get());
+        };
     }
 
     //---------- Command factories

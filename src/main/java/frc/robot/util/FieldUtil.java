@@ -136,17 +136,23 @@ public class FieldUtil {
         public Pose2d leftPose;
         public Pose2d rightPose;
 
+        static {
+            updatePoses(Meters.of(0), Meters.of(0));
+        }
+
         private ReefFace(AlgaeHeight algaeHeight, Rotation2d reefAngle){
             this.algaeHeight = algaeHeight;
             this.reefAngle = reefAngle;
         }
 
-        public static void updatePoses(Distance offsetX){
-            var offset  = new Translation2d(offsetX.in(Meters), 0);
+        public static void updatePoses(Distance coralOffsetX, Distance algaeOffsetX){
+            var coralOffset  = new Translation2d(coralOffsetX.in(Meters), 0);
+            var algaeOffset  = new Translation2d(algaeOffsetX.in(Meters), 0);
+            
             for (ReefFace face : values()){
-                face.centerPose = new Pose2d(kReefCenterPoseTemplate.plus(offset).rotateAround(kReefTrl, face.reefAngle), face.reefAngle);
-                face.leftPose = new Pose2d(kCoralScoreLeftPoseTemplate.plus(offset).rotateAround(kReefTrl, face.reefAngle), face.reefAngle);
-                face.rightPose = new Pose2d(kCoralScoreRightPoseTemplate.plus(offset).rotateAround(kReefTrl, face.reefAngle), face.reefAngle);
+                face.centerPose = new Pose2d(kReefCenterPoseTemplate.plus(algaeOffset).rotateAround(kReefTrl, face.reefAngle), face.reefAngle);
+                face.leftPose = new Pose2d(kCoralScoreLeftPoseTemplate.plus(coralOffset).rotateAround(kReefTrl, face.reefAngle), face.reefAngle);
+                face.rightPose = new Pose2d(kCoralScoreRightPoseTemplate.plus(coralOffset).rotateAround(kReefTrl, face.reefAngle), face.reefAngle);
             }
         }
 
@@ -164,7 +170,11 @@ public class FieldUtil {
             ReefFace closest = ReefFace.FRONT;
             double closestDist = Double.MAX_VALUE;
             for (ReefFace reefFace : values()) {
-                double dist = reefFace.getAlignmentPose(alignment).getTranslation().getDistance(currentPose.getTranslation());
+                var a = reefFace.getAlignmentPose(alignment);
+                if (a == null) {
+                    continue;
+                }
+                double dist = a.getTranslation().getDistance(currentPose.getTranslation());
                 if (dist < closestDist) {
                     closestDist = dist;
                     closest = reefFace;
