@@ -133,8 +133,8 @@ public class Superstructure {
                     manipulator.scoreAlgaeC().withTimeout(0.75)
                 ),
                 sequence(
-                    waitSeconds(0.1),
-                    swerve.drive(()->new ChassisSpeeds(0.5, 0, 0)).withTimeout(1).andThen(swerve.stop())
+                    waitSeconds(0.25),
+                    swerve.drive(()->new ChassisSpeeds(1, 0, 0)).withTimeout(0.75).andThen(swerve.stop())
                 )
             )
         ).withName("AlgaeShoot");
