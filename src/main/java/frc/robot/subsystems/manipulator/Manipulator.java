@@ -19,6 +19,7 @@ import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.ConditionalCommand;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import frc.robot.util.PhoenixUtil;
@@ -256,13 +257,6 @@ public class Manipulator extends SubsystemBase {
     /** Does not end */
     public Command setPositionC(Angle position) {
         return run(() -> setTargetPos(position)).withName("SetPosition");
-    }
-
-    public Command defaultCommand() {
-        if (hasAlgae){
-            return holdAlgaeC().withName("D:HoldAlgae");
-        }
-        return holdPositionC().withName("D:HoldPosition");
     }
 
     public Command holdPositionC() {
