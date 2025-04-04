@@ -179,7 +179,7 @@ public class Manipulator extends SubsystemBase {
         return new Trigger(() -> {
             var measurement = sensor.getMeasurement();
             if (measurement == null) return false;
-            boolean withinRange = measurement.distance_mm <= kSensorMaxCoralDist.in(Millimeters);
+            boolean withinRange = measurement.distance_mm <= kSensorMaxCoralDist.in(Millimeters) && measurement.distance_mm >= Inches.of(1).in(Millimeters);
             boolean validRange = measurement.distance_mm > 0;
             boolean statusOk = measurement.status == LaserCan.LASERCAN_STATUS_VALID_MEASUREMENT;
             return withinRange && validRange && statusOk;
@@ -282,8 +282,12 @@ public class Manipulator extends SubsystemBase {
         SmartDashboard.putNumber("Coral/Rotations", getPosition().in(Rotations));
         SmartDashboard.putNumber("Coral/Rotations per second", getVelocity().in(RotationsPerSecond));
         SmartDashboard.putBoolean("Coral/isStalled", isStalled().getAsBoolean());
+
         SmartDashboard.putBoolean("Coral/hasCoral", _hasCoral);
         SmartDashboard.putBoolean("Coral/hasAlgae", _hasAlgae);
+
+        SmartDashboard.putNumber("Coral/SensorDistanceInches", getCoralDist().in(Inches));
+        SmartDashboard.putBoolean("Coral/coralDetected", isCoralDetected().getAsBoolean());
 
         SmartDashboard.putNumber("Coral/Coral Travelled Inches", kCoralRollerDia.times(Math.PI).per(Rotation).timesDivisor(getPosition()).in(Inches));
     }
