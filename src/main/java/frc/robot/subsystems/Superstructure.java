@@ -201,7 +201,7 @@ public class Superstructure {
             return dist < 0.1 && Robot.isSimulation();
         }).debounce(0.5).and(swerve.isAligning);
 
-        return swerve.alignToStation(() -> FieldUtil.offsetCoralStation(coralStation.getPose(), alignment), false)
+        return swerve.alignToStation(() -> FieldUtil.offsetCoralStation(coralStation.getPose(), alignment), true)
             .until(manipulator.isCoralDetected().or(simSkipCoral));
     }
 
