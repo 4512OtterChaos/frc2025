@@ -68,6 +68,7 @@ public class Elevator extends SubsystemBase {
     private final TunableNumber mmCruise = new TunableNumber("Elevator/mmCruiseInches", kConfig.MotionMagic.MotionMagicCruiseVelocity);
     private final TunableNumber mmAccel = new TunableNumber("Elevator/mmAccelInches", kConfig.MotionMagic.MotionMagicAcceleration);
 
+    private final TunableNumber heightDecreasedL1Inches = new TunableNumber("Elevator/heightDecreasedL1Inches", kDecreasedL1Height.in(Inches));
     private final TunableNumber heightL1Inches = new TunableNumber("Elevator/heightL1Inches", kL1Height.in(Inches));
     private final TunableNumber heightL2Inches = new TunableNumber("Elevator/heightL2Inches", kL2Height.in(Inches));
     private final TunableNumber heightL3Inches = new TunableNumber("Elevator/heightL3Inches", kL3Height.in(Inches));
@@ -207,6 +208,11 @@ public class Elevator extends SubsystemBase {
     /** Sets the target elevator height to the L1 height and ends when it is within tolerance. */
     public Command setMinC(){
         return setHeightC(Meters.of(0)).withName("Go to base");
+    }
+
+    /** Sets the target elevator height to the L1 height and ends when it is within tolerance. */
+    public Command setDecreasedL1C(){
+        return setHeightC(() -> Inches.of(heightDecreasedL1Inches.get())).withName("Go to L1");
     }
 
     /** Sets the target elevator height to the L1 height and ends when it is within tolerance. */

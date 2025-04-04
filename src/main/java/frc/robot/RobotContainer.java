@@ -269,6 +269,8 @@ public class RobotContainer {
 
         controller.a().whileTrue(superstructure.autoAlgaePickUp());
         controller.b().whileTrue(superstructure.algaeShoot());
+
+        controller.x().whileTrue(superstructure.autoL1());
         
         // controller.leftTrigger().whileTrue(swerve.drive(() -> new ChassisSpeeds(0, controller.getLeftTriggerAxis() * 0.3, 0), false, true).withName("Strafe Left"));
         // controller.rightTrigger().whileTrue(swerve.drive(() -> new ChassisSpeeds(0, controller.getRightTriggerAxis() * -0.3, 0), false, true).withName("Strafe Right"));       

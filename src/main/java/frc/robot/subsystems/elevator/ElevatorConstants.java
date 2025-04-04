@@ -38,13 +38,14 @@ public class ElevatorConstants {
         L4
     }
 
+    public static final Distance kDecreasedL1Height = Inches.of(4.15);
     public static final Distance kL1Height = Inches.of(6.15);
     public static final Distance kL2Height = Inches.of(16.5);
     public static final Distance kL3Height = Inches.of(32.5);
     public static final Distance kL4Height = Inches.of(58.6);
 
-    public static final Distance kAlgaeL2Height = Inches.of(0);
-    public static final Distance kAlgaeL3Height = Inches.of(17);
+    public static final Distance kAlgaeL2Height = Inches.of(1);
+    public static final Distance kAlgaeL3Height = Inches.of(18);
 
 
     public static final Distance kHeightTolerance = Inches.of(0.3);

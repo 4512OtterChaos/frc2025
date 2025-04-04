@@ -180,6 +180,19 @@ public class Superstructure {
         ).withName("AlignToReefAndScore" + scorePos.toString());
     }
 
+    public Command autoL1(){
+        return sequence(
+            elevator.setDecreasedL1C(),
+            parallel(
+                manipulator.scoreCoralC(),
+                sequence(
+                    waitSeconds(0.15),
+                    elevator.setL1C()
+                )
+            )
+        );
+    }
+
     public Command autoCoralStation(CoralStation coralStation, Alignment alignment){
         Trigger simSkipCoral = new Trigger(() -> {
             Pose2d swervePose = swerve.getGlobalPoseEstimate();
