@@ -98,11 +98,11 @@ public class DriveConstants {
         RadiansPerSecondPerSecond.of(kAngularAccelAlignFinal)
     );
 
-    public static final double kAlignDrivePosTol = Inches.of(1).in(Meters);
-    public static final double kAlignDriveVelTol = Inches.of(3).in(Meters);
+    public static final double kAlignDrivePosTol = Inches.of(0.8).in(Meters);
+    public static final double kAlignDriveVelTol = Inches.of(2.5).in(Meters);
 
-    public static final double kAlignTurnPosTol = Degrees.of(3).in(Radians);
-    public static final double kAlignTurnVelTol = Degrees.of(6).in(Radians);
+    public static final double kAlignTurnPosTol = Degrees.of(2.5).in(Radians);
+    public static final double kAlignTurnVelTol = Degrees.of(4).in(Radians);
 
     // Threshold to output zero when close
     public static final double kStopAlignTrlDist = Inches.of(0.6).in(Meters);

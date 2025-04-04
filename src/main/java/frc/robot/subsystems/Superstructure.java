@@ -140,6 +140,10 @@ public class Superstructure {
         ).withName("AlgaeShoot");
     }
 
+    public Command autoAlgaeShoot() {
+        return swerve.alignToNet(false).andThen(algaeShoot());
+    }
+
     public Command feedCoralSequenceC() {
         return manipulator.feedCoralSequenceC();
     }

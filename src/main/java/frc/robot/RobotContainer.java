@@ -269,6 +269,7 @@ public class RobotContainer {
 
         controller.a().whileTrue(superstructure.autoAlgaePickUp());
         controller.b().whileTrue(superstructure.algaeShoot());
+        controller.y().whileTrue(superstructure.autoAlgaeShoot());
 
         controller.x().whileTrue(superstructure.autoL1());
         

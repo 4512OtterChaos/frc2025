@@ -423,6 +423,27 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         return command;
     }
 
+    public Command alignToNet(boolean runForever) {
+        var netPose = new Pose2d(7, 0, Rotation2d.kZero);
+        double yval = getGlobalPoseEstimate().getY();
+        return alignToNet(() -> netPose.plus(new Transform2d(0, getGlobalPoseEstimate().getY(), Rotation2d.kZero)), runForever);
+    }
+
+    public Command alignToNet(Supplier<Pose2d> goalSupplier, boolean runForever) {
+        var config = new AutoAlign.Config();
+        config.alignBackwards = false;
+        config.runForever = runForever;
+        config.referenceLimiter = limiter;
+
+        var command = new AutoAlign(
+            "Net",
+            this,
+            goalSupplier,
+            config
+        ).withName("AlignToNet");
+        return command;
+    }
+
     public Command alignToStation(boolean runForever) {
         return alignToStation(() -> FieldUtil.nearestCoralStation(getGlobalPoseEstimate()), runForever);
     }
