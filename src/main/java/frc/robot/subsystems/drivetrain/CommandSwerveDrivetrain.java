@@ -106,11 +106,14 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         pathThetaController.setTolerance(kAlignTurnPosTol, kAlignTurnVelTol);
     }
 
+    AutoAlign currentAlignCommand = null;
     Pose2d alignGoal = Pose2d.kZero;
     boolean aligning = false;
     public final Trigger isAligning = new Trigger(() -> aligning);
     boolean finalAlignment = false;
     public final Trigger isFinalAlignment = new Trigger(() -> finalAlignment);
+    boolean elevateDist = false;
+    public final Trigger isElevateDist = new Trigger(() -> elevateDist);
     boolean atSetpointVel = false;
     public final Trigger isAtSetpoint = new Trigger(() -> atSetpointVel);
     boolean atGoal = false;
@@ -398,6 +401,11 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
      */
     private Command applyRequest(Supplier<SwerveRequest> requestSupplier) {
         return run(() -> this.setControl(requestSupplier.get()));
+    }
+
+    public Optional<AutoAlign> getAlignCommand() {
+        if (currentAlignCommand == null) return Optional.empty();
+        else return Optional.of(currentAlignCommand);
     }
 
     public Pose2d getAlignGoal() {

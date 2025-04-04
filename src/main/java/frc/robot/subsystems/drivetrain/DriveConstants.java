@@ -7,6 +7,7 @@ import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Distance;
 import edu.wpi.first.units.measure.LinearVelocity;
 import edu.wpi.first.units.measure.Mass;
+import frc.robot.util.FieldUtil;
 
 public class DriveConstants {
     // Meters, radians
@@ -86,14 +87,20 @@ public class DriveConstants {
     );
 
     // Threshold to use final alignment speeds
-    public static final Distance kFinalAlignDistReef = Feet.of(3);
+    public static final Distance kFinalAlignDistReef = Feet.of(2);
     public static final Distance kFinalAlignDistStation = Feet.of(2);
+    // Threshold to raise the elevator
+    public static final Distance kFinalAlignDistElevate = Feet.of(3.5);
 
     // Driving speed for final auto-alignment
     public static final double kDriveSpeedAlignFinal = 0.25 * kMaxLinearSpeed;
     public static final double kTurnSpeedAlignFinal = 0.2 * kMaxAngularRate;
     // Driving acceleration for final auto-alignment
-    public static final double kLinearAccelAlignFinal = FeetPerSecondPerSecond.of(8).in(MetersPerSecondPerSecond); //m/s/s
+    public static final double kLinearAccelAlignFinal = FieldUtil.accelTravellingDist(
+            MetersPerSecond.of(0),
+            MetersPerSecond.of(kDriveSpeedAlignFinal),
+            Feet.of(1.25) // Calculate acceleration by defining the stopping distance at full speed
+    ).in(MetersPerSecondPerSecond);
     public static final double kAngularAccelAlignFinal = RotationsPerSecondPerSecond.of(4).in(RadiansPerSecondPerSecond);
 
     public static final SwerveDriveLimiter kAlignFinalLimiter = new SwerveDriveLimiter(

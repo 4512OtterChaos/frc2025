@@ -73,6 +73,7 @@ public class AutoAlign extends Command {
         public AngularVelocity thetaVelTol = RadiansPerSecond.of(kAlignTurnVelTol);
 
         public Distance finalAlignDist = kFinalAlignDistReef;
+        public Distance elevateDist = kFinalAlignDistElevate;
 
         public LinearVelocity driveVelDeadband = kAlignDriveVelDeadband;
         public AngularVelocity turnVelDeadband = kAlignTurnVelDeadband;
@@ -83,7 +84,7 @@ public class AutoAlign extends Command {
     }
 
     // Instance tunables
-    private final Config config;
+    public final Config config;
 
     private final TunableNumber pathDriveKP;
     private final TunableNumber pathDriveKD;
@@ -100,6 +101,7 @@ public class AutoAlign extends Command {
     private final TunableNumber turnAccelNormal;
 
     private final TunableNumber finalAlignDist;
+    private final TunableNumber elevateDist;
 
     private final TunableNumber driveSpeedFinal;
     private final TunableNumber driveAccelFinal;
@@ -154,6 +156,7 @@ public class AutoAlign extends Command {
         turnAccelNormal = new TunableNumber("Align/"+name+"/Standard Limiter/turnAccelNormal", config.standardLimiter.angularAcceleration.in(RadiansPerSecondPerSecond));
 
         finalAlignDist = new TunableNumber("Align/"+name+"/finalAlignDist", config.finalAlignDist.in(Meters));
+        elevateDist = new TunableNumber("Align/"+name+"/elevateDist", config.elevateDist.in(Meters));
 
         driveSpeedFinal = new TunableNumber("Align/"+name+"/Final Limiter/driveSpeedFinal", config.finalLimiter.linearTopSpeed.in(MetersPerSecond));
         driveAccelFinal = new TunableNumber("Align/"+name+"/Final Limiter/driveAccelFinal", config.finalLimiter.linearAcceleration.in(MetersPerSecondPerSecond));
@@ -179,10 +182,7 @@ public class AutoAlign extends Command {
 
     @Override
     public void initialize() {
-        /*
-         * To initialize our profiled controllers, we want to reset their setpoints to the current robot position and speeds.
-         */
-
+        swerve.currentAlignCommand = this;
         Pose2d currentPose = swerve.getGlobalPoseEstimate();
         Pose2d goalPose = goalPoseSupplier.get();
         swerve.alignGoal = goalPose;
@@ -191,6 +191,9 @@ public class AutoAlign extends Command {
         ChassisSpeeds currentSpeeds = ChassisSpeeds.fromRobotRelativeSpeeds(swerve.getState().Speeds, currentPose.getRotation());
         ChassisSpeeds goalRelVel = ChassisSpeeds.fromFieldRelativeSpeeds(currentSpeeds, goalPose.getRotation());
 
+        /*
+         * To initialize our profiled controllers, we want to reset their setpoints to the current robot position and speeds.
+         */
         xController.reset(
             goalRelPose.getX(),
             goalRelVel.vxMetersPerSecond
@@ -282,8 +285,9 @@ public class AutoAlign extends Command {
          * Calculate the next profile setpoint.
          * We use a threshold that slows down the robot for the final bit of alignment.
          */
-        boolean isFinalAlignment = distToGoal <= finalDist;
-        swerve.finalAlignment = isFinalAlignment;
+        
+        swerve.finalAlignment = distToGoal <= finalDist;
+        swerve.elevateDist = distToGoal <= elevateDist.get();
         double finalAlignXOffset = config.alignBackwards ? finalDist : -finalDist;
         double finalAlignSpeed = Math.min(limiter.linearTopSpeed.in(MetersPerSecond), config.finalLimiter.linearTopSpeed.in(MetersPerSecond));
         double finalAlignXSpeed = config.alignBackwards ? -finalAlignSpeed : finalAlignSpeed;
@@ -291,8 +295,8 @@ public class AutoAlign extends Command {
             xController.calculate(
                 goalRelPose.getX(),
                 new TrapezoidProfile.State(
-                    isFinalAlignment ? 0 : finalAlignXOffset,
-                    isFinalAlignment ? 0 : finalAlignXSpeed
+                    swerve.finalAlignment ? 0 : finalAlignXOffset,
+                    swerve.finalAlignment ? 0 : finalAlignXSpeed
                 )
             ),
 
@@ -380,6 +384,7 @@ public class AutoAlign extends Command {
     @Override
     public void end(boolean interrupted) {
         swerve.aligning = false;
+        swerve.currentAlignCommand = null;
         swerve.setControl(applyPathRobotSpeeds
                 .withSpeeds(new ChassisSpeeds()));
     }

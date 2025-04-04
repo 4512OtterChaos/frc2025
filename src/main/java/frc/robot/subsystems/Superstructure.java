@@ -9,6 +9,7 @@ import java.util.function.Supplier;
 
 import static frc.robot.subsystems.drivetrain.DriveConstants.*;
 
+import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Transform2d;
@@ -172,11 +173,11 @@ public class Superstructure {
             parallel(
                 swerve.alignToReef(goalSupplier, false),
                 sequence(
-                    waitUntil(swerve.isFinalAlignment),
+                    waitUntil(swerve.isElevateDist),
                     elevatorCommand
                 )
             ),
-            manipulator.scoreCoralC().asProxy().withTimeout(0.4)
+            manipulator.scoreCoralC().asProxy().withTimeout(0.3)
         ).withName("AlignToReefAndScore" + scorePos.toString());
     }
 
@@ -228,7 +229,11 @@ public class Superstructure {
     }
 
     public void adjustDriving() {
-        double elevatorPercentTravel = elevator.getHeight().div(ElevatorConstants.kMaxTravel).magnitude();
+        double elevatorPercentTravel = MathUtil.inverseInterpolate(
+            ElevatorConstants.kL2Height.in(Meters), // start adjusting when we exceed L2
+            ElevatorConstants.kMaxTravel.in(Meters),
+            elevator.getHeight().in(Meters)
+        );
 
         swerve.driveSpeed = MetersPerSecond.of(elevatorPercentTravel*(driveSpeedTippy.get() - driveSpeedNormal.get()) + driveSpeedNormal.get());
         swerve.turnSpeed = RadiansPerSecond.of(elevatorPercentTravel*(turnSpeedTippy.get() - turnSpeedNormal.get()) + turnSpeedNormal.get());

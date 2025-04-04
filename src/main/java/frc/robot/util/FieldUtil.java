@@ -11,7 +11,12 @@ import static frc.robot.subsystems.drivetrain.DriveConstants.kRobotLength;
 import java.util.ArrayList;
 import java.util.List;
 
+import edu.wpi.first.units.measure.Acceleration;
 import edu.wpi.first.units.measure.Distance;
+import edu.wpi.first.units.measure.LinearAcceleration;
+import edu.wpi.first.units.measure.LinearVelocity;
+import edu.wpi.first.units.measure.Time;
+import edu.wpi.first.units.measure.Velocity;
 import frc.robot.subsystems.drivetrain.DriveConstants;
 import frc.robot.subsystems.vision.VisionConstants;
 
@@ -33,6 +38,25 @@ public class FieldUtil {
             kFieldWidth.minus(pose.getMeasureY()).in(Meters),
             pose.getRotation().unaryMinus()
         );
+    }
+
+    public static Distance distTravelledAccelerating(LinearVelocity initialVel, LinearVelocity finalVel, Time travelTime) {
+        LinearAcceleration accel = finalVel.minus(initialVel).div(travelTime);
+        return distTravelledAccelerating(initialVel, finalVel, accel);
+    }
+
+    public static Distance distTravelledAccelerating(LinearVelocity initialVel, LinearVelocity finalVel, LinearAcceleration accel) {
+        double finalVelM = finalVel.in(MetersPerSecond);
+        double initialVelM = initialVel.in(MetersPerSecond);
+        double accelM = accel.in(MetersPerSecondPerSecond);
+        return Meters.of(((finalVelM*finalVelM) - (initialVelM*initialVelM)) / (2*accelM));
+    }
+
+    public static LinearAcceleration accelTravellingDist(LinearVelocity initialVel, LinearVelocity finalVel, Distance travelDist) {
+        double finalVelM = finalVel.in(MetersPerSecond);
+        double initialVelM = initialVel.in(MetersPerSecond);
+        double travelDistM = travelDist.in(Meters);
+        return MetersPerSecondPerSecond.of(((finalVelM*finalVelM) - (initialVelM*initialVelM)) / (2*travelDistM));
     }
 
     //########## REEF ALIGNMENT
