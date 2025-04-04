@@ -335,6 +335,7 @@ public class AutoAlign extends Command {
     @Override
     public void end(boolean interrupted) {
         swerve.aligning = false;
+        swerve.setControl(applyPathRobotSpeeds.withVelocityX(0).withVelocityY(0).withRotationalRate(0));
     }
 
     private void updateConstraints(double distToGoal) {
