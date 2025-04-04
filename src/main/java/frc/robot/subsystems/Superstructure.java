@@ -122,7 +122,7 @@ public class Superstructure {
 
     public Command algaeShoot(){
         return sequence(
-            either(none(), elevator.setAlgaeL2C(), ()-> elevator.getHeight().lt(ElevatorConstants.kAlgaeL3Height)),
+            either(none(), elevator.setAlgaeL3C(), ()-> elevator.getHeight().lt(ElevatorConstants.kAlgaeL3Height.plus(Inches.of(1)))),
             parallel(
                 elevator.setL4C(),
                 sequence(
