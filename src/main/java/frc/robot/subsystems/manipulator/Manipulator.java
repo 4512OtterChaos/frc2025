@@ -44,6 +44,7 @@ public class Manipulator extends SubsystemBase {
     boolean _hasAlgae = false;
     public Trigger hasAlgae = new Trigger(() -> _hasAlgae);
     boolean _hasCoral = false; //TODO: set true on auto init for certain autos
+    Angle coralAcquiredPosition = Rotations.of(0);
     public Trigger hasCoral = new Trigger(() -> _hasCoral);
     
     double lastFreeTime = Timer.getFPGATimestamp();
@@ -158,34 +159,20 @@ public class Manipulator extends SubsystemBase {
     }
 
     public void updateGamePieceState(){
-        if (this.getCurrentCommand() == null){
-            return;
-        }
-        String commandName = this.getCurrentCommand().getName();
-
+        // Wheels stalled while positive, we intaked an algae
         if (getVoltage().in(Volts) >= 0.5 && isStalled().getAsBoolean()) {
             _hasAlgae = true;
         }
 
-        if (getVoltage().in(Volts) <= -0.5){
+        // Wheels reversed, we shot algae
+        if (getVoltage().in(Volts) <= -0.5) {
             _hasAlgae = false;
         }
 
-        if (getVoltage().in(Volts) >= 0.5){ // TODO: use position instead of voltage
+        // Wheels have spun enough since we indexed coral, we've shot it
+        if (getPosition().minus(coralAcquiredPosition).gt(Rotations.of(1.5))) {
             _hasCoral = false;
         }
-
-        // if (commandName.equals("ScoreCoral") && isStalled().getAsBoolean()) {
-        //     hasAlgae = true;
-        // }
-
-        // if (commandName.equals("ScoreAlgae")){
-        //     hasAlgae = false;
-        // }
-
-        // if (commandName.equals("ScoreCoral")){
-        //     hasCoral = false;
-        // }
     }
 
     public Trigger isCoralDetected(){
@@ -239,7 +226,10 @@ public class Manipulator extends SubsystemBase {
             feedCoralFastC().until(isCoralDetected().negate()),
             backfeedCoralSlowC().until(isCoralDetected()),
             feedCoralSlowC().until(isCoralDetected().negate()),
-            runOnce(() -> _hasCoral = true)
+            runOnce(() -> {
+                _hasCoral = true;
+                coralAcquiredPosition = getPosition();
+            })
         ).withName("FeedCoral");
     }
 

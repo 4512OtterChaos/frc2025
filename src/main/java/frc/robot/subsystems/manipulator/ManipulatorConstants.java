@@ -31,7 +31,7 @@ public class ManipulatorConstants {
     public static double kScoreCoralVolts = 3.5;
 
     // Hold at x amps torque. ~1.7 volts per Nm, ~50 amps per Nm at stall
-    public static double kHoldAlgaeVolts = kMotor.getVoltage(kMotor.getTorque(20), 0);
+    public static double kHoldAlgaeVolts = kMotor.getVoltage(kMotor.getTorque(25), 0);
     public static double kScoreAlgaeVolts = -5;
 
     public static int kGearRatio = 3;
@@ -46,10 +46,10 @@ public class ManipulatorConstants {
 
     public static final int kMotorStallLimit = 40;
 
-    public static final double kMotorStallDetection = 15;
+    public static final double kMotorStallDetection = 20;
     
     public static double kStallCurrent = 20;
-    public static double kStallTime = 0.3;
+    public static double kStallTime = 0.2;
 
 
     public static final TalonFXConfiguration kConfig = new TalonFXConfiguration();
