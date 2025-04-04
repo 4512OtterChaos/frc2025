@@ -268,6 +268,8 @@ public class Elevator extends SubsystemBase {
         heightL2Inches.poll();
         heightL3Inches.poll();
         heightL4Inches.poll();
+        heightAlgaeL2Inches.poll();
+        heightAlgaeL3Inches.poll();
 
         int hash = hashCode();
         // PID

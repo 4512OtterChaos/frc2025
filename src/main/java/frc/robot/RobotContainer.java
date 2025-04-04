@@ -329,7 +329,8 @@ public class RobotContainer {
     }
 }
 /*TODO List:
- * reef align offset
+ * automate algae shot (going to pose)
+ * automate coral shot
  * l1 coral sequence
  * Autos: go to L2 after feedsequence
  * cleaner auto align logic

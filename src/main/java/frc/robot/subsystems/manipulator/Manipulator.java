@@ -163,15 +163,15 @@ public class Manipulator extends SubsystemBase {
         }
         String commandName = this.getCurrentCommand().getName();
 
-        if (getVoltage().in(Volts) >= kScoreCoralVolts && isStalled().getAsBoolean()) {
+        if (getVoltage().in(Volts) >= 0.5 && isStalled().getAsBoolean()) {
             _hasAlgae = true;
         }
 
-        if (getVoltage().in(Volts) <= kScoreAlgaeVolts){
+        if (getVoltage().in(Volts) <= -0.5){
             _hasAlgae = false;
         }
 
-        if (getVoltage().in(Volts) >= kScoreCoralVolts){ // TODO: use position instead of voltage
+        if (getVoltage().in(Volts) >= 0.5){ // TODO: use position instead of voltage
             _hasCoral = false;
         }
 
