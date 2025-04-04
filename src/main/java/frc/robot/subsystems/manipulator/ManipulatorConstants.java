@@ -39,7 +39,7 @@ public class ManipulatorConstants {
     public static Distance kAlgaeRollerDia = Inches.of(3);
 
     public static RangingMode kRangingMode = RangingMode.SHORT;
-    public static RegionOfInterest kRegionOfInterest = new RegionOfInterest(8, 8, 6, 6);
+    public static RegionOfInterest kRegionOfInterest = new RegionOfInterest(8, 8, 4, 4);
     public static TimingBudget kTimingBudget = TimingBudget.TIMING_BUDGET_20MS;
 
     public static final Distance kSensorMaxCoralDist = Inches.of(5);
