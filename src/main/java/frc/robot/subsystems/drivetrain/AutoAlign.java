@@ -22,9 +22,12 @@ import edu.wpi.first.networktables.StructPublisher;
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Distance;
+import edu.wpi.first.units.measure.Force;
 import edu.wpi.first.units.measure.LinearVelocity;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
+import frc.robot.Robot;
 import frc.robot.util.ProfiledPIDController;
 import frc.robot.util.TrapezoidProfile;
 import frc.robot.util.TunableNumber;
@@ -48,8 +51,9 @@ public class AutoAlign extends Command {
         new TrapezoidProfile.Constraints(0, 0)
     );
 
-    private final SwerveRequest.RobotCentric applyPathRobotSpeeds = new SwerveRequest.RobotCentric();
+    private final SwerveRequest.ApplyRobotSpeeds applyPathRobotSpeeds = new SwerveRequest.ApplyRobotSpeeds();
 
+    private double lastTimestamp = Timer.getFPGATimestamp();
     private Pose2d lastSetpointPose;
     private ChassisSpeeds lastSetpointSpeeds;
 
@@ -70,8 +74,8 @@ public class AutoAlign extends Command {
 
         public Distance finalAlignDist = kFinalAlignDistReef;
 
-        public LinearVelocity driveDeadband = InchesPerSecond.of(0.75);
-        public AngularVelocity turnDeadband = DegreesPerSecond.of(3);
+        public LinearVelocity driveVelDeadband = kAlignDriveVelDeadband;
+        public AngularVelocity turnVelDeadband = kAlignTurnVelDeadband;
 
         public boolean alignBackwards = false;
 
@@ -103,7 +107,9 @@ public class AutoAlign extends Command {
     private final TunableNumber turnAccelFinal;
 
     private final TunableNumber driveDeadbandInches;
-    private final TunableNumber turnDeadband;
+    private final TunableNumber turnDeadbandDeg;
+
+    private final TunableNumber robotMassLbs;
 
     private final StructPublisher<Pose2d> goalPosePub;
     private final StructPublisher<Pose2d> setpointPosePub;
@@ -154,8 +160,10 @@ public class AutoAlign extends Command {
         turnSpeedFinal = new TunableNumber("Align/"+name+"/Final Limiter/turnSpeedFinal", config.finalLimiter.angularTopSpeed.in(RadiansPerSecond));
         turnAccelFinal = new TunableNumber("Align/"+name+"/Final Limiter/turnAccelFinal", config.finalLimiter.angularAcceleration.in(RadiansPerSecondPerSecond));
 
-        driveDeadbandInches = new TunableNumber("Align/"+name+"/driveDeadbandInches", config.driveDeadband.in(InchesPerSecond));
-        turnDeadband = new TunableNumber("Align/"+name+"/turnDeadbandDegrees", config.turnDeadband.in(DegreesPerSecond));
+        driveDeadbandInches = new TunableNumber("Align/"+name+"/driveDeadbandInches", config.driveVelDeadband.in(InchesPerSecond));
+        turnDeadbandDeg = new TunableNumber("Align/"+name+"/turnDeadbandDegrees", config.turnVelDeadband.in(DegreesPerSecond));
+
+        robotMassLbs = new TunableNumber("Align/"+name+"/robotMassLbs", DriveConstants.kRobotLoadedMass.in(Pounds));
 
         goalPosePub = NetworkTableInstance.getDefault().getStructTopic("Align/"+name+"/Goal Pose", Pose2d.struct).publish();
         setpointPosePub = NetworkTableInstance.getDefault().getStructTopic("Align/"+name+"/Setpoint Pose", Pose2d.struct).publish();
@@ -207,6 +215,7 @@ public class AutoAlign extends Command {
         changeTunable();
 
         swerve.aligning = true;
+        double now = Timer.getFPGATimestamp();
         Pose2d currentPose = swerve.getGlobalPoseEstimate();
         Pose2d goalPose = goalPoseSupplier.get();
         swerve.alignGoal = goalPose;
@@ -310,19 +319,55 @@ public class AutoAlign extends Command {
         ));
         setpointPosePub.set(lastSetpointPose);
 
-        lastSetpointSpeeds = ChassisSpeeds.fromRobotRelativeSpeeds(
+        var setpointSpeeds = ChassisSpeeds.fromRobotRelativeSpeeds(
             xController.getSetpoint().velocity,
             yController.getSetpoint().velocity,
             thetaController.getSetpoint().velocity,
             goalPose.getRotation()
         );
 
-        var robotSpeeds = ChassisSpeeds.fromFieldRelativeSpeeds(lastSetpointSpeeds.plus(pidSpeeds), currentPose.getRotation());
+        // Feedforward + pid speeds
+        var robotSpeeds = ChassisSpeeds.fromFieldRelativeSpeeds(setpointSpeeds.plus(pidSpeeds), currentPose.getRotation());
+
+        // Calculate wheel forces due to acceleration
+        var setpointSpeedsDelta = ChassisSpeeds.fromFieldRelativeSpeeds(setpointSpeeds.minus(lastSetpointSpeeds), currentPose.getRotation());
+        double delta = now - lastTimestamp;
+        var robotMass = Pounds.of(robotMassLbs.get());
+        Force robotForceX = robotMass
+                .times(MetersPerSecondPerSecond.of(setpointSpeedsDelta.vxMetersPerSecond / delta));
+        Force[] wheelForcesX = {
+            robotForceX.div(4),
+            robotForceX.div(4),
+            robotForceX.div(4),
+            robotForceX.div(4)
+        };
+        Force robotForceY = robotMass
+                .times(MetersPerSecondPerSecond.of(setpointSpeedsDelta.vyMetersPerSecond / delta));
+        Force[] wheelForcesY = {
+            robotForceY.div(4),
+            robotForceY.div(4),
+            robotForceY.div(4),
+            robotForceY.div(4)
+        };
+        
+        lastTimestamp = now;
+        lastSetpointSpeeds = setpointSpeeds;
+
+        // Deadband
+        double setpointLinearVelocity = Math.hypot(robotSpeeds.vxMetersPerSecond, robotSpeeds.vyMetersPerSecond);
+        if (setpointLinearVelocity < Units.inchesToMeters(driveDeadbandInches.get())) {
+            robotSpeeds.vxMetersPerSecond = 0;
+            robotSpeeds.vyMetersPerSecond = 0;
+        }
+        if (Math.abs(robotSpeeds.omegaRadiansPerSecond) < Units.degreesToRadians(turnDeadbandDeg.get())) {
+            robotSpeeds.omegaRadiansPerSecond = 0;
+        }
+
         swerve.setControl(applyPathRobotSpeeds
-            .withVelocityX(robotSpeeds.vxMetersPerSecond)
-            .withVelocityY(robotSpeeds.vyMetersPerSecond)
-            .withRotationalRate(robotSpeeds.omegaRadiansPerSecond)
+            .withSpeeds(robotSpeeds)
             .withDriveRequestType(DriveRequestType.Velocity)
+            .withWheelForceFeedforwardsX(wheelForcesX)
+            .withWheelForceFeedforwardsY(wheelForcesY)
         );
     }
 
@@ -335,6 +380,8 @@ public class AutoAlign extends Command {
     @Override
     public void end(boolean interrupted) {
         swerve.aligning = false;
+        swerve.setControl(applyPathRobotSpeeds
+                .withSpeeds(new ChassisSpeeds()));
     }
 
     private void updateConstraints(double distToGoal) {
@@ -376,7 +423,9 @@ public class AutoAlign extends Command {
         turnAccelFinal.poll();
 
         driveDeadbandInches.poll();
-        turnDeadband.poll();
+        turnDeadbandDeg.poll();
+
+        robotMassLbs.poll();
 
         int hash = hashCode();
         if (pathDriveKP.hasChanged(hash) || pathDriveKD.hasChanged(hash)) {
@@ -415,11 +464,6 @@ public class AutoAlign extends Command {
             config.finalLimiter.angularTopSpeed = RadiansPerSecond.of(turnSpeedFinal.get());
             config.finalLimiter.angularAcceleration = RadiansPerSecondPerSecond.of(turnAccelFinal.get());
             config.finalLimiter.angularDeceleration = RadiansPerSecondPerSecond.of(turnAccelFinal.get());
-        }
-
-        if (driveDeadbandInches.hasChanged(hash) || turnDeadband.hasChanged(hash)) {
-            applyPathRobotSpeeds.Deadband = Units.inchesToMeters(driveDeadbandInches.get());
-            applyPathRobotSpeeds.RotationalDeadband = Units.degreesToRadians(turnDeadband.get());
         }
     }
 }

@@ -2,7 +2,11 @@ package frc.robot.subsystems.drivetrain;
 
 import static edu.wpi.first.units.Units.*;
 
+import edu.wpi.first.units.measure.Angle;
+import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Distance;
+import edu.wpi.first.units.measure.LinearVelocity;
+import edu.wpi.first.units.measure.Mass;
 
 public class DriveConstants {
     // Meters, radians
@@ -11,6 +15,9 @@ public class DriveConstants {
     public static final Distance kFrameLength = Inches.of(28);
     public static final Distance kRobotWidth = kFrameWidth.plus(Inches.of(3.25).times(2));
     public static final Distance kRobotLength = kFrameLength.plus(Inches.of(3.25).times(2));
+
+    // This is used for auto-alignment feedforward and not necessarily accurate
+    public static final Mass kRobotLoadedMass = Pounds.of(100);
 
     public static final double kMaxLinearSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // kSpeedAt12Volts desired top speed
     public static final double kMaxAngularRate = RotationsPerSecond.of(2).in(RadiansPerSecond); // 1.5 rotations per second max angular velocity
@@ -104,7 +111,7 @@ public class DriveConstants {
     public static final double kAlignTurnPosTol = Degrees.of(3).in(Radians);
     public static final double kAlignTurnVelTol = Degrees.of(6).in(Radians);
 
-    // Threshold to output zero when close
-    public static final double kStopAlignTrlDist = Inches.of(0.6).in(Meters);
-    public static final double kStopAlignRotDist = Degrees.of(2).in(Radians);
+    // Deadband for auto-align target speeds
+    public static final LinearVelocity kAlignDriveVelDeadband = InchesPerSecond.of(0.75);
+    public static final AngularVelocity kAlignTurnVelDeadband = DegreesPerSecond.of(3);
 }
