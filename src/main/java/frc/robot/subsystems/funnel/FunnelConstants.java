@@ -24,8 +24,8 @@ public class FunnelConstants {
     public static double kFeedFastVolts = 6;
     public static double kFeedSlowVolts = 3;
 
-    public static double kGearRatio = 1.5;// TODO: Fix if funnel ratio changes
-    public static Distance kFunnelRollerDia = Inches.of(2);
+    public static double kGearRatio = 4;
+    public static Distance kFunnelRollerDia = Inches.of(4.5);
 
     public static final int kMotorStallLimit = 30;
 
@@ -34,7 +34,7 @@ public class FunnelConstants {
     public static double kStallCurrent = 20;
     public static double kStallTime = 0.3;
 
-    public static AngularVelocity kCoralDropSenseThreshold = RPM.of(200);
+    public static AngularVelocity kCoralDropSenseThreshold = RPM.of(400);
 
 
     public static final TalonFXConfiguration kConfig = new TalonFXConfiguration();
@@ -61,7 +61,7 @@ public class FunnelConstants {
     }
 
     public static final DCMotorSim model = new DCMotorSim(
-        LinearSystemId.createDCMotorSystem(1.3 * 1.0 / kMotor.withReduction(kGearRatio).KvRadPerSecPerVolt, 0.002),
+        LinearSystemId.createDCMotorSystem(1.2 * 1.0 / kMotor.withReduction(kGearRatio).KvRadPerSecPerVolt, 0.002),
         kMotor
     );
 }

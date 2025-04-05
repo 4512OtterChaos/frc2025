@@ -301,7 +301,7 @@ public class Manipulator extends SubsystemBase {
         motorSim.Orientation = ChassisReference.CounterClockwise_Positive;
         motorSim.setSupplyVoltage(RobotController.getBatteryVoltage());
 
-        model.setInput(-motorSim.getMotorVoltage());
+        model.setInput(motorSim.getMotorVoltage());
         model.update(0.02);
 
         motorSim.setRawRotorPosition(model.getAngularPosition().times(kGearRatio));
