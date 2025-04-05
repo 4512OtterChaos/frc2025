@@ -424,7 +424,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
     }
 
     public Command alignToNet(boolean runForever) {
-        var netPose = new Pose2d(7, 0, Rotation2d.kZero);
+        var netPose = new Pose2d(7.1, 0, Rotation2d.kZero);
         double yval = getGlobalPoseEstimate().getY();
         return alignToNet(() -> netPose.plus(new Transform2d(0, getGlobalPoseEstimate().getY(), Rotation2d.kZero)), runForever);
     }
