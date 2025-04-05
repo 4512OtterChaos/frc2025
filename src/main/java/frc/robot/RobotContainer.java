@@ -19,6 +19,7 @@ import static frc.robot.subsystems.drivetrain.DriveConstants.*;
 
 import java.util.function.Supplier;
 
+import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.wpilibj.AddressableLED;
@@ -63,9 +64,15 @@ public class RobotContainer {
 
     private final Trigger nearCoralStation = new Trigger(() -> {
         var swervePose = swerve.getGlobalPoseEstimate();
-        boolean nearStation = FieldUtil.nearestCoralStation(swervePose).relativeTo(swervePose).getTranslation().getNorm() < 1.6;
-        boolean hasFMS = DriverStation.isFMSAttached() || true; //TODO: remove || true
+        boolean nearStation = FieldUtil.nearestCoralStation(swervePose).relativeTo(swervePose).getTranslation().getNorm() < 1.75;
+        boolean hasFMS = DriverStation.isFMSAttached();
         return nearStation && (hasFMS || Robot.isSimulation());
+    });
+
+    private final Trigger nearBarge = new Trigger(() -> {
+        var swerveTrl = swerve.getGlobalPoseEstimate().getTranslation();
+        boolean beyondReef = swerveTrl.getX() > 7.1;
+        return beyondReef;
     });
 
     private AddressableLED led = new AddressableLED(9);
@@ -238,14 +245,30 @@ public class RobotContainer {
             );
         
         // snap to reef angle
-        nearCoralStation.negate().and(manipulator.hasAlgae.negate())
+        nearCoralStation.negate()
+            .and(manipulator.hasAlgae.negate())
+            .and(nearBarge.negate())
             .and(()->swerve.getCurrentCommand() != null && swerve.getCurrentCommand().equals(swerve.getDefaultCommand()))
             .and(driverSomeRightInput.negate().debounce(0.5))
             .and(()->DriverStation.isTeleopEnabled())
             .onTrue(
                 swerve.driveFacingAngle(
                     driveSupplier,
-                    () -> ReefFace.getClosest(swerve.getGlobalPoseEstimate(), Alignment.CENTER).getAlignmentPose(Alignment.CENTER).getRotation(),
+                    () -> {
+                        Rotation2d faceRot = ReefFace.getClosest(
+                            swerve.getGlobalPoseEstimate(),
+                            Alignment.CENTER
+                        ).getAlignmentPose(Alignment.CENTER).getRotation();
+
+                        var swerveTrl = swerve.getGlobalPoseEstimate().getTranslation();
+                        var toReefTrl = FieldUtil.kReefTrl.minus(swerveTrl);
+                        Rotation2d reefCenterRot = toReefTrl.getAngle();
+
+                        double distPercent = MathUtil.inverseInterpolate(1.25, 2.1, toReefTrl.getNorm());
+                        Rotation2d lerpRot = faceRot.interpolate(reefCenterRot, distPercent);
+
+                        return lerpRot;
+                    },
                     true, false
                 ).until(driverSomeRightInput.or(nearCoralStation))
             );
