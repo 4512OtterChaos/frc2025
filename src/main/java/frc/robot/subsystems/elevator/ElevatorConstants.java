@@ -39,7 +39,7 @@ public class ElevatorConstants {
     }
 
     public static final Distance kDecreasedL1Height = Inches.of(4.15);
-    public static final Distance kL1Height = Inches.of(6.15);
+    public static final Distance kL1Height = Inches.of(7.25);
     public static final Distance kL2Height = Inches.of(16.5);
     public static final Distance kL3Height = Inches.of(32.5);
     public static final Distance kL4Height = Inches.of(58.6);

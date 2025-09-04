@@ -62,18 +62,18 @@ public class RobotContainer {
     
     private final Vision vision = new Vision();
 
-    private final Trigger nearCoralStation = new Trigger(() -> {
-        var swervePose = swerve.getGlobalPoseEstimate();
-        boolean nearStation = FieldUtil.nearestCoralStation(swervePose).relativeTo(swervePose).getTranslation().getNorm() < 1.75;
-        boolean hasFMS = DriverStation.isFMSAttached();
-        return nearStation && (hasFMS || Robot.isSimulation());
-    });
+    // private final Trigger nearCoralStation = new Trigger(() -> {
+    //     var swervePose = swerve.getGlobalPoseEstimate();
+    //     boolean nearStation = FieldUtil.nearestCoralStation(swervePose).relativeTo(swervePose).getTranslation().getNorm() < 1.75;
+    //     boolean hasFMS = DriverStation.isFMSAttached();
+    //     return nearStation && (hasFMS || Robot.isSimulation());
+    // });
 
-    private final Trigger nearBarge = new Trigger(() -> {
-        var swerveTrl = swerve.getGlobalPoseEstimate().getTranslation();
-        boolean beyondReef = swerveTrl.getX() > 7.1;
-        return beyondReef;
-    });
+    // private final Trigger nearBarge = new Trigger(() -> {
+    //     var swerveTrl = swerve.getGlobalPoseEstimate().getTranslation();
+    //     boolean beyondReef = swerveTrl.getX() > 7.1;
+    //     return beyondReef;
+    // });
 
     private AddressableLED led = new AddressableLED(9);
     private AddressableLEDBuffer ledBuffer = new AddressableLEDBuffer(15);
@@ -205,14 +205,14 @@ public class RobotContainer {
             .onTrue(superstructure.feedCoralSequenceC());
 
         // Automatically start intaking if close to station
-        nearCoralStation.and(manipulator.hasCoral.negate()).whileTrue(
-            sequence(
-                superstructure.feedCoralFastSequenceC().deadlineFor(
-                    funnel.feedCoralC()
-                ).until(manipulator.isCoralDetected()),
-                superstructure.feedCoralSequenceC().asProxy()
-            )
-        );
+        // nearCoralStation.and(manipulator.hasCoral.negate()).whileTrue(
+        //     sequence(
+        //         superstructure.feedCoralFastSequenceC().deadlineFor(
+        //             funnel.feedCoralC()
+        //         ).until(manipulator.isCoralDetected()),
+        //         superstructure.feedCoralSequenceC().asProxy()
+        //     )
+        // );
     }
 
     private void configureDriverBindings(OCXboxController controller) {
@@ -232,46 +232,46 @@ public class RobotContainer {
             return Math.hypot(controller.getLeftX(), controller.getLeftY()) > 0.9;
         });
         // snap to coral station angle
-        nearCoralStation
-            .and(()->swerve.getCurrentCommand() != null && swerve.getCurrentCommand().equals(swerve.getDefaultCommand()))
-            .and(driverSomeRightInput.negate().debounce(0.5))
-            .and(()->DriverStation.isTeleopEnabled())
-            .onTrue(
-                swerve.driveFacingAngle(
-                    driveSupplier,
-                    () -> FieldUtil.nearestCoralStation(swerve.getGlobalPoseEstimate()).getRotation(),
-                    true, false
-                ).until(driverSomeRightInput.or(nearCoralStation.negate())).withName("FacingCoralStation")
-            );
+        // nearCoralStation
+        //     .and(()->swerve.getCurrentCommand() != null && swerve.getCurrentCommand().equals(swerve.getDefaultCommand()))
+        //     .and(driverSomeRightInput.negate().debounce(0.5))
+        //     .and(()->DriverStation.isTeleopEnabled())
+        //     .onTrue(
+        //         swerve.driveFacingAngle(
+        //             driveSupplier,
+        //             () -> FieldUtil.nearestCoralStation(swerve.getGlobalPoseEstimate()).getRotation(),
+        //             true, false
+        //         ).until(driverSomeRightInput.or(nearCoralStation.negate())).withName("FacingCoralStation")
+        //     );
         
         // snap to reef angle
-        nearCoralStation.negate()
-            .and(manipulator.hasAlgae.negate())
-            .and(nearBarge.negate())
-            .and(()->swerve.getCurrentCommand() != null && swerve.getCurrentCommand().equals(swerve.getDefaultCommand()))
-            .and(driverSomeRightInput.negate().debounce(0.5))
-            .and(()->DriverStation.isTeleopEnabled())
-            .onTrue(
-                swerve.driveFacingAngle(
-                    driveSupplier,
-                    () -> {
-                        Rotation2d faceRot = ReefFace.getClosest(
-                            swerve.getGlobalPoseEstimate(),
-                            Alignment.CENTER
-                        ).getAlignmentPose(Alignment.CENTER).getRotation();
+        // nearCoralStation.negate()
+        //     .and(manipulator.hasAlgae.negate())
+        //     .and(nearBarge.negate())
+        //     .and(()->swerve.getCurrentCommand() != null && swerve.getCurrentCommand().equals(swerve.getDefaultCommand()))
+        //     .and(driverSomeRightInput.negate().debounce(0.5))
+        //     .and(()->DriverStation.isTeleopEnabled())
+        //     .onTrue(
+        //         swerve.driveFacingAngle(
+        //             driveSupplier,
+        //             () -> {
+        //                 Rotation2d faceRot = ReefFace.getClosest(
+        //                     swerve.getGlobalPoseEstimate(),
+        //                     Alignment.CENTER
+        //                 ).getAlignmentPose(Alignment.CENTER).getRotation();
 
-                        var swerveTrl = swerve.getGlobalPoseEstimate().getTranslation();
-                        var toReefTrl = FieldUtil.kReefTrl.minus(swerveTrl);
-                        Rotation2d reefCenterRot = toReefTrl.getAngle();
+        //                 var swerveTrl = swerve.getGlobalPoseEstimate().getTranslation();
+        //                 var toReefTrl = FieldUtil.kReefTrl.minus(swerveTrl);
+        //                 Rotation2d reefCenterRot = toReefTrl.getAngle();
 
-                        double distPercent = MathUtil.inverseInterpolate(1.25, 2.1, toReefTrl.getNorm());
-                        Rotation2d lerpRot = faceRot.interpolate(reefCenterRot, distPercent);
+        //                 double distPercent = MathUtil.inverseInterpolate(1.25, 2.1, toReefTrl.getNorm());
+        //                 Rotation2d lerpRot = faceRot.interpolate(reefCenterRot, distPercent);
 
-                        return lerpRot;
-                    },
-                    true, false
-                ).until(driverSomeRightInput.or(nearCoralStation))
-            );
+        //                 return lerpRot;
+        //             },
+        //             true, false
+        //         ).until(driverSomeRightInput.or(nearCoralStation))
+        //     );
         
         // auto-stow
         new Trigger(() -> {
@@ -281,24 +281,24 @@ public class RobotContainer {
         // reset the robot heading to forward
         controller.start().onTrue(swerve.runOnce(() -> swerve.resetRotation(Rotation2d.kZero)));
 
-        controller.leftTrigger().and(controller.rightTrigger().negate()).whileTrue(swerve.alignToReef(Alignment.LEFT, true));
-        controller.rightTrigger().and(controller.leftTrigger().negate()).whileTrue(swerve.alignToReef(Alignment.RIGHT, true));
-        controller.leftTrigger().and(controller.rightTrigger()).whileTrue(swerve.alignToReef(Alignment.CENTER, true));
+        // controller.leftTrigger().and(controller.rightTrigger().negate()).whileTrue(swerve.alignToReef(Alignment.LEFT, true));
+        // controller.rightTrigger().and(controller.leftTrigger().negate()).whileTrue(swerve.alignToReef(Alignment.RIGHT, true));
+        // controller.leftTrigger().and(controller.rightTrigger()).whileTrue(swerve.alignToReef(Alignment.CENTER, true));
 
         controller.leftBumper().whileTrue(manipulator.scoreAlgaeC());
         controller.rightBumper().whileTrue(manipulator.scoreCoralC());
 
         controller.povRight().whileTrue(funnel.feedCoralC());
 
-        controller.a().whileTrue(superstructure.autoAlgaePickUp());
-        controller.b().whileTrue(superstructure.algaeShoot());
-        controller.y().whileTrue(superstructure.autoAlgaeShoot());
+        // controller.a().whileTrue(superstructure.autoAlgaePickUp());
+        // controller.b().whileTrue(superstructure.algaeShoot());
+        // controller.y().whileTrue(superstructure.autoAlgaeShoot());
 
-        controller.x().whileTrue(superstructure.autoL1());
+        // controller.x().whileTrue(superstructure.autoL1());
         
         // controller.leftTrigger().whileTrue(swerve.drive(() -> new ChassisSpeeds(0, controller.getLeftTriggerAxis() * 0.3, 0), false, true).withName("Strafe Left"));
         // controller.rightTrigger().whileTrue(swerve.drive(() -> new ChassisSpeeds(0, controller.getRightTriggerAxis() * -0.3, 0), false, true).withName("Strafe Right"));       
-        
+        controller.povUp().onTrue(elevator.setMinC());
         swerve.registerTelemetry(logger::telemeterize);
     }
     

@@ -60,6 +60,10 @@ public class FieldUtil {
         kReefTrl.getX() - (kReefWidth.div(2).plus(DriveConstants.kRobotLength.div(2)).in(Meters)),
         kReefTrl.getMeasureY().in(Meters));
 
+        
+        //x,y,theta
+        //(3.82, 5.29, -84)
+    private static final Pose2d kReefSuperRightPoseTemplate =  new Pose2d(3.82, 5.29, Rotation2d.fromDegrees(-84));
     //########## CORAL STATION
 
     public enum CoralStation {
